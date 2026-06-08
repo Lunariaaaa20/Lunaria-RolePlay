@@ -5,8 +5,6 @@ import { supabase } from "@/lib/supabase";
 
 type Player = {
   id: string;
-  username: string;
-  access_code: string;
   character_name: string;
   race: string;
   guild_rank: string;
@@ -112,7 +110,30 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
     const { data, error } = await supabase
       .from("players")
-      .select("*")
+      .select(`
+        id,
+        character_name,
+        race,
+        guild_rank,
+        pathway,
+        mission,
+        skill_1,
+        skill_2,
+        inventory_1,
+        inventory_2,
+        inventory_3,
+        gold,
+        silver,
+        bronze,
+        common_quests,
+        uncommon_quests,
+        dangerous_quests,
+        special_quests,
+        photo_url,
+        status,
+        created_at,
+        updated_at
+      `)
       .order("created_at", { ascending: false });
 
     setIsLoading(false);
@@ -159,8 +180,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
               Lisensi resmi adventurer yang membaca data langsung dari Supabase
-              players table. Jika admin update data, halaman ini ikut berubah
-              setelah refresh data.
+              players table. Data login tidak ditampilkan di halaman publik ini.
             </p>
           </div>
 
@@ -291,9 +311,21 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </div>
 
                   <div className="mt-6 grid grid-cols-3 gap-3">
-                    <CurrencyBox label="Gold" value={selectedPlayer.gold} color="text-amber-300" />
-                    <CurrencyBox label="Silver" value={selectedPlayer.silver} color="text-slate-200" />
-                    <CurrencyBox label="Bronze" value={selectedPlayer.bronze} color="text-orange-300" />
+                    <CurrencyBox
+                      label="Gold"
+                      value={selectedPlayer.gold}
+                      color="text-amber-300"
+                    />
+                    <CurrencyBox
+                      label="Silver"
+                      value={selectedPlayer.silver}
+                      color="text-slate-200"
+                    />
+                    <CurrencyBox
+                      label="Bronze"
+                      value={selectedPlayer.bronze}
+                      color="text-orange-300"
+                    />
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
@@ -362,14 +394,15 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </p>
                 </div>
 
-                <div className="mt-6 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
-                  <p className="text-xs uppercase tracking-[0.26em] text-sky-300">
-                    Login Access
+                <div className="mt-6 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                  <p className="text-xs uppercase tracking-[0.26em] text-emerald-300">
+                    Security Notice
                   </p>
-                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <InfoBox label="Username" value={selectedPlayer.username} />
-                    <InfoBox label="Access Code" value={selectedPlayer.access_code} />
-                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Username dan access code tidak ditampilkan di ID Card.
+                    Credential login hanya boleh dilihat admin di Admin Panel
+                    dan dikirim langsung ke pemilik karakter.
+                  </p>
                 </div>
               </div>
             </div>
