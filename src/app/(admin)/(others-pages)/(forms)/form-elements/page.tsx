@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const races = ["Human", "Elf", "Fairy", "Feyling", "Furry", "Dwarf"];
 const pathways = ["Warrior", "Mystic", "Shadow", "Nature"];
@@ -19,6 +20,8 @@ export default function LunariaRegistrationPage() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const previewText = useMemo(() => {
     return `╔══════════════════════╗
@@ -51,23 +54,63 @@ Status :
 Pending Approval`;
   }, [form]);
 
-  const updateField = (
-    key: keyof typeof form,
-    value: string
-  ) => {
+  const updateField = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({
       ...prev,
       [key]: value,
     }));
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const resetForm = () => {
+    setForm({
+      name: "",
+      race: "Human",
+      pathway: "Warrior",
+      skill1: "",
+      skill2: "",
+      inventory1: "",
+      inventory2: "",
+      inventory3: "",
+      notes: "",
+    });
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitError("");
+    setSubmitted(false);
+    setIsSubmitting(true);
+
+    const payload = {
+      character_name: form.name.trim(),
+      race: form.race,
+      pathway: form.pathway,
+      skill_1: form.skill1.trim(),
+      skill_2: form.skill2.trim(),
+      inventory_1: form.inventory1.trim(),
+      inventory_2: form.inventory2.trim(),
+      inventory_3: form.inventory3.trim(),
+      notes: form.notes.trim(),
+      status: "pending",
+    };
+
+    const { error } = await supabase
+      .from("registration_requests")
+      .insert(payload);
+
+    setIsSubmitting(false);
+
+    if (error) {
+      setSubmitError(error.message);
+      return;
+    }
+
     setSubmitted(true);
+    resetForm();
 
     setTimeout(() => {
       setSubmitted(false);
-    }, 2500);
+    }, 3500);
   };
 
   return (
@@ -98,15 +141,21 @@ Pending Approval`;
       {submitted ? (
         <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200 shadow-[0_0_30px_rgba(52,211,153,0.08)]">
           <p className="text-sm font-bold">
-            Registration submitted. Status: Pending Admin Approval.
+            Registration submitted to Supabase. Status: Pending Admin Approval.
           </p>
+        </section>
+      ) : null}
+
+      {submitError ? (
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200 shadow-[0_0_30px_rgba(248,113,113,0.08)]">
+          <p className="text-sm font-bold">Submit failed: {submitError}</p>
         </section>
       ) : null}
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <form
           onSubmit={handleSubmit}
-          className="xl:col-span-7 rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]"
+          className="rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)] xl:col-span-7"
         >
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
@@ -249,9 +298,10 @@ Pending Approval`;
 
           <button
             type="submit"
-            className="mt-6 w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-violet-600/20 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_28px_rgba(245,158,11,0.10)] transition hover:border-amber-300/50 hover:bg-amber-500/20"
+            disabled={isSubmitting}
+            className="mt-6 w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-violet-600/20 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_28px_rgba(245,158,11,0.10)] transition hover:border-amber-300/50 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Submit Registration
+            {isSubmitting ? "Submitting..." : "Submit Registration"}
           </button>
         </form>
 
