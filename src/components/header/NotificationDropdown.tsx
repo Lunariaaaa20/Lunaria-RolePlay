@@ -24,7 +24,6 @@ type RegistrationRow = {
 type AccessLogRow = {
   id: string;
   action: string;
-  access_code: string | null;
   created_at: string;
   players?: {
     character_name: string;
@@ -105,7 +104,7 @@ export default function NotificationDropdown() {
 
         supabase
           .from("access_logs")
-          .select("id, action, access_code, created_at, players(character_name)")
+          .select("id, action, created_at, players(character_name)")
           .order("created_at", { ascending: false })
           .limit(6),
 
@@ -148,7 +147,7 @@ export default function NotificationDropdown() {
       (accessResult.data as AccessLogRow[] | null)?.map((item) => ({
         id: `access-${item.id}`,
         title: `${item.players?.character_name || "Adventurer"} approved`,
-        detail: `Access code generated • ${item.access_code || "Hidden"}`,
+        detail: "Access credential generated • Admin-only visibility",
         time: item.created_at,
         tone: "emerald",
         icon: "⚜",
@@ -184,9 +183,7 @@ export default function NotificationDropdown() {
       ...currencyLogs,
       ...fortuneLogs,
     ]
-      .sort(
-        (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
-      )
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
       .slice(0, 12);
 
     setLogs(merged);
@@ -325,4 +322,4 @@ export default function NotificationDropdown() {
       ) : null}
     </div>
   );
-      }
+}
