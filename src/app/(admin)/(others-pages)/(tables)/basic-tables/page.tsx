@@ -151,12 +151,16 @@ export default function LunariaAdminPanel() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Pending Registration" value="3" tone="text-amber-300" />
         <StatCard label="Active Adventurers" value="128" tone="text-emerald-300" />
-        <StatCard label="Generated Codes" value={String(Object.keys(approvedCodes).length)} tone="text-sky-300" />
+        <StatCard
+          label="Generated Codes"
+          value={String(Object.keys(approvedCodes).length)}
+          tone="text-sky-300"
+        />
         <StatCard label="Currency Logs" value="256" tone="text-violet-300" />
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-7 rounded-[32px] border border-amber-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
+        <div className="rounded-[32px] border border-amber-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)] xl:col-span-7">
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
               Registration Queue
@@ -235,7 +239,7 @@ export default function LunariaAdminPanel() {
           </div>
         </div>
 
-        <div className="xl:col-span-5 rounded-[32px] border border-violet-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(124,58,237,0.10)]">
+        <div className="rounded-[32px] border border-violet-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(124,58,237,0.10)] xl:col-span-5">
           <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
             Edit Adventurer
           </p>
@@ -276,7 +280,11 @@ export default function LunariaAdminPanel() {
               <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                 Guild Rank
               </span>
-              <select value={selectedPlayer.rank} className="lunaria-admin-input" readOnly>
+              <select
+                value={selectedPlayer.rank}
+                className="lunaria-admin-input"
+                disabled
+              >
                 {rankOptions.map((rank) => (
                   <option key={rank} value={rank}>
                     {rank}
@@ -286,14 +294,29 @@ export default function LunariaAdminPanel() {
             </label>
 
             <div className="grid grid-cols-3 gap-3">
-              <AdminSmallField label="Silver" value={String(selectedPlayer.silver)} />
-              <AdminSmallField label="Common" value={String(selectedPlayer.common)} />
-              <AdminSmallField label="Uncommon" value={String(selectedPlayer.uncommon)} />
+              <AdminSmallField
+                label="Silver"
+                value={String(selectedPlayer.silver)}
+              />
+              <AdminSmallField
+                label="Common"
+                value={String(selectedPlayer.common)}
+              />
+              <AdminSmallField
+                label="Uncommon"
+                value={String(selectedPlayer.uncommon)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <AdminSmallField label="Dangerous" value={String(selectedPlayer.dangerous)} />
-              <AdminSmallField label="Special" value={String(selectedPlayer.special)} />
+              <AdminSmallField
+                label="Dangerous"
+                value={String(selectedPlayer.dangerous)}
+              />
+              <AdminSmallField
+                label="Special"
+                value={String(selectedPlayer.special)}
+              />
             </div>
 
             <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
@@ -397,6 +420,11 @@ export default function LunariaAdminPanel() {
         .lunaria-admin-input:focus {
           border-color: rgba(245, 158, 11, 0.45);
           box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .lunaria-admin-input:disabled {
+          opacity: 0.75;
+          cursor: not-allowed;
         }
 
         select.lunaria-admin-input option {
