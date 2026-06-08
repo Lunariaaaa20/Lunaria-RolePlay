@@ -1,22 +1,33 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-const adventurer = {
-  name: "Aether Veyl",
-  race: "Human",
-  rank: "Initiate",
-  pathway: "Mystic",
-  mission: "Active Guild Registration",
-  skills: ["Arcane Thread", "Silent Ember"],
-  inventory: ["Beginner Cloak", "Small Mana Vial", "Guild Token"],
-  currency: {
-    gold: 0,
-    silver: 10,
-    bronze: 0,
-  },
-  guild: "Adventurer's Guild of Aethelgard",
-  status: "Active Adventurer",
+type Player = {
+  id: string;
+  username: string;
+  access_code: string;
+  character_name: string;
+  race: string;
+  guild_rank: string;
+  pathway: string;
+  mission: string;
+  skill_1: string;
+  skill_2: string;
+  inventory_1: string;
+  inventory_2: string;
+  inventory_3: string;
+  gold: number;
+  silver: number;
+  bronze: number;
+  common_quests: number;
+  uncommon_quests: number;
+  dangerous_quests: number;
+  special_quests: number;
+  photo_url: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 };
 
 const rankTheme: Record<string, string> = {
@@ -34,41 +45,98 @@ const pathwayTheme: Record<string, string> = {
   Nature: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
 };
 
+function calculatePoints(player: Player) {
+  return (
+    player.common_quests * 10 +
+    player.uncommon_quests * 25 +
+    player.dangerous_quests * 60 +
+    player.special_quests * 120
+  );
+}
+
 export default function AdventurerIdCardPage() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const selectedPlayer =
+    players.find((player) => player.id === selectedPlayerId) || players[0];
 
   const idCardText = useMemo(() => {
+    if (!selectedPlayer) {
+      return "";
+    }
+
     return `╔══════════════════════╗
 * ADVENTURER'S GUILD LICENSE
 ╚══════════════════════╝
-*Name :* ${adventurer.name}
-*Race :* ${adventurer.race}
-*Guild Rank :* ${adventurer.rank.toUpperCase()}
-*Pathway :* ${adventurer.pathway}
-*Misi :* ${adventurer.mission}
+*Name :* ${selectedPlayer.character_name}
+*Race :* ${selectedPlayer.race}
+*Guild Rank :* ${selectedPlayer.guild_rank.toUpperCase()}
+*Pathway :* ${selectedPlayer.pathway}
+*Misi :* ${selectedPlayer.mission}
 ━━━━━━━━━━━━━━━━━━
 *Primary Skills*
-1. ${adventurer.skills[0]}
-2. ${adventurer.skills[1]}
+1. ${selectedPlayer.skill_1 || "-"}
+2. ${selectedPlayer.skill_2 || "-"}
 ━━━━━━━━━━━━━━━━━━
 *Inventory*
-1. ${adventurer.inventory[0]}
-2. ${adventurer.inventory[1]}
-3. ${adventurer.inventory[2]}
+1. ${selectedPlayer.inventory_1 || "-"}
+2. ${selectedPlayer.inventory_2 || "-"}
+3. ${selectedPlayer.inventory_3 || "-"}
 ━━━━━━━━━━━━━━━━━━
 *Currency*
-- Gold : ${adventurer.currency.gold}
-- Silver : ${adventurer.currency.silver}
-- Bronze : ${adventurer.currency.bronze}
+- Gold : ${selectedPlayer.gold}
+- Silver : ${selectedPlayer.silver}
+- Bronze : ${selectedPlayer.bronze}
+━━━━━━━━━━━━━━━━━━
+*Quest Record*
+- Common : ${selectedPlayer.common_quests}
+- Uncommon : ${selectedPlayer.uncommon_quests}
+- Dangerous : ${selectedPlayer.dangerous_quests}
+- Special : ${selectedPlayer.special_quests}
+- Points : ${calculatePoints(selectedPlayer)}
 ━━━━━━━━━━━━━━━━━━
 Registered Guild :
-${adventurer.guild}
+Adventurer's Guild of Aethelgard
 
 Status :
-${adventurer.status}`;
+${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.status}`;
+  }, [selectedPlayer]);
+
+  const fetchPlayers = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setIsLoading(false);
+
+    if (error) {
+      setErrorMessage(error.message);
+      return;
+    }
+
+    const playerData = data || [];
+    setPlayers(playerData);
+
+    if (playerData.length > 0 && !selectedPlayerId) {
+      setSelectedPlayerId(playerData[0].id);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlayers();
   }, []);
 
   const handleCopy = async () => {
+    if (!idCardText) return;
+
     await navigator.clipboard.writeText(idCardText);
     setCopied(true);
 
@@ -90,152 +158,247 @@ ${adventurer.status}`;
               Adventurer ID Card
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Lisensi resmi adventurer untuk data karakter, rank, pathway,
-              skill, inventory, currency, dan status aktif di Guild Aethelgard.
+              Lisensi resmi adventurer yang membaca data langsung dari Supabase
+              players table. Jika admin update data, halaman ini ikut berubah
+              setelah refresh data.
             </p>
           </div>
 
-          <button
-            onClick={handleCopy}
-            className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20"
-          >
-            {copied ? "Copied" : "Copy ID Card"}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={fetchPlayers}
+              className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20"
+            >
+              Refresh Data
+            </button>
+
+            <button
+              onClick={handleCopy}
+              disabled={!selectedPlayer}
+              className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {copied ? "Copied" : "Copy ID Card"}
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-5">
-          <div className="relative overflow-hidden rounded-[32px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_50px_rgba(245,158,11,0.14)]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.18),transparent_30%)]" />
+      {isLoading ? (
+        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
+          <p className="text-sm font-bold">Loading player data from Supabase...</p>
+        </section>
+      ) : null}
 
-            <div className="relative z-10 rounded-[26px] border border-amber-400/20 bg-black/35 p-5">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300">
-                    Adventurer&apos;s Guild License
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Registered Guild of Aethelgard
-                  </p>
-                </div>
+      {errorMessage ? (
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200">
+          <p className="text-sm font-bold">Failed to load players: {errorMessage}</p>
+        </section>
+      ) : null}
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xl text-amber-300">
-                  ⚜
+      {!isLoading && players.length === 0 ? (
+        <section className="rounded-[32px] border border-white/10 bg-black/35 p-6 text-slate-400">
+          Belum ada player aktif. Approve registration dari Admin Panel dulu.
+        </section>
+      ) : null}
+
+      {selectedPlayer ? (
+        <>
+          <section className="rounded-[28px] border border-white/10 bg-black/30 p-5">
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                Select Adventurer
+              </span>
+              <select
+                value={selectedPlayerId}
+                onChange={(event) => setSelectedPlayerId(event.target.value)}
+                className="lunaria-id-input"
+              >
+                {players.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.character_name} — {player.guild_rank}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="xl:col-span-5">
+              <div className="relative overflow-hidden rounded-[32px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_50px_rgba(245,158,11,0.14)]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.18),transparent_30%)]" />
+
+                <div className="relative z-10 rounded-[26px] border border-amber-400/20 bg-black/35 p-5">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300">
+                        Adventurer&apos;s Guild License
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Registered Guild of Aethelgard
+                      </p>
+                    </div>
+
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xl text-amber-300">
+                      ⚜
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-[32px] border border-amber-400/30 bg-gradient-to-br from-slate-900 via-black to-violet-950 shadow-[0_0_35px_rgba(245,158,11,0.14)]">
+                      {selectedPlayer.photo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={selectedPlayer.photo_url}
+                          alt={selectedPlayer.character_name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-5xl">🧙</span>
+                      )}
+
+                      <div className="absolute bottom-2 rounded-full border border-amber-400/30 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-300">
+                        Character Photo
+                      </div>
+                    </div>
+
+                    <h2 className="mt-5 text-3xl font-black text-white">
+                      {selectedPlayer.character_name}
+                    </h2>
+
+                    <p className="mt-2 text-sm text-slate-400">
+                      {selectedPlayer.race} • {selectedPlayer.pathway}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap justify-center gap-3">
+                      <span
+                        className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
+                          rankTheme[selectedPlayer.guild_rank] ||
+                          "border-slate-400/30 bg-slate-400/10 text-slate-200"
+                        }`}
+                      >
+                        {selectedPlayer.guild_rank}
+                      </span>
+
+                      <span
+                        className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
+                          pathwayTheme[selectedPlayer.pathway] ||
+                          "border-violet-400/30 bg-violet-400/10 text-violet-200"
+                        }`}
+                      >
+                        {selectedPlayer.pathway}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    <CurrencyBox label="Gold" value={selectedPlayer.gold} color="text-amber-300" />
+                    <CurrencyBox label="Silver" value={selectedPlayer.silver} color="text-slate-200" />
+                    <CurrencyBox label="Bronze" value={selectedPlayer.bronze} color="text-orange-300" />
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">
+                      {selectedPlayer.status === "active"
+                        ? "Active Adventurer"
+                        : selectedPlayer.status}
+                    </p>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex flex-col items-center text-center">
-                <div className="relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-[32px] border border-amber-400/30 bg-gradient-to-br from-slate-900 via-black to-violet-950 shadow-[0_0_35px_rgba(245,158,11,0.14)]">
-                  <span className="text-5xl">🧙</span>
-                  <div className="absolute bottom-2 rounded-full border border-amber-400/30 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-300">
-                    Character Photo
+            <div className="xl:col-span-7">
+              <div className="h-full rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <InfoBox label="Name" value={selectedPlayer.character_name} />
+                  <InfoBox label="Race" value={selectedPlayer.race} />
+                  <InfoBox label="Guild Rank" value={selectedPlayer.guild_rank} />
+                  <InfoBox label="Pathway" value={selectedPlayer.pathway} />
+                </div>
+
+                <div className="mt-4">
+                  <InfoBox label="Misi" value={selectedPlayer.mission} />
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <DataPanel
+                    title="Primary Skills"
+                    items={[selectedPlayer.skill_1, selectedPlayer.skill_2]}
+                  />
+                  <DataPanel
+                    title="Inventory"
+                    items={[
+                      selectedPlayer.inventory_1 || "-",
+                      selectedPlayer.inventory_2 || "-",
+                      selectedPlayer.inventory_3 || "-",
+                    ]}
+                  />
+                </div>
+
+                <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+                  <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
+                    Quest Record
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+                    <QuestBox label="Common" value={selectedPlayer.common_quests} />
+                    <QuestBox label="Uncommon" value={selectedPlayer.uncommon_quests} />
+                    <QuestBox label="Dangerous" value={selectedPlayer.dangerous_quests} />
+                    <QuestBox label="Special" value={selectedPlayer.special_quests} />
+                    <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
                   </div>
                 </div>
 
-                <h2 className="mt-5 text-3xl font-black text-white">
-                  {adventurer.name}
-                </h2>
-
-                <p className="mt-2 text-sm text-slate-400">
-                  {adventurer.race} • {adventurer.pathway}
-                </p>
-
-                <div className="mt-4 flex flex-wrap justify-center gap-3">
-                  <span
-                    className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
-                      rankTheme[adventurer.rank]
-                    }`}
-                  >
-                    {adventurer.rank}
-                  </span>
-
-                  <span
-                    className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
-                      pathwayTheme[adventurer.pathway]
-                    }`}
-                  >
-                    {adventurer.pathway}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-amber-400/20 bg-white/[0.04] p-3 text-center">
-                  <p className="text-xs text-slate-500">Gold</p>
-                  <p className="mt-1 text-2xl font-black text-amber-300">
-                    {adventurer.currency.gold}
+                <div className="mt-6 rounded-3xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-black/20 to-violet-500/10 p-5">
+                  <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
+                    Registered Guild
+                  </p>
+                  <p className="mt-2 text-lg font-black text-white">
+                    Adventurer&apos;s Guild of Aethelgard
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    Data ini sudah terhubung ke Supabase. Update dari Admin Panel
+                    akan tampil di sini setelah refresh data.
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-400/20 bg-white/[0.04] p-3 text-center">
-                  <p className="text-xs text-slate-500">Silver</p>
-                  <p className="mt-1 text-2xl font-black text-slate-200">
-                    {adventurer.currency.silver}
+                <div className="mt-6 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+                  <p className="text-xs uppercase tracking-[0.26em] text-sky-300">
+                    Login Access
                   </p>
-                </div>
-
-                <div className="rounded-2xl border border-orange-400/20 bg-white/[0.04] p-3 text-center">
-                  <p className="text-xs text-slate-500">Bronze</p>
-                  <p className="mt-1 text-2xl font-black text-orange-300">
-                    {adventurer.currency.bronze}
-                  </p>
+                  <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <InfoBox label="Username" value={selectedPlayer.username} />
+                    <InfoBox label="Access Code" value={selectedPlayer.access_code} />
+                  </div>
                 </div>
               </div>
-
-              <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
-                <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">
-                  {adventurer.status}
-                </p>
-              </div>
             </div>
-          </div>
-        </div>
+          </section>
+        </>
+      ) : null}
 
-        <div className="xl:col-span-7">
-          <div className="h-full rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <InfoBox label="Name" value={adventurer.name} />
-              <InfoBox label="Race" value={adventurer.race} />
-              <InfoBox label="Guild Rank" value={adventurer.rank} />
-              <InfoBox label="Pathway" value={adventurer.pathway} />
-            </div>
+      <style jsx>{`
+        .lunaria-id-input {
+          width: 100%;
+          border-radius: 1rem;
+          border: 1px solid rgba(245, 158, 11, 0.18);
+          background: rgba(0, 0, 0, 0.28);
+          padding: 0.85rem 1rem;
+          color: rgb(241, 245, 249);
+          outline: none;
+          transition: 180ms ease;
+        }
 
-            <div className="mt-4">
-              <InfoBox label="Misi" value={adventurer.mission} />
-            </div>
+        .lunaria-id-input:focus {
+          border-color: rgba(245, 158, 11, 0.45);
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
 
-            <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-              <DataPanel title="Primary Skills" items={adventurer.skills} />
-              <DataPanel title="Inventory" items={adventurer.inventory} />
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-black/20 to-violet-500/10 p-5">
-              <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
-                Registered Guild
-              </p>
-              <p className="mt-2 text-lg font-black text-white">
-                {adventurer.guild}
-              </p>
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Data ini sementara masih dummy/static. Setelah Supabase
-                dipasang, semua data akan otomatis berasal dari registrasi yang
-                sudah di-approve admin.
-              </p>
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-              <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
-                Cosmetic Slot
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Border, background, name effect, dan aura ID card nanti bisa
-                dipasang/copot dari Cosmetic Shop setelah sistem database aktif.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+        select.lunaria-id-input option {
+          background: #070812;
+          color: white;
+        }
+      `}</style>
     </main>
   );
 }
@@ -246,7 +409,35 @@ function InfoBox({ label, value }: { label: string; value: string }) {
       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-lg font-black text-white">{value}</p>
+      <p className="mt-2 text-lg font-black text-white">{value || "-"}</p>
+    </div>
+  );
+}
+
+function CurrencyBox({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className={`mt-1 text-2xl font-black ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function QuestBox({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-center">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-xl font-black text-white">{value}</p>
     </div>
   );
 }
@@ -261,14 +452,14 @@ function DataPanel({ title, items }: { title: string; items: string[] }) {
       <div className="mt-4 space-y-3">
         {items.map((item, index) => (
           <div
-            key={item}
+            key={`${title}-${index}`}
             className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 text-xs font-black text-amber-300">
               {index + 1}
             </div>
 
-            <p className="text-sm font-semibold text-slate-200">{item}</p>
+            <p className="text-sm font-semibold text-slate-200">{item || "-"}</p>
           </div>
         ))}
       </div>
