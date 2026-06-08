@@ -29,13 +29,22 @@ const pendingRegistrations = [
   },
 ];
 
-const playerRegistry = [
+const initialPlayers = [
   {
     id: "ADV-001",
     name: "Aether Veyl",
+    race: "Human",
     rank: "Initiate",
     pathway: "Mystic",
+    mission: "Active Guild Registration",
+    skill1: "Arcane Thread",
+    skill2: "Silent Ember",
+    inventory1: "Beginner Cloak",
+    inventory2: "Small Mana Vial",
+    inventory3: "Guild Token",
+    gold: 0,
     silver: 10,
+    bronze: 0,
     common: 12,
     uncommon: 4,
     dangerous: 1,
@@ -44,9 +53,18 @@ const playerRegistry = [
   {
     id: "ADV-002",
     name: "Qin Shi Huang",
+    race: "Human",
     rank: "Seeker",
     pathway: "Warrior",
+    mission: "Glass Bridge Patrol",
+    skill1: "Imperial Strike",
+    skill2: "Iron Body",
+    inventory1: "Training Blade",
+    inventory2: "Travel Ration",
+    inventory3: "Guild Token",
+    gold: 0,
     silver: 42,
+    bronze: 0,
     common: 9,
     uncommon: 7,
     dangerous: 2,
@@ -55,9 +73,18 @@ const playerRegistry = [
   {
     id: "ADV-003",
     name: "Anila van Haldegar",
+    race: "Elf",
     rank: "Warden",
     pathway: "Shadow",
+    mission: "Royal District Surveillance",
+    skill1: "Silent Step",
+    skill2: "Abyss Cut",
+    inventory1: "Dark Cloak",
+    inventory2: "Poison Needle",
+    inventory3: "Guild Token",
+    gold: 0,
     silver: 76,
+    bronze: 0,
     common: 15,
     uncommon: 5,
     dangerous: 3,
@@ -66,6 +93,10 @@ const playerRegistry = [
 ];
 
 const rankOptions = ["Initiate", "Seeker", "Warden", "Arbiter", "High Council"];
+const pathwayOptions = ["Warrior", "Mystic", "Shadow", "Nature"];
+const raceOptions = ["Human", "Elf", "Fairy", "Feyling", "Furry", "Dwarf"];
+
+type Player = (typeof initialPlayers)[number];
 
 function calculatePoints(player: {
   common: number;
@@ -88,23 +119,39 @@ function generateAccessCode(name: string) {
     .toUpperCase();
 
   const random = Math.floor(1000 + Math.random() * 9000);
-
   return `${clean}-${random}`;
 }
 
 export default function LunariaAdminPanel() {
   const [approvedCodes, setApprovedCodes] = useState<Record<string, string>>({});
-  const [selectedPlayer, setSelectedPlayer] = useState(playerRegistry[0]);
+  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const [selectedPlayerId, setSelectedPlayerId] = useState(initialPlayers[0].id);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const selectedPlayer = players.find((player) => player.id === selectedPlayerId) || players[0];
 
   const leaderboard = useMemo(() => {
-    return [...playerRegistry]
+    return [...players]
       .map((player) => ({
         ...player,
         points: calculatePoints(player),
       }))
       .sort((a, b) => b.points - a.points);
-  }, []);
+  }, [players]);
+
+  const updateSelectedPlayer = (key: keyof Player, value: string | number) => {
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayerId
+          ? {
+              ...player,
+              [key]: value,
+            }
+          : player
+      )
+    );
+  };
 
   const approveRegistration = (id: string, name: string) => {
     const code = generateAccessCode(name);
@@ -124,6 +171,14 @@ export default function LunariaAdminPanel() {
     }, 1800);
   };
 
+  const handleSave = () => {
+    setSaved(true);
+
+    setTimeout(() => {
+      setSaved(false);
+    }, 2200);
+  };
+
   return (
     <main className="space-y-6 text-slate-100">
       <section className="rounded-[28px] border border-amber-500/20 bg-gradient-to-br from-black via-slate-950 to-violet-950/60 p-6 shadow-[0_0_45px_rgba(245,158,11,0.10)]">
@@ -138,7 +193,7 @@ export default function LunariaAdminPanel() {
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
               Panel admin untuk approve registrasi, membuat access code, update
-              ID card, mengatur currency, dan memantau quest point adventurer.
+              ID card, rank, skill, inventory, currency, dan quest record.
             </p>
           </div>
 
@@ -148,9 +203,17 @@ export default function LunariaAdminPanel() {
         </div>
       </section>
 
+      {saved ? (
+        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200 shadow-[0_0_30px_rgba(52,211,153,0.08)]">
+          <p className="text-sm font-bold">
+            Update saved locally. Setelah Supabase aktif, data ini akan tersimpan permanen ke database.
+          </p>
+        </section>
+      ) : null}
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Pending Registration" value="3" tone="text-amber-300" />
-        <StatCard label="Active Adventurers" value="128" tone="text-emerald-300" />
+        <StatCard label="Active Adventurers" value={String(players.length)} tone="text-emerald-300" />
         <StatCard
           label="Generated Codes"
           value={String(Object.keys(approvedCodes).length)}
@@ -247,25 +310,17 @@ export default function LunariaAdminPanel() {
             ID Card Control
           </h2>
 
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 space-y-5">
             <label className="block">
               <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                 Select Player
               </span>
               <select
-                value={selectedPlayer.id}
-                onChange={(event) => {
-                  const next = playerRegistry.find(
-                    (player) => player.id === event.target.value
-                  );
-
-                  if (next) {
-                    setSelectedPlayer(next);
-                  }
-                }}
+                value={selectedPlayerId}
+                onChange={(event) => setSelectedPlayerId(event.target.value)}
                 className="lunaria-admin-input"
               >
-                {playerRegistry.map((player) => (
+                {players.map((player) => (
                   <option key={player.id} value={player.id}>
                     {player.name}
                   </option>
@@ -273,50 +328,167 @@ export default function LunariaAdminPanel() {
               </select>
             </label>
 
-            <AdminField label="Character Name" value={selectedPlayer.name} />
-            <AdminField label="Pathway" value={selectedPlayer.pathway} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <AdminInput
+                label="Character Name"
+                value={selectedPlayer.name}
+                onChange={(value) => updateSelectedPlayer("name", value)}
+              />
 
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                Guild Rank
-              </span>
-              <select
-                value={selectedPlayer.rank}
-                className="lunaria-admin-input"
-                disabled
-              >
-                {rankOptions.map((rank) => (
-                  <option key={rank} value={rank}>
-                    {rank}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid grid-cols-3 gap-3">
-              <AdminSmallField
-                label="Silver"
-                value={String(selectedPlayer.silver)}
-              />
-              <AdminSmallField
-                label="Common"
-                value={String(selectedPlayer.common)}
-              />
-              <AdminSmallField
-                label="Uncommon"
-                value={String(selectedPlayer.uncommon)}
-              />
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  Race
+                </span>
+                <select
+                  value={selectedPlayer.race}
+                  onChange={(event) => updateSelectedPlayer("race", event.target.value)}
+                  className="lunaria-admin-input"
+                >
+                  {raceOptions.map((race) => (
+                    <option key={race} value={race}>
+                      {race}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <AdminSmallField
-                label="Dangerous"
-                value={String(selectedPlayer.dangerous)}
-              />
-              <AdminSmallField
-                label="Special"
-                value={String(selectedPlayer.special)}
-              />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  Guild Rank
+                </span>
+                <select
+                  value={selectedPlayer.rank}
+                  onChange={(event) => updateSelectedPlayer("rank", event.target.value)}
+                  className="lunaria-admin-input"
+                >
+                  {rankOptions.map((rank) => (
+                    <option key={rank} value={rank}>
+                      {rank}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  Pathway
+                </span>
+                <select
+                  value={selectedPlayer.pathway}
+                  onChange={(event) => updateSelectedPlayer("pathway", event.target.value)}
+                  className="lunaria-admin-input"
+                >
+                  {pathwayOptions.map((pathway) => (
+                    <option key={pathway} value={pathway}>
+                      {pathway}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <AdminInput
+              label="Mission"
+              value={selectedPlayer.mission}
+              onChange={(value) => updateSelectedPlayer("mission", value)}
+            />
+
+            <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
+              <p className="mb-4 text-xs uppercase tracking-[0.24em] text-amber-300">
+                Primary Skills
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <AdminInput
+                  label="Skill 1"
+                  value={selectedPlayer.skill1}
+                  onChange={(value) => updateSelectedPlayer("skill1", value)}
+                />
+                <AdminInput
+                  label="Skill 2"
+                  value={selectedPlayer.skill2}
+                  onChange={(value) => updateSelectedPlayer("skill2", value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+              <p className="mb-4 text-xs uppercase tracking-[0.24em] text-sky-300">
+                Inventory
+              </p>
+
+              <div className="grid grid-cols-1 gap-4">
+                <AdminInput
+                  label="Inventory 1"
+                  value={selectedPlayer.inventory1}
+                  onChange={(value) => updateSelectedPlayer("inventory1", value)}
+                />
+                <AdminInput
+                  label="Inventory 2"
+                  value={selectedPlayer.inventory2}
+                  onChange={(value) => updateSelectedPlayer("inventory2", value)}
+                />
+                <AdminInput
+                  label="Inventory 3"
+                  value={selectedPlayer.inventory3}
+                  onChange={(value) => updateSelectedPlayer("inventory3", value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+              <p className="mb-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
+                Currency
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <AdminNumberInput
+                  label="Gold"
+                  value={selectedPlayer.gold}
+                  onChange={(value) => updateSelectedPlayer("gold", value)}
+                />
+                <AdminNumberInput
+                  label="Silver"
+                  value={selectedPlayer.silver}
+                  onChange={(value) => updateSelectedPlayer("silver", value)}
+                />
+                <AdminNumberInput
+                  label="Bronze"
+                  value={selectedPlayer.bronze}
+                  onChange={(value) => updateSelectedPlayer("bronze", value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+              <p className="mb-4 text-xs uppercase tracking-[0.24em] text-violet-300">
+                Quest Record
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <AdminNumberInput
+                  label="Common"
+                  value={selectedPlayer.common}
+                  onChange={(value) => updateSelectedPlayer("common", value)}
+                />
+                <AdminNumberInput
+                  label="Uncommon"
+                  value={selectedPlayer.uncommon}
+                  onChange={(value) => updateSelectedPlayer("uncommon", value)}
+                />
+                <AdminNumberInput
+                  label="Dangerous"
+                  value={selectedPlayer.dangerous}
+                  onChange={(value) => updateSelectedPlayer("dangerous", value)}
+                />
+                <AdminNumberInput
+                  label="Special"
+                  value={selectedPlayer.special}
+                  onChange={(value) => updateSelectedPlayer("special", value)}
+                />
+              </div>
             </div>
 
             <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
@@ -331,8 +503,11 @@ export default function LunariaAdminPanel() {
               </p>
             </div>
 
-            <button className="w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-violet-600/20 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200">
-              Save Update Later
+            <button
+              onClick={handleSave}
+              className="w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-violet-600/20 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition hover:bg-amber-500/20"
+            >
+              Save Update
             </button>
           </div>
         </div>
@@ -350,19 +525,19 @@ export default function LunariaAdminPanel() {
           </div>
 
           <p className="text-sm text-slate-400">
-            Data masih static. Setelah Supabase aktif, tabel ini akan real-time.
+            Data masih local state. Setelah Supabase aktif, tabel ini akan tersimpan permanen.
           </p>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-separate border-spacing-y-3">
+          <table className="w-full min-w-[1100px] border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
                 <th className="px-4 py-2">ID</th>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Rank</th>
                 <th className="px-4 py-2">Pathway</th>
-                <th className="px-4 py-2">Silver</th>
+                <th className="px-4 py-2">Currency</th>
                 <th className="px-4 py-2">Quest Record</th>
                 <th className="px-4 py-2">Points</th>
               </tr>
@@ -389,7 +564,7 @@ export default function LunariaAdminPanel() {
                     {player.pathway}
                   </td>
                   <td className="px-4 py-4 text-amber-300">
-                    {player.silver} S
+                    {player.gold}G / {player.silver}S / {player.bronze}B
                   </td>
                   <td className="px-4 py-4 text-slate-400">
                     C {player.common} / U {player.uncommon} / D{" "}
@@ -417,14 +592,13 @@ export default function LunariaAdminPanel() {
           transition: 180ms ease;
         }
 
+        .lunaria-admin-input::placeholder {
+          color: rgb(100, 116, 139);
+        }
+
         .lunaria-admin-input:focus {
           border-color: rgba(245, 158, 11, 0.45);
           box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-        }
-
-        .lunaria-admin-input:disabled {
-          opacity: 0.75;
-          cursor: not-allowed;
         }
 
         select.lunaria-admin-input option {
@@ -455,24 +629,50 @@ function StatCard({
   );
 }
 
-function AdminField({ label, value }: { label: string; value: string }) {
+function AdminInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </span>
-      <input value={value} readOnly className="lunaria-admin-input" />
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="lunaria-admin-input"
+      />
     </label>
   );
 }
 
-function AdminSmallField({ label, value }: { label: string; value: string }) {
+function AdminNumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
         {label}
       </span>
-      <input value={value} readOnly className="lunaria-admin-input" />
+      <input
+        type="number"
+        min="0"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="lunaria-admin-input"
+      />
     </label>
   );
 }
