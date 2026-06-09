@@ -43,9 +43,6 @@ type NumberEntry = {
   result: "pending" | "win" | "lose";
   reward_amount: number;
   created_at: string;
-  players?: {
-    character_name: string;
-  } | null;
 };
 
 type FortuneLog = {
@@ -227,7 +224,7 @@ function getSpinResult(): SpinResult {
   };
 }
 
-export default function LunariaFortuneHall() {
+export default function Calendar() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [activeRound, setActiveRound] = useState<NumberRound | null>(null);
@@ -253,6 +250,7 @@ export default function LunariaFortuneHall() {
 
   const currentPlayerEntry = useMemo(() => {
     if (!session?.playerId) return null;
+
     return (
       roundEntries.find((entry) => entry.player_id === session.playerId) || null
     );
@@ -287,7 +285,9 @@ export default function LunariaFortuneHall() {
 
     const { data: expiredRounds, error: roundError } = await supabase
       .from("fortune_number_rounds")
-      .select("id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at")
+      .select(
+        "id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at"
+      )
       .eq("status", "active")
       .lte("ends_at", nowIso);
 
@@ -295,21 +295,23 @@ export default function LunariaFortuneHall() {
       throw new Error(roundError.message);
     }
 
-    const rounds = (expiredRounds as NumberRound[] | null) || [];
+    const rounds = (expiredRounds as unknown as NumberRound[] | null) || [];
 
     for (const round of rounds) {
       const winningNumber = pickWinningNumber(round.numbers);
 
       const { data: entriesData, error: entriesError } = await supabase
         .from("fortune_number_entries")
-        .select("id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at")
+        .select(
+          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
+        )
         .eq("round_id", round.id);
 
       if (entriesError) {
         throw new Error(entriesError.message);
       }
 
-      const entries = (entriesData as NumberEntry[] | null) || [];
+      const entries = (entriesData as unknown as NumberEntry[] | null) || [];
 
       for (const entry of entries) {
         const isWin = entry.picked_number === winningNumber;
@@ -432,7 +434,9 @@ export default function LunariaFortuneHall() {
 
     const { data: roundData, error: roundError } = await supabase
       .from("fortune_number_rounds")
-      .select("id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at")
+      .select(
+        "id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at"
+      )
       .eq("status", "active")
       .order("started_at", { ascending: false })
       .limit(1)
@@ -450,7 +454,7 @@ export default function LunariaFortuneHall() {
       const { data: entriesData, error: entriesError } = await supabase
         .from("fortune_number_entries")
         .select(
-          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at, players(character_name)"
+          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
         )
         .eq("round_id", roundData.id)
         .order("created_at", { ascending: true });
@@ -461,7 +465,7 @@ export default function LunariaFortuneHall() {
         return;
       }
 
-      entries = (entriesData as NumberEntry[] | null) || [];
+      entries = (entriesData as unknown as NumberEntry[] | null) || [];
     }
 
     const { data: logData, error: logError } = await supabase
@@ -477,12 +481,12 @@ export default function LunariaFortuneHall() {
       return;
     }
 
-    const round = (roundData as NumberRound | null) || null;
+    const round = (roundData as unknown as NumberRound | null) || null;
 
-    setPlayer(playerData as PlayerProfile);
+    setPlayer(playerData as unknown as PlayerProfile);
     setActiveRound(round);
     setRoundEntries(entries);
-    setLogs((logData as FortuneLog[] | null) || []);
+    setLogs((logData as unknown as FortuneLog[] | null) || []);
 
     if (round?.numbers?.length) {
       setSelectedNumber((prev) =>
@@ -533,7 +537,9 @@ export default function LunariaFortuneHall() {
     }
 
     if (currentPlayerEntry) {
-      setErrorMessage("Kamu sudah ikut ronde ini. Satu player hanya boleh pasang satu angka.");
+      setErrorMessage(
+        "Kamu sudah ikut ronde ini. Satu player hanya boleh pasang satu angka."
+      );
       return;
     }
 
@@ -563,7 +569,9 @@ export default function LunariaFortuneHall() {
             started_at: startedAt.toISOString(),
             ends_at: endsAt.toISOString(),
           })
-          .select("id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at")
+          .select(
+            "id, status, numbers, winning_number, started_at, ends_at, settled_at, created_at"
+          )
           .single();
 
         if (createRoundError) {
@@ -571,7 +579,7 @@ export default function LunariaFortuneHall() {
           return;
         }
 
-        round = newRound as NumberRound;
+        round = newRound as unknown as NumberRound;
       }
 
       const newSilver = player.silver - selectedBet;
@@ -700,9 +708,7 @@ export default function LunariaFortuneHall() {
 
       setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
       setLastSpinText(
-        `${option.label}: ${results.join(", ")} • ${
-          net >= 0 ? "+" : ""
-        }${net}S`
+        `${option.label}: ${results.join(", ")} • ${net >= 0 ? "+" : ""}${net}S`
       );
       setNotice(
         net > 0
