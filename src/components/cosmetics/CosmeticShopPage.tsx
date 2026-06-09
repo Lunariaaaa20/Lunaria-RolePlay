@@ -21,6 +21,18 @@ type LunariaSession = {
   characterName?: string;
 };
 
+type PlayerCosmeticRow = {
+  id: string;
+  player_id: string;
+  cosmetic_key: string | null;
+  cosmetic_name: string | null;
+  cosmetic_type: string | null;
+  cosmetic_theme: string | null;
+  rarity: string | null;
+  price_silver: number | null;
+  equipped: boolean | null;
+};
+
 type FilterTheme = "all" | CosmeticTheme;
 type FilterType = "all" | CosmeticType;
 
@@ -38,14 +50,6 @@ function readSession(): LunariaSession | null {
   } catch {
     return null;
   }
-}
-
-function getOwnedStorageKey(playerId: string) {
-  return `lunaria_cosmetic_owned_${playerId}`;
-}
-
-function getEquippedStorageKey(playerId: string) {
-  return `lunaria_cosmetic_equipped_${playerId}`;
 }
 
 function getThemePanelClass(theme: CosmeticTheme) {
@@ -71,21 +75,40 @@ function getThemePanelClass(theme: CosmeticTheme) {
 export default function CosmeticShopPage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [silver, setSilver] = useState<number | null>(null);
-  const [ownedIds, setOwnedIds] = useState<string[]>([]);
-  const [equippedIds, setEquippedIds] = useState<Record<CosmeticType, string>>({
-    name_effect: "",
-    border: "",
-    background: "",
-    aura: "",
-    particle: "",
-  });
-
+  const [ownedRows, setOwnedRows] = useState<PlayerCosmeticRow[]>([]);
   const [themeFilter, setThemeFilter] = useState<FilterTheme>("all");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");
   const [previewItem, setPreviewItem] = useState<CosmeticItem | null>(null);
-  const [workingId, setWorkingId] = useState<string>("");
+  const [workingId, setWorkingId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+
+  const ownedIds = useMemo(() => {
+    return ownedRows
+      .map((row) => row.cosmetic_key)
+      .filter(Boolean) as string[];
+  }, [ownedRows]);
+
+  const equippedIds = useMemo(() => {
+    const result: Record<CosmeticType, string> = {
+      name_effect: "",
+      border: "",
+      background: "",
+      aura: "",
+      particle: "",
+    };
+
+    for (const row of ownedRows) {
+      if (!row.equipped || !row.cosmetic_key || !row.cosmetic_type) continue;
+
+      const type = row.cosmetic_type as CosmeticType;
+      if (type in result) {
+        result[type] = row.cosmetic_key;
+      }
+    }
+
+    return result;
+  }, [ownedRows]);
 
   const filteredItems = useMemo(() => {
     return cosmeticItems.filter((item) => {
@@ -124,40 +147,45 @@ export default function CosmeticShopPage() {
   }, []);
 
   async function loadPlayerVault(playerId: string) {
-    const ownedRaw = localStorage.getItem(getOwnedStorageKey(playerId));
-    const equippedRaw = localStorage.getItem(getEquippedStorageKey(playerId));
+    setError("");
 
-    if (ownedRaw) {
-      try {
-        setOwnedIds(JSON.parse(ownedRaw));
-      } catch {
-        setOwnedIds([]);
-      }
-    }
-
-    if (equippedRaw) {
-      try {
-        setEquippedIds(JSON.parse(equippedRaw));
-      } catch {
-        setEquippedIds({
-          name_effect: "",
-          border: "",
-          background: "",
-          aura: "",
-          particle: "",
-        });
-      }
-    }
-
-    const { data } = await supabase
+    const { data: playerData, error: playerError } = await supabase
       .from("players")
       .select("silver")
       .eq("id", playerId)
       .maybeSingle();
 
-    if (data) {
-      setSilver(Number(data.silver || 0));
+    if (playerError) {
+      showError(`Gagal membaca silver: ${playerError.message}`);
+      return;
     }
+
+    setSilver(Number(playerData?.silver || 0));
+
+    const { data: cosmeticData, error: cosmeticError } = await supabase
+      .from("player_cosmetics")
+      .select(
+        `
+        id,
+        player_id,
+        cosmetic_key,
+        cosmetic_name,
+        cosmetic_type,
+        cosmetic_theme,
+        rarity,
+        price_silver,
+        equipped
+      `
+      )
+      .eq("player_id", playerId);
+
+    if (cosmeticError) {
+      showError(`Gagal membaca cosmetic: ${cosmeticError.message}`);
+      setOwnedRows([]);
+      return;
+    }
+
+    setOwnedRows((cosmeticData || []) as PlayerCosmeticRow[]);
   }
 
   function showNotice(message: string) {
@@ -169,7 +197,7 @@ export default function CosmeticShopPage() {
   function showError(message: string) {
     setError(message);
     setNotice("");
-    window.setTimeout(() => setError(""), 4500);
+    window.setTimeout(() => setError(""), 5000);
   }
 
   async function handleBuy(item: CosmeticItem) {
@@ -197,6 +225,7 @@ export default function CosmeticShopPage() {
     if (!ok) return;
 
     setWorkingId(item.id);
+    setError("");
 
     const nextSilver = silver - item.price;
 
@@ -207,7 +236,45 @@ export default function CosmeticShopPage() {
 
     if (updateError) {
       setWorkingId("");
-      showError(updateError.message);
+      showError(`Gagal update silver: ${updateError.message}`);
+      return;
+    }
+
+    const { data: insertData, error: insertError } = await supabase
+      .from("player_cosmetics")
+      .insert({
+        player_id: session.playerId,
+        cosmetic_key: item.id,
+        cosmetic_name: item.name,
+        cosmetic_type: item.type,
+        cosmetic_theme: item.theme,
+        rarity: item.rarity,
+        price_silver: item.price,
+        equipped: false,
+      })
+      .select(
+        `
+        id,
+        player_id,
+        cosmetic_key,
+        cosmetic_name,
+        cosmetic_type,
+        cosmetic_theme,
+        rarity,
+        price_silver,
+        equipped
+      `
+      )
+      .single();
+
+    if (insertError) {
+      await supabase
+        .from("players")
+        .update({ silver })
+        .eq("id", session.playerId);
+
+      setWorkingId("");
+      showError(`Gagal menyimpan cosmetic: ${insertError.message}`);
       return;
     }
 
@@ -218,21 +285,15 @@ export default function CosmeticShopPage() {
       reason: `Purchased cosmetic: ${item.name}`,
     });
 
-    const nextOwned = [...ownedIds, item.id];
-    localStorage.setItem(
-      getOwnedStorageKey(session.playerId),
-      JSON.stringify(nextOwned)
-    );
-
-    setOwnedIds(nextOwned);
     setSilver(nextSilver);
+    setOwnedRows((prev) => [...prev, insertData as PlayerCosmeticRow]);
     setWorkingId("");
-    showNotice(`${item.name} berhasil dibeli.`);
+    showNotice(`${item.name} berhasil dibeli dan tersimpan permanen.`);
   }
 
-  function handleEquip(item: CosmeticItem) {
-    if (!session?.playerId) {
-      showError("Session player tidak ditemukan.");
+  async function handleEquip(item: CosmeticItem) {
+    if (!session?.playerId || session.role !== "player") {
+      showError("Login sebagai player dulu untuk equip cosmetic.");
       return;
     }
 
@@ -241,18 +302,48 @@ export default function CosmeticShopPage() {
       return;
     }
 
-    const nextEquipped = {
-      ...equippedIds,
-      [item.type]: item.id,
-    };
+    setWorkingId(item.id);
+    setError("");
 
-    localStorage.setItem(
-      getEquippedStorageKey(session.playerId),
-      JSON.stringify(nextEquipped)
+    const { error: unequipError } = await supabase
+      .from("player_cosmetics")
+      .update({ equipped: false })
+      .eq("player_id", session.playerId)
+      .eq("cosmetic_type", item.type);
+
+    if (unequipError) {
+      setWorkingId("");
+      showError(`Gagal melepas cosmetic lama: ${unequipError.message}`);
+      return;
+    }
+
+    const { error: equipError } = await supabase
+      .from("player_cosmetics")
+      .update({ equipped: true })
+      .eq("player_id", session.playerId)
+      .eq("cosmetic_key", item.id);
+
+    if (equipError) {
+      setWorkingId("");
+      showError(`Gagal memasang cosmetic: ${equipError.message}`);
+      return;
+    }
+
+    setOwnedRows((prev) =>
+      prev.map((row) => {
+        if (row.cosmetic_type === item.type) {
+          return {
+            ...row,
+            equipped: row.cosmetic_key === item.id,
+          };
+        }
+
+        return row;
+      })
     );
 
-    setEquippedIds(nextEquipped);
-    showNotice(`${item.name} berhasil dipasang.`);
+    setWorkingId("");
+    showNotice(`${item.name} berhasil dipasang permanen.`);
   }
 
   return (
@@ -273,8 +364,8 @@ export default function CosmeticShopPage() {
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
               Cosmetic Shop untuk Name Effect, ID Border, ID Background, Aura,
-              dan Particle Effect. Setiap collection punya efek visual berbeda,
-              bukan sekadar warna polos.
+              dan Particle Effect. Semua purchase dan equip sekarang tersimpan
+              permanen di Supabase.
             </p>
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -310,7 +401,9 @@ export default function CosmeticShopPage() {
                     <p className="text-lg font-black text-white">
                       {featuredItem.name}
                     </p>
-                    <p className={`mt-1 text-sm font-bold ${featuredItem.accent}`}>
+                    <p
+                      className={`mt-1 text-sm font-bold ${featuredItem.accent}`}
+                    >
                       {featuredItem.themeName}
                     </p>
                   </div>
@@ -438,7 +531,9 @@ export default function CosmeticShopPage() {
       <CosmeticPreviewModal
         item={previewItem}
         owned={previewItem ? ownedIds.includes(previewItem.id) : false}
-        equipped={previewItem ? equippedIds[previewItem.type] === previewItem.id : false}
+        equipped={
+          previewItem ? equippedIds[previewItem.type] === previewItem.id : false
+        }
         working={previewItem ? workingId === previewItem.id : false}
         onClose={() => setPreviewItem(null)}
         onBuy={() => previewItem && handleBuy(previewItem)}
@@ -481,4 +576,4 @@ function FilterButton({
       {label}
     </button>
   );
-    }
+}
