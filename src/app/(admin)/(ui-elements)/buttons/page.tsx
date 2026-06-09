@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type CosmeticType =
   | "Name Effect"
@@ -17,6 +19,32 @@ type Cosmetic = {
   description: string;
   icon: string;
   previewClass: string;
+};
+
+type LunariaSession = {
+  role: "player" | "admin";
+  playerId?: string;
+  username: string;
+  characterName?: string;
+  rank?: string;
+  pathway?: string;
+};
+
+type PlayerProfile = {
+  id: string;
+  character_name: string;
+  race: string;
+  pathway: string;
+  guild_rank: string;
+  silver: number;
+  status: string;
+};
+
+type PlayerCosmeticRow = {
+  id: string;
+  player_id: string;
+  cosmetic_id: string;
+  equipped: boolean;
 };
 
 const cosmetics: Cosmetic[] = [
@@ -126,25 +154,59 @@ const typeFilters: ("All" | CosmeticType)[] = [
   "Aura Effect",
 ];
 
+function getSession(): LunariaSession | null {
+  if (typeof window === "undefined") return null;
+
+  const sessionSession = sessionStorage.getItem("lunaria_session");
+  const localSession = localStorage.getItem("lunaria_session");
+  const raw = sessionSession || localSession;
+
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as LunariaSession;
+  } catch {
+    localStorage.removeItem("lunaria_session");
+    sessionStorage.removeItem("lunaria_session");
+    return null;
+  }
+}
+
 export default function LunariaCosmeticShop() {
-  const [silver, setSilver] = useState(220);
-  const [owned, setOwned] = useState<string[]>(["name-ember-script"]);
-  const [equipped, setEquipped] = useState<Record<CosmeticType, string | null>>({
-    "Name Effect": "name-ember-script",
-    "ID Border": null,
-    "ID Background": null,
-    "Aura Effect": null,
-  });
+  const [session, setSession] = useState<LunariaSession | null>(null);
+  const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const [ownedRows, setOwnedRows] = useState<PlayerCosmeticRow[]>([]);
   const [activeFilter, setActiveFilter] = useState<"All" | CosmeticType>("All");
   const [notice, setNotice] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isWorking, setIsWorking] = useState(false);
 
-  const filteredCosmetics = useMemo(() => {
-    if (activeFilter === "All") {
-      return cosmetics;
-    }
+  const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
 
-    return cosmetics.filter((item) => item.type === activeFilter);
-  }, [activeFilter]);
+  const owned = useMemo(() => {
+    return ownedRows.map((row) => row.cosmetic_id);
+  }, [ownedRows]);
+
+  const equipped = useMemo(() => {
+    const result: Record<CosmeticType, string | null> = {
+      "Name Effect": null,
+      "ID Border": null,
+      "ID Background": null,
+      "Aura Effect": null,
+    };
+
+    ownedRows.forEach((row) => {
+      if (!row.equipped) return;
+
+      const cosmetic = cosmetics.find((item) => item.id === row.cosmetic_id);
+      if (!cosmetic) return;
+
+      result[cosmetic.type] = cosmetic.id;
+    });
+
+    return result;
+  }, [ownedRows]);
 
   const equippedItems = useMemo(() => {
     return cosmetics.filter((item) =>
@@ -152,47 +214,249 @@ export default function LunariaCosmeticShop() {
     );
   }, [equipped]);
 
-  const handleBuy = (item: Cosmetic) => {
+  const filteredCosmetics = useMemo(() => {
+    if (activeFilter === "All") return cosmetics;
+    return cosmetics.filter((item) => item.type === activeFilter);
+  }, [activeFilter]);
+
+  const showNotice = (message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice(""), 2400);
+  };
+
+  const loadShopData = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+
+    const currentSession = getSession();
+    setSession(currentSession);
+
+    if (!currentSession) {
+      setPlayer(null);
+      setOwnedRows([]);
+      setIsLoading(false);
+      setErrorMessage("Kamu belum login. Silakan masuk lewat Access Gate.");
+      return;
+    }
+
+    if (currentSession.role === "admin") {
+      setPlayer(null);
+      setOwnedRows([]);
+      setIsLoading(false);
+      setErrorMessage(
+        "Admin mode hanya untuk kontrol data. Login sebagai player untuk membeli cosmetic."
+      );
+      return;
+    }
+
+    if (!currentSession.playerId) {
+      setPlayer(null);
+      setOwnedRows([]);
+      setIsLoading(false);
+      setErrorMessage("Session player tidak valid. Silakan logout lalu login ulang.");
+      return;
+    }
+
+    const { data: playerData, error: playerError } = await supabase
+      .from("players")
+      .select("id, character_name, race, pathway, guild_rank, silver, status")
+      .eq("id", currentSession.playerId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (playerError) {
+      setIsLoading(false);
+      setErrorMessage(`Gagal membaca data player: ${playerError.message}`);
+      return;
+    }
+
+    if (!playerData) {
+      setIsLoading(false);
+      setErrorMessage("Player tidak ditemukan atau belum active.");
+      return;
+    }
+
+    const { data: cosmeticData, error: cosmeticError } = await supabase
+      .from("player_cosmetics")
+      .select("id, player_id, cosmetic_id, equipped")
+      .eq("player_id", currentSession.playerId);
+
+    if (cosmeticError) {
+      setIsLoading(false);
+      setErrorMessage(`Gagal membaca cosmetic player: ${cosmeticError.message}`);
+      return;
+    }
+
+    setPlayer(playerData as PlayerProfile);
+    setOwnedRows((cosmeticData as PlayerCosmeticRow[] | null) || []);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    loadShopData();
+  }, []);
+
+  const writeCurrencyLog = async (
+    playerId: string,
+    silverChange: number,
+    reason: string
+  ) => {
+    await supabase.from("currency_logs").insert({
+      player_id: playerId,
+      type: "COSMETIC_SHOP",
+      silver_change: silverChange,
+      reason,
+    });
+  };
+
+  const handleBuy = async (item: Cosmetic) => {
+    setErrorMessage("");
+
+    if (!isPlayerSession || !session?.playerId) {
+      setErrorMessage("Login sebagai player untuk membeli cosmetic.");
+      return;
+    }
+
+    if (!player) {
+      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
+      return;
+    }
+
     if (owned.includes(item.id)) {
-      setNotice(`${item.name} already owned.`);
+      showNotice(`${item.name} sudah dimiliki.`);
       return;
     }
 
-    if (silver < item.price) {
-      setNotice(`Insufficient Silver. Need ${item.price}S.`);
+    if (player.silver < item.price) {
+      showNotice(`Silver tidak cukup. Butuh ${item.price}S.`);
       return;
     }
 
-    setSilver((prev) => prev - item.price);
-    setOwned((prev) => [...prev, item.id]);
-    setNotice(`${item.name} purchased for ${item.price}S.`);
+    setIsWorking(true);
 
-    setTimeout(() => setNotice(""), 2200);
+    const newSilver = player.silver - item.price;
+
+    const { error: updateError } = await supabase
+      .from("players")
+      .update({ silver: newSilver })
+      .eq("id", session.playerId);
+
+    if (updateError) {
+      setIsWorking(false);
+      setErrorMessage(`Gagal mengurangi silver: ${updateError.message}`);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("player_cosmetics").insert({
+      player_id: session.playerId,
+      cosmetic_id: item.id,
+      equipped: false,
+    });
+
+    if (insertError) {
+      await supabase
+        .from("players")
+        .update({ silver: player.silver })
+        .eq("id", session.playerId);
+
+      setIsWorking(false);
+      setErrorMessage(`Gagal menyimpan cosmetic: ${insertError.message}`);
+      return;
+    }
+
+    await writeCurrencyLog(
+      session.playerId,
+      -item.price,
+      `Purchased cosmetic: ${item.name}`
+    );
+
+    setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
+
+    await loadShopData();
+
+    setIsWorking(false);
+    showNotice(`${item.name} berhasil dibeli seharga ${item.price}S.`);
   };
 
-  const handleEquip = (item: Cosmetic) => {
+  const handleEquip = async (item: Cosmetic) => {
+    setErrorMessage("");
+
+    if (!isPlayerSession || !session?.playerId) {
+      setErrorMessage("Login sebagai player untuk memakai cosmetic.");
+      return;
+    }
+
     if (!owned.includes(item.id)) {
-      setNotice("Buy this cosmetic before equipping.");
+      showNotice("Beli cosmetic ini dulu sebelum dipakai.");
       return;
     }
 
-    setEquipped((prev) => ({
-      ...prev,
-      [item.type]: item.id,
-    }));
+    setIsWorking(true);
 
-    setNotice(`${item.name} equipped.`);
-    setTimeout(() => setNotice(""), 2200);
+    const sameTypeIds = cosmetics
+      .filter((cosmetic) => cosmetic.type === item.type)
+      .map((cosmetic) => cosmetic.id);
+
+    const { error: unequipError } = await supabase
+      .from("player_cosmetics")
+      .update({ equipped: false })
+      .eq("player_id", session.playerId)
+      .in("cosmetic_id", sameTypeIds);
+
+    if (unequipError) {
+      setIsWorking(false);
+      setErrorMessage(`Gagal melepas cosmetic lama: ${unequipError.message}`);
+      return;
+    }
+
+    const { error: equipError } = await supabase
+      .from("player_cosmetics")
+      .update({ equipped: true })
+      .eq("player_id", session.playerId)
+      .eq("cosmetic_id", item.id);
+
+    if (equipError) {
+      setIsWorking(false);
+      setErrorMessage(`Gagal memakai cosmetic: ${equipError.message}`);
+      return;
+    }
+
+    await loadShopData();
+
+    setIsWorking(false);
+    showNotice(`${item.name} berhasil dipasang.`);
   };
 
-  const handleUnequip = (type: CosmeticType) => {
-    setEquipped((prev) => ({
-      ...prev,
-      [type]: null,
-    }));
+  const handleUnequip = async (type: CosmeticType) => {
+    setErrorMessage("");
 
-    setNotice(`${type} unequipped.`);
-    setTimeout(() => setNotice(""), 2200);
+    if (!isPlayerSession || !session?.playerId) {
+      setErrorMessage("Login sebagai player untuk melepas cosmetic.");
+      return;
+    }
+
+    setIsWorking(true);
+
+    const sameTypeIds = cosmetics
+      .filter((cosmetic) => cosmetic.type === type)
+      .map((cosmetic) => cosmetic.id);
+
+    const { error } = await supabase
+      .from("player_cosmetics")
+      .update({ equipped: false })
+      .eq("player_id", session.playerId)
+      .in("cosmetic_id", sameTypeIds);
+
+    if (error) {
+      setIsWorking(false);
+      setErrorMessage(`Gagal melepas cosmetic: ${error.message}`);
+      return;
+    }
+
+    await loadShopData();
+
+    setIsWorking(false);
+    showNotice(`${type} berhasil dilepas.`);
   };
 
   return (
@@ -208,8 +472,9 @@ export default function LunariaCosmeticShop() {
               Cosmetic Shop
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Tempat membeli dan memasang cosmetic untuk memperindah Adventurer
-              ID Card. Semua pembelian memakai currency RP, bukan uang asli.
+              Cosmetic boleh dilihat semua player, tapi pembelian dan pemasangan
+              selalu memakai akun login sendiri. Player tidak bisa memakai ID
+              Card orang lain untuk membeli item.
             </p>
           </div>
 
@@ -217,7 +482,9 @@ export default function LunariaCosmeticShop() {
             <p className="text-xs uppercase tracking-[0.22em] text-amber-300">
               Current Balance
             </p>
-            <p className="mt-1 text-3xl font-black text-white">{silver}S</p>
+            <p className="mt-1 text-3xl font-black text-white">
+              {player ? `${player.silver}S` : "-"}
+            </p>
           </div>
         </div>
       </section>
@@ -228,11 +495,32 @@ export default function LunariaCosmeticShop() {
         </section>
       ) : null}
 
+      {errorMessage ? (
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200 shadow-[0_0_30px_rgba(248,113,113,0.08)]">
+          <p className="text-sm font-bold">{errorMessage}</p>
+
+          {!session ? (
+            <Link
+              href="/signin"
+              className="mt-4 inline-flex rounded-2xl border border-red-300/25 bg-red-400/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-red-200"
+            >
+              Open Access Gate
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+
+      {isLoading ? (
+        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
+          <p className="text-sm font-bold">Loading cosmetic ownership...</p>
+        </section>
+      ) : null}
+
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <aside className="space-y-6 xl:col-span-4">
           <div className="rounded-[32px] border border-amber-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
             <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
-              ID Card Preview
+              Your ID Card Preview
             </p>
 
             <div className="mt-5 rounded-[28px] border border-amber-400/25 bg-gradient-to-br from-slate-950 via-black to-violet-950/40 p-5">
@@ -251,16 +539,19 @@ export default function LunariaCosmeticShop() {
                 </div>
 
                 <h2 className="mt-5 text-2xl font-black text-amber-200 drop-shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-                  Aether Veyl
+                  {player?.character_name || "No Player Session"}
                 </h2>
-                <p className="mt-2 text-sm text-slate-400">Human • Mystic</p>
 
-                <div className="mt-4 flex gap-3">
+                <p className="mt-2 text-sm text-slate-400">
+                  {player ? `${player.race} • ${player.pathway}` : "Login required"}
+                </p>
+
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
                   <span className="rounded-full border border-slate-400/30 bg-slate-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-200">
-                    Initiate
+                    {player?.guild_rank || "-"}
                   </span>
                   <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-violet-200">
-                    Mystic
+                    {player?.pathway || "-"}
                   </span>
                 </div>
               </div>
@@ -275,12 +566,14 @@ export default function LunariaCosmeticShop() {
                     equippedItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm"
                       >
                         <span className="text-slate-200">{item.name}</span>
                         <button
+                          type="button"
                           onClick={() => handleUnequip(item.type)}
-                          className="text-xs font-bold uppercase tracking-[0.14em] text-red-300"
+                          disabled={isWorking || !isPlayerSession}
+                          className="text-xs font-bold uppercase tracking-[0.14em] text-red-300 disabled:opacity-40"
                         >
                           Remove
                         </button>
@@ -302,8 +595,8 @@ export default function LunariaCosmeticShop() {
             </p>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-400">
               <li>• Harga cosmetic mulai dari 15S sampai 200S.</li>
-              <li>• Cosmetic hanya bisa dipakai oleh pemiliknya.</li>
-              <li>• Player bisa pasang dan copot cosmetic yang sudah dibeli.</li>
+              <li>• Cosmetic hanya bisa dibeli oleh akun login sendiri.</li>
+              <li>• Tidak ada dropdown pilih player untuk pembelian.</li>
               <li>• Top Leaderboard effect tidak dijual di shop.</li>
             </ul>
           </div>
@@ -314,6 +607,7 @@ export default function LunariaCosmeticShop() {
             {typeFilters.map((filter) => (
               <button
                 key={filter}
+                type="button"
                 onClick={() => setActiveFilter(filter)}
                 className={`rounded-2xl border px-4 py-3 text-xs font-black uppercase tracking-[0.16em] transition ${
                   activeFilter === filter
@@ -330,6 +624,7 @@ export default function LunariaCosmeticShop() {
             {filteredCosmetics.map((item) => {
               const isOwned = owned.includes(item.id);
               const isEquipped = equipped[item.type] === item.id;
+              const actionDisabled = isWorking || !isPlayerSession || isLoading;
 
               return (
                 <article
@@ -376,24 +671,28 @@ export default function LunariaCosmeticShop() {
 
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     <button
+                      type="button"
                       onClick={() => handleBuy(item)}
-                      disabled={isOwned}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition ${
+                      disabled={actionDisabled || isOwned}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed ${
                         isOwned
                           ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+                          : actionDisabled
+                          ? "border-white/10 bg-white/[0.03] text-slate-600"
                           : "border-amber-400/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
                       }`}
                     >
-                      {isOwned ? "Owned" : "Buy"}
+                      {isOwned ? "Owned" : isWorking ? "..." : "Buy"}
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleEquip(item)}
-                      disabled={!isOwned}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition ${
+                      disabled={actionDisabled || !isOwned}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed ${
                         isEquipped
                           ? "border-sky-400/25 bg-sky-400/10 text-sky-300"
-                          : isOwned
+                          : isOwned && !actionDisabled
                           ? "border-violet-400/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
                           : "border-white/10 bg-white/[0.03] text-slate-600"
                       }`}
