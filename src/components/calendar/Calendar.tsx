@@ -43,9 +43,6 @@ type NumberEntry = {
   result: "pending" | "win" | "lose";
   reward_amount: number;
   created_at: string;
-  players?: {
-    character_name: string;
-  } | null;
 };
 
 type FortuneLog = {
@@ -298,7 +295,7 @@ export default function Calendar() {
       throw new Error(roundError.message);
     }
 
-    const rounds = (expiredRounds as NumberRound[] | null) || [];
+    const rounds = (expiredRounds as unknown as NumberRound[] | null) || [];
 
     for (const round of rounds) {
       const winningNumber = pickWinningNumber(round.numbers);
@@ -314,7 +311,7 @@ export default function Calendar() {
         throw new Error(entriesError.message);
       }
 
-      const entries = (entriesData as NumberEntry[] | null) || [];
+      const entries = (entriesData as unknown as NumberEntry[] | null) || [];
 
       for (const entry of entries) {
         const isWin = entry.picked_number === winningNumber;
@@ -457,7 +454,7 @@ export default function Calendar() {
       const { data: entriesData, error: entriesError } = await supabase
         .from("fortune_number_entries")
         .select(
-          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at, players(character_name)"
+          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
         )
         .eq("round_id", roundData.id)
         .order("created_at", { ascending: true });
@@ -468,7 +465,7 @@ export default function Calendar() {
         return;
       }
 
-      entries = (entriesData as NumberEntry[] | null) || [];
+      entries = (entriesData as unknown as NumberEntry[] | null) || [];
     }
 
     const { data: logData, error: logError } = await supabase
@@ -484,12 +481,12 @@ export default function Calendar() {
       return;
     }
 
-    const round = (roundData as NumberRound | null) || null;
+    const round = (roundData as unknown as NumberRound | null) || null;
 
-    setPlayer(playerData as PlayerProfile);
+    setPlayer(playerData as unknown as PlayerProfile);
     setActiveRound(round);
     setRoundEntries(entries);
-    setLogs((logData as FortuneLog[] | null) || []);
+    setLogs((logData as unknown as FortuneLog[] | null) || []);
 
     if (round?.numbers?.length) {
       setSelectedNumber((prev) =>
@@ -582,7 +579,7 @@ export default function Calendar() {
           return;
         }
 
-        round = newRound as NumberRound;
+        round = newRound as unknown as NumberRound;
       }
 
       const newSilver = player.silver - selectedBet;
