@@ -48,69 +48,171 @@ type PlayerCosmetic = {
 
 const fallbackCosmetics: Cosmetic[] = [
   {
-    id: "silver-oath-border",
-    name: "Silver Oath Border",
+    id: "mist-glass-border",
+    name: "Mist Glass Border",
     type: "ID Border",
-    rarity: "Rare",
-    price_silver: 30,
+    rarity: "Common",
+    price_silver: 15,
     description:
-      "Border lisensi berkilau perak untuk adventurer yang ingin ID Card terlihat lebih resmi dan elegan.",
-    effect_label: "Soft silver frame + oath glow",
+      "Border kaca kabut tipis untuk ID Card. Simpel, bersih, dan cocok untuk adventurer baru.",
+    effect_label: "Soft mist frame",
     status: "active",
   },
   {
-    id: "moonlit-archive",
-    name: "Moonlit Archive",
+    id: "ember-thread-border",
+    name: "Ember Thread Border",
+    type: "ID Border",
+    rarity: "Rare",
+    price_silver: 35,
+    description:
+      "Border dengan garis bara halus yang bergerak lembut di tepi kartu. Tidak ramai, tapi terlihat hidup.",
+    effect_label: "Animated ember edge",
+    status: "active",
+  },
+  {
+    id: "deep-violet-border",
+    name: "Deep Violet Border",
+    type: "ID Border",
+    rarity: "Epic",
+    price_silver: 75,
+    description:
+      "Border violet gelap dengan cahaya mistik lembut. Memberi kesan mahal tanpa terlihat berlebihan.",
+    effect_label: "Mystic violet frame",
+    status: "active",
+  },
+  {
+    id: "aurora-oath-border",
+    name: "Aurora Oath Border",
+    type: "ID Border",
+    rarity: "Legendary",
+    price_silver: 140,
+    description:
+      "Border premium dengan bias aurora halus. Cocok untuk player yang ingin kartu terlihat eksklusif dan berkelas.",
+    effect_label: "Luxury aurora frame",
+    status: "active",
+  },
+
+  {
+    id: "old-parchment-bg",
+    name: "Old Parchment Background",
+    type: "ID Background",
+    rarity: "Common",
+    price_silver: 20,
+    description:
+      "Background lisensi bergaya perkamen tua. Cocok untuk roleplay klasik guild fantasy.",
+    effect_label: "Warm parchment card",
+    status: "active",
+  },
+  {
+    id: "rainy-window-bg",
+    name: "Rainy Window Background",
     type: "ID Background",
     rarity: "Rare",
     price_silver: 45,
     description:
-      "Background kartu bernuansa arsip bulan malam, cocok untuk karakter misterius dan kalem.",
-    effect_label: "Moon archive card background",
+      "Background malam hujan dari balik jendela tavern. Lembut, gloomy, dan nyaman dilihat.",
+    effect_label: "Rainy tavern mood",
     status: "active",
   },
   {
-    id: "celestial-name-aura",
-    name: "Celestial Name Aura",
-    type: "Name Aura",
+    id: "arcane-library-bg",
+    name: "Arcane Library Background",
+    type: "ID Background",
     rarity: "Epic",
-    price_silver: 85,
+    price_silver: 90,
     description:
-      "Nama karakter memancarkan aura biru bulan yang halus. Tidak berlebihan, tapi terlihat mahal.",
-    effect_label: "Animated lunar name glow",
+      "Background perpustakaan sihir gelap dengan cahaya rune lembut. Cocok untuk karakter misterius.",
+    effect_label: "Arcane archive atmosphere",
     status: "active",
   },
   {
-    id: "eclipse-throne-frame",
-    name: "Eclipse Throne Frame",
-    type: "ID Border",
-    rarity: "Epic",
-    price_silver: 120,
-    description:
-      "Frame gelap keemasan dengan sentuhan eclipse. Cocok untuk adventurer yang ingin terlihat seperti elite guild.",
-    effect_label: "Eclipse gold premium frame",
-    status: "active",
-  },
-  {
-    id: "royal-moon-vessel",
-    name: "Royal Moon Vessel",
+    id: "starlit-courtyard-bg",
+    name: "Starlit Courtyard Background",
     type: "ID Background",
     rarity: "Legendary",
     price_silver: 180,
     description:
-      "Background eksklusif dengan nuansa royal moonlit hall. Memberi kesan ID Card seperti lisensi bangsawan Lunaria.",
-    effect_label: "Royal lunar vessel background",
+      "Background halaman batu saat malam berbintang. Terlihat seperti kartu karakter dari game RPG premium.",
+    effect_label: "Premium starlit scenery",
+    status: "active",
+  },
+
+  {
+    id: "soft-gold-name",
+    name: "Soft Gold Name Glow",
+    type: "Name Effect",
+    rarity: "Rare",
+    price_silver: 40,
+    description:
+      "Nama karakter mendapat glow emas tipis yang elegan. Bagus untuk player yang ingin terlihat rapi dan mahal.",
+    effect_label: "Soft golden name glow",
     status: "active",
   },
   {
-    id: "astral-sovereign-aura",
-    name: "Astral Sovereign Aura",
-    type: "Name Aura",
-    rarity: "Legendary",
-    price_silver: 250,
+    id: "crystal-blue-name",
+    name: "Crystal Blue Name Glow",
+    type: "Name Effect",
+    rarity: "Epic",
+    price_silver: 80,
     description:
-      "Aura nama paling mewah untuk player yang ingin tampil menonjol tanpa terlihat norak.",
-    effect_label: "Astral animated sovereign glow",
+      "Efek nama biru kristal dengan shimmer kecil. Cocok untuk karakter magic, healer, atau noble.",
+    effect_label: "Blue crystal shimmer",
+    status: "active",
+  },
+  {
+    id: "velvet-rose-name",
+    name: "Velvet Rose Name Glow",
+    type: "Name Effect",
+    rarity: "Epic",
+    price_silver: 85,
+    description:
+      "Efek nama rose-violet yang lembut dan elegan. Tidak terlalu terang, tapi terasa eksklusif.",
+    effect_label: "Velvet rose aura",
+    status: "active",
+  },
+  {
+    id: "astral-prism-name",
+    name: "Astral Prism Name Glow",
+    type: "Name Effect",
+    rarity: "Legendary",
+    price_silver: 200,
+    description:
+      "Efek nama prismatik halus dengan partikel kecil bergerak. Salah satu kosmetik paling premium di vault.",
+    effect_label: "Animated prism name aura",
+    status: "active",
+  },
+
+  {
+    id: "silver-dust-particles",
+    name: "Silver Dust Particles",
+    type: "Particle Effect",
+    rarity: "Rare",
+    price_silver: 50,
+    description:
+      "Partikel debu perak kecil di area ID Card. Halus, bersih, dan tidak mengganggu tampilan.",
+    effect_label: "Floating silver dust",
+    status: "active",
+  },
+  {
+    id: "lantern-spark-particles",
+    name: "Lantern Spark Particles",
+    type: "Particle Effect",
+    rarity: "Epic",
+    price_silver: 95,
+    description:
+      "Partikel cahaya lentera fantasy yang bergerak pelan. Memberi kesan hangat seperti malam di kota guild.",
+    effect_label: "Warm lantern sparks",
+    status: "active",
+  },
+  {
+    id: "dream-mist-particles",
+    name: "Dream Mist Particles",
+    type: "Particle Effect",
+    rarity: "Legendary",
+    price_silver: 170,
+    description:
+      "Kabut mimpi halus dengan bintik cahaya lembut. Cocok untuk ID Card yang ingin terlihat hidup dan mahal.",
+    effect_label: "Animated dream mist",
     status: "active",
   },
 ];
@@ -132,67 +234,67 @@ function getSession(): SessionData | null {
 }
 
 function getRarityTheme(rarity: string) {
-  const key = rarity?.toLowerCase();
+  const key = rarity.toLowerCase();
 
   if (key === "legendary") {
     return {
       label: "Legendary",
-      text: "text-amber-200",
+      text: "text-amber-100",
       price: "text-amber-300",
       border: "border-amber-300/35",
       badge:
-        "border-amber-300/35 bg-amber-400/15 text-amber-200 shadow-[0_0_22px_rgba(245,158,11,0.18)]",
-      card: "bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.24),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.22),transparent_42%),linear-gradient(135deg,rgba(69,26,3,0.55),rgba(2,6,23,0.94),rgba(30,27,75,0.75))]",
-      icon: <CrownIcon />,
-      glow: "bg-amber-300/25",
+        "border-amber-300/35 bg-amber-400/15 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.18)]",
+      card: "bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.20),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.24),transparent_45%),linear-gradient(135deg,rgba(39,20,4,0.82),rgba(2,6,23,0.96),rgba(30,27,75,0.72))]",
+      icon: <PrismIcon />,
+      glow: "bg-amber-300/30",
       preview:
-        "border-amber-300/40 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.26),transparent_35%),linear-gradient(135deg,rgba(69,26,3,0.8),rgba(2,6,23,0.95),rgba(88,28,135,0.6))]",
+        "border-amber-300/40 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.22),transparent_36%),linear-gradient(135deg,rgba(39,20,4,0.8),rgba(2,6,23,0.95),rgba(88,28,135,0.45))]",
     };
   }
 
   if (key === "epic") {
     return {
       label: "Epic",
-      text: "text-violet-200",
+      text: "text-violet-100",
       price: "text-violet-300",
       border: "border-violet-300/30",
       badge:
-        "border-violet-300/30 bg-violet-400/15 text-violet-200 shadow-[0_0_20px_rgba(168,85,247,0.16)]",
-      card: "bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.24),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.14),transparent_42%),linear-gradient(135deg,rgba(59,7,100,0.55),rgba(2,6,23,0.94),rgba(15,23,42,0.75))]",
-      icon: <StarIcon />,
-      glow: "bg-violet-300/24",
+        "border-violet-300/30 bg-violet-400/15 text-violet-200 shadow-[0_0_22px_rgba(168,85,247,0.16)]",
+      card: "bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.22),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.14),transparent_44%),linear-gradient(135deg,rgba(35,12,60,0.78),rgba(2,6,23,0.96),rgba(15,23,42,0.78))]",
+      icon: <SparkIcon />,
+      glow: "bg-violet-300/28",
       preview:
-        "border-violet-300/35 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.25),transparent_35%),linear-gradient(135deg,rgba(59,7,100,0.72),rgba(2,6,23,0.95),rgba(15,23,42,0.7))]",
+        "border-violet-300/35 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.22),transparent_36%),linear-gradient(135deg,rgba(35,12,60,0.72),rgba(2,6,23,0.95),rgba(15,23,42,0.74))]",
     };
   }
 
   if (key === "rare") {
     return {
       label: "Rare",
-      text: "text-sky-200",
+      text: "text-sky-100",
       price: "text-sky-300",
       border: "border-sky-300/28",
       badge:
         "border-sky-300/30 bg-sky-400/12 text-sky-200 shadow-[0_0_18px_rgba(56,189,248,0.12)]",
-      card: "bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.20),transparent_35%),linear-gradient(135deg,rgba(8,47,73,0.52),rgba(2,6,23,0.94),rgba(15,23,42,0.75))]",
-      icon: <MoonIcon />,
-      glow: "bg-sky-300/22",
+      card: "bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_36%),linear-gradient(135deg,rgba(8,47,73,0.65),rgba(2,6,23,0.96),rgba(15,23,42,0.76))]",
+      icon: <DropletIcon />,
+      glow: "bg-sky-300/24",
       preview:
-        "border-sky-300/32 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.22),transparent_35%),linear-gradient(135deg,rgba(8,47,73,0.7),rgba(2,6,23,0.95),rgba(15,23,42,0.7))]",
+        "border-sky-300/32 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.20),transparent_36%),linear-gradient(135deg,rgba(8,47,73,0.7),rgba(2,6,23,0.95),rgba(15,23,42,0.74))]",
     };
   }
 
   return {
     label: "Common",
-    text: "text-slate-200",
+    text: "text-slate-100",
     price: "text-slate-200",
     border: "border-white/12",
     badge: "border-white/10 bg-white/[0.05] text-slate-300",
-    card: "bg-[linear-gradient(135deg,rgba(15,23,42,0.75),rgba(2,6,23,0.95))]",
-    icon: <ShieldIcon />,
+    card: "bg-[radial-gradient(circle_at_top_left,rgba(148,163,184,0.10),transparent_36%),linear-gradient(135deg,rgba(15,23,42,0.78),rgba(2,6,23,0.97))]",
+    icon: <FrameIcon />,
     glow: "bg-white/10",
     preview:
-      "border-white/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.78),rgba(2,6,23,0.96))]",
+      "border-white/15 bg-[linear-gradient(135deg,rgba(15,23,42,0.82),rgba(2,6,23,0.96))]",
   };
 }
 
@@ -200,8 +302,9 @@ function typeSortValue(type: string) {
   const key = type.toLowerCase();
   if (key.includes("border")) return 1;
   if (key.includes("background")) return 2;
-  if (key.includes("aura")) return 3;
-  return 4;
+  if (key.includes("name")) return 3;
+  if (key.includes("particle")) return 4;
+  return 5;
 }
 
 function raritySortValue(rarity: string) {
@@ -230,18 +333,6 @@ export default function LunariaCosmeticShopPage() {
     return new Set(ownedCosmetics.map((item) => item.cosmetic_id));
   }, [ownedCosmetics]);
 
-  const equippedByType = useMemo(() => {
-    const map = new Map<string, PlayerCosmetic>();
-
-    ownedCosmetics.forEach((item) => {
-      if (item.equipped && item.cosmetics?.type) {
-        map.set(item.cosmetics.type, item);
-      }
-    });
-
-    return map;
-  }, [ownedCosmetics]);
-
   const shopTypes = useMemo(() => {
     const types = Array.from(new Set(cosmetics.map((item) => item.type))).filter(
       Boolean
@@ -267,9 +358,21 @@ export default function LunariaCosmeticShopPage() {
   }, [ownedCosmetics]);
 
   const totalOwned = ownedCosmetics.length;
-  const legendaryCount = ownedCosmetics.filter(
-    (item) => item.cosmetics?.rarity?.toLowerCase() === "legendary"
-  ).length;
+
+  const averageQuality = useMemo(() => {
+    if (ownedCosmetics.length === 0) return "None";
+
+    const total = ownedCosmetics.reduce((sum, item) => {
+      return sum + raritySortValue(item.cosmetics?.rarity || "Common");
+    }, 0);
+
+    const average = total / ownedCosmetics.length;
+
+    if (average >= 3.5) return "Luxury";
+    if (average >= 2.5) return "Premium";
+    if (average >= 1.5) return "Good";
+    return "Basic";
+  }, [ownedCosmetics]);
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -384,7 +487,8 @@ export default function LunariaCosmeticShopPage() {
     setIsWorking(cosmetic.id);
     setErrorMessage("");
 
-    const nextSilver = Number(player.silver || 0) - Number(cosmetic.price_silver || 0);
+    const nextSilver =
+      Number(player.silver || 0) - Number(cosmetic.price_silver || 0);
 
     const { error: playerError } = await supabase
       .from("players")
@@ -444,7 +548,7 @@ export default function LunariaCosmeticShopPage() {
     ]);
 
     setIsWorking("");
-    showNotice(`${cosmetic.name} berhasil dibeli. Equip untuk memasangnya.`);
+    showNotice(`${cosmetic.name} berhasil dibeli. Sekarang bisa dipasang.`);
   };
 
   const handleEquip = async (owned: PlayerCosmetic) => {
@@ -453,28 +557,19 @@ export default function LunariaCosmeticShopPage() {
       return;
     }
 
-    const targetType = owned.cosmetics.type;
     setIsWorking(owned.cosmetic_id);
     setErrorMessage("");
 
-    const { error: unequipError } = await supabase
-      .from("player_cosmetics")
-      .update({ equipped: false })
-      .eq("player_id", player.id)
-      .eq("cosmetics.type", targetType);
+    const targetType = owned.cosmetics.type;
+    const sameTypeOwned = ownedCosmetics.filter(
+      (item) => item.cosmetics?.type === targetType
+    );
 
-    if (unequipError) {
-      // fallback kalau Supabase tidak bisa filter join pada update
-      const sameTypeOwned = ownedCosmetics.filter(
-        (item) => item.cosmetics?.type === targetType
-      );
-
-      for (const item of sameTypeOwned) {
-        await supabase
-          .from("player_cosmetics")
-          .update({ equipped: false })
-          .eq("id", item.id);
-      }
+    for (const item of sameTypeOwned) {
+      await supabase
+        .from("player_cosmetics")
+        .update({ equipped: false })
+        .eq("id", item.id);
     }
 
     const { error: equipError } = await supabase
@@ -530,13 +625,13 @@ export default function LunariaCosmeticShopPage() {
 
   return (
     <main className="space-y-6 text-slate-100">
-      <section className="relative overflow-hidden rounded-[34px] border border-amber-400/20 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.25),transparent_44%),linear-gradient(135deg,rgba(2,6,23,0.96),rgba(3,7,18,0.98),rgba(30,27,75,0.78))] p-6 shadow-[0_0_80px_rgba(245,158,11,0.10)] md:p-8">
-        <MoonDust />
+      <section className="relative overflow-hidden rounded-[34px] border border-amber-400/20 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.24),transparent_44%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(3,7,18,0.98),rgba(30,27,75,0.70))] p-6 shadow-[0_0_80px_rgba(245,158,11,0.10)] md:p-8">
+        <ParticleField />
 
         <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-400/10 px-4 py-2">
-              <MoonIcon />
+              <GemIcon />
               <span className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-300">
                 Lunaria Cosmetic Vault
               </span>
@@ -547,49 +642,49 @@ export default function LunariaCosmeticShopPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
-              Tempat membeli aura, border, dan background premium untuk membuat
-              ID Card terasa lebih hidup, lebih mahal, dan lebih khas sebagai
-              identitas adventurer Lunaria.
+              Koleksi visual untuk mempercantik ID Card: border, background,
+              name effect, dan partikel. Setiap item punya harga, kualitas, dan
+              rasa visual berbeda agar kartu karakter terasa lebih hidup.
             </p>
           </div>
 
           <button
             onClick={fetchData}
             disabled={isLoading}
-            className="relative overflow-hidden rounded-[22px] border border-amber-300/30 bg-gradient-to-r from-amber-500/18 via-black/20 to-violet-500/18 px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_36px_rgba(245,158,11,0.10)] transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-[22px] border border-amber-300/30 bg-gradient-to-r from-amber-500/18 via-black/20 to-violet-500/18 px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 shadow-[0_0_36px_rgba(245,158,11,0.10)] transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading ? "Syncing..." : "Refresh Vault"}
+            {isLoading ? "Syncing..." : "Refresh Shop"}
           </button>
         </div>
 
         <div className="relative z-10 mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <VaultStat
-            label="Current Vessel"
+          <ShopStat
+            label="Current Player"
             value={player?.character_name || (isAdmin ? "Admin" : "Guest")}
-            desc={isPlayer ? "Player vault active" : "Preview mode"}
+            desc={isPlayer ? "Personal cosmetic vault" : "Preview mode"}
             tone="text-amber-300"
             icon={<UserIcon />}
           />
-          <VaultStat
+          <ShopStat
             label="Silver Balance"
             value={player ? `${player.silver}S` : "-"}
-            desc="Currency RP Lunaria"
+            desc="Currency RP"
             tone="text-slate-100"
-            icon={<MoonIcon />}
+            icon={<CoinIcon />}
           />
-          <VaultStat
-            label="Owned Relics"
+          <ShopStat
+            label="Owned Items"
             value={String(totalOwned)}
             desc="Cosmetics collected"
             tone="text-sky-300"
-            icon={<CrystalIcon />}
+            icon={<BagIcon />}
           />
-          <VaultStat
-            label="Legendary Items"
-            value={String(legendaryCount)}
-            desc="Highest cosmetic tier"
-            tone="text-amber-300"
-            icon={<CrownIcon />}
+          <ShopStat
+            label="Vault Quality"
+            value={averageQuality}
+            desc="Rata-rata kualitas item"
+            tone="text-violet-300"
+            icon={<GemIcon />}
           />
         </div>
       </section>
@@ -609,7 +704,7 @@ export default function LunariaCosmeticShopPage() {
       {!isPlayer ? (
         <section className="rounded-[28px] border border-amber-400/20 bg-amber-500/10 p-5 text-sm leading-6 text-amber-100">
           {isAdmin
-            ? "Admin mode hanya untuk melihat tampilan shop. Pembelian dan equip cosmetic dilakukan oleh player melalui akun masing-masing."
+            ? "Admin mode hanya untuk melihat toko. Pembelian cosmetic dilakukan dari akun player masing-masing."
             : "Login sebagai player untuk membeli dan memasang cosmetic ke ID Card."}
         </section>
       ) : null}
@@ -617,55 +712,55 @@ export default function LunariaCosmeticShopPage() {
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <aside className="space-y-6 xl:col-span-4">
           <section className="relative overflow-hidden rounded-[34px] border border-amber-400/18 bg-black/35 p-5 shadow-[0_0_55px_rgba(15,23,42,0.35)]">
-            <MoonDust />
+            <ParticleField small />
 
             <div className="relative z-10">
               <p className="text-[11px] font-black uppercase tracking-[0.32em] text-amber-300">
-                ID Card Preview
+                Equipped Preview
               </p>
 
               <h2 className="mt-2 text-2xl font-black text-white">
-                Current Look
+                ID Card Styling
               </h2>
 
-              <div className="mt-5 rounded-[30px] border border-amber-400/24 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_36%),linear-gradient(135deg,rgba(15,23,42,0.88),rgba(2,6,23,0.96),rgba(30,27,75,0.55))] p-5">
+              <div className="mt-5 rounded-[30px] border border-amber-400/24 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_36%),linear-gradient(135deg,rgba(15,23,42,0.9),rgba(2,6,23,0.96),rgba(30,27,75,0.55))] p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
-                      Adventurer License
+                      Adventurer Style
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Cosmetic vessel preview
+                      Cosmetic preview only
                     </p>
                   </div>
 
                   <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-amber-400/25 bg-amber-500/10 text-amber-300">
-                    <CrownIcon />
+                    <GemIcon />
                   </div>
                 </div>
 
                 <div className="mt-6 flex flex-col items-center text-center">
                   <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-[30px] border border-amber-400/25 bg-gradient-to-br from-slate-950 via-black to-violet-950 shadow-[0_0_35px_rgba(245,158,11,0.12)]">
-                    <span className="text-5xl">🌙</span>
+                    <span className="text-5xl">✦</span>
                     <span className="absolute bottom-2 rounded-full border border-amber-400/25 bg-black/60 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
-                      Preview
+                      Style
                     </span>
                   </div>
 
                   <h3 className="mt-5 bg-gradient-to-r from-amber-100 via-white to-violet-200 bg-clip-text text-3xl font-black tracking-[-0.04em] text-transparent">
-                    {player?.character_name || "Lunaria Adventurer"}
+                    {player?.character_name || "Lunaria Player"}
                   </h3>
 
                   <p className="mt-2 text-sm text-slate-400">
                     {player
                       ? `${player.guild_rank} • ${player.pathway}`
-                      : "Moonlit Guild Vessel"}
+                      : "Cosmetic Preview"}
                   </p>
                 </div>
 
                 <div className="mt-6 rounded-[24px] border border-violet-300/18 bg-violet-400/10 p-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-300">
-                    Equipped Effects
+                    Equipped Items
                   </p>
 
                   <div className="mt-3 space-y-2">
@@ -679,15 +774,21 @@ export default function LunariaCosmeticShopPage() {
                           key={item.id}
                           className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-3 py-3"
                         >
-                          <span className="text-sm font-bold text-white">
-                            {item.cosmetics?.name}
-                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-white">
+                              {item.cosmetics?.name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {item.cosmetics?.type}
+                            </p>
+                          </div>
+
                           <button
                             onClick={() => handleUnequip(item)}
                             disabled={isWorking === item.cosmetic_id}
                             className="text-xs font-black uppercase tracking-[0.14em] text-red-300"
                           >
-                            Unequip
+                            Remove
                           </button>
                         </div>
                       ))
@@ -700,7 +801,7 @@ export default function LunariaCosmeticShopPage() {
 
           <section className="rounded-[34px] border border-violet-400/18 bg-black/35 p-5">
             <p className="text-[11px] font-black uppercase tracking-[0.32em] text-violet-300">
-              Vault Category
+              Shop Category
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -726,17 +827,16 @@ export default function LunariaCosmeticShopPage() {
             <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.32em] text-amber-300">
-                  Moonlit Relic Market
+                  General Cosmetic Market
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black tracking-[-0.035em] text-white">
-                  Premium Cosmetics
+                  Buy Visual Effects
                 </h2>
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-                  Semakin tinggi rarity, semakin kuat identitas visualnya. Item
-                  Legendary dibuat untuk player yang ingin ID Card-nya terasa
-                  seperti artefak guild eksklusif.
+                  Cosmetic ini bukan ranking dan bukan status top player. Semua
+                  player bisa membeli selama silver cukup.
                 </p>
               </div>
 
@@ -763,7 +863,6 @@ export default function LunariaCosmeticShopPage() {
                   );
                   const isOwned = Boolean(owned);
                   const isEquipped = Boolean(owned?.equipped);
-                  const sameTypeEquipped = equippedByType.get(cosmetic.type);
 
                   return (
                     <article
@@ -774,6 +873,7 @@ export default function LunariaCosmeticShopPage() {
                         className={`pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full blur-3xl ${theme.glow}`}
                       />
                       <span className="pointer-events-none absolute inset-0 translate-x-[-140%] bg-gradient-to-r from-transparent via-white/10 to-transparent transition duration-700 group-hover:translate-x-[140%]" />
+                      <FloatingDots />
 
                       <div className="relative z-10">
                         <div className="flex items-start justify-between gap-4">
@@ -816,11 +916,11 @@ export default function LunariaCosmeticShopPage() {
                           className={`mt-5 rounded-[24px] border ${theme.preview} p-4`}
                         >
                           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
-                            Effect Preview
+                            Visual Quality
                           </p>
 
                           <p className="mt-2 text-sm font-black text-white">
-                            {cosmetic.effect_label || "Premium ID Card Effect"}
+                            {cosmetic.effect_label || "Premium cosmetic effect"}
                           </p>
 
                           <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
@@ -834,12 +934,6 @@ export default function LunariaCosmeticShopPage() {
                           </div>
                         </div>
 
-                        {sameTypeEquipped && !isEquipped ? (
-                          <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-xs font-semibold leading-5 text-sky-200">
-                            Saat equip item ini, {sameTypeEquipped.cosmetics?.name} akan dilepas dari slot {cosmetic.type}.
-                          </p>
-                        ) : null}
-
                         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {!isOwned ? (
                             <button
@@ -850,7 +944,7 @@ export default function LunariaCosmeticShopPage() {
                               {isWorking === cosmetic.id
                                 ? "Buying..."
                                 : isPlayer
-                                ? "Buy Relic"
+                                ? "Buy Cosmetic"
                                 : "Player Only"}
                             </button>
                           ) : isEquipped ? (
@@ -888,27 +982,48 @@ export default function LunariaCosmeticShopPage() {
       </section>
 
       <style jsx>{`
-        @keyframes moon-pulse {
-          0%,
-          100% {
-            opacity: 0.25;
-            transform: translateY(0px) scale(1);
+        @keyframes float-dot {
+          0% {
+            opacity: 0.15;
+            transform: translate3d(0, 0, 0) scale(1);
           }
           50% {
-            opacity: 0.75;
-            transform: translateY(-8px) scale(1.08);
+            opacity: 0.85;
+            transform: translate3d(0, -12px, 0) scale(1.16);
+          }
+          100% {
+            opacity: 0.15;
+            transform: translate3d(0, 0, 0) scale(1);
           }
         }
 
-        .moon-dust {
-          animation: moon-pulse 4.5s ease-in-out infinite;
+        @keyframes drift-spark {
+          0% {
+            opacity: 0;
+            transform: translateX(-30%) translateY(0);
+          }
+          30% {
+            opacity: 0.8;
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(60%) translateY(-14px);
+          }
+        }
+
+        .float-dot {
+          animation: float-dot 4.5s ease-in-out infinite;
+        }
+
+        .drift-spark {
+          animation: drift-spark 5.5s ease-in-out infinite;
         }
       `}</style>
     </main>
   );
 }
 
-function VaultStat({
+function ShopStat({
   label,
   value,
   desc,
@@ -938,44 +1053,51 @@ function VaultStat({
   );
 }
 
-function MoonDust() {
+function ParticleField({ small = false }: { small?: boolean }) {
   return (
     <>
-      <span className="moon-dust pointer-events-none absolute left-[18%] top-[20%] h-2 w-2 rounded-full bg-amber-300/50 blur-[1px]" />
-      <span className="moon-dust pointer-events-none absolute right-[18%] top-[16%] h-2.5 w-2.5 rounded-full bg-violet-300/40 blur-[1px]" />
-      <span className="moon-dust pointer-events-none absolute bottom-[18%] left-[45%] h-2 w-2 rounded-full bg-sky-300/35 blur-[1px]" />
+      <span className="float-dot pointer-events-none absolute left-[14%] top-[22%] h-2 w-2 rounded-full bg-amber-300/50 blur-[1px]" />
+      <span className="float-dot pointer-events-none absolute right-[16%] top-[18%] h-2.5 w-2.5 rounded-full bg-violet-300/45 blur-[1px]" />
+      <span className="float-dot pointer-events-none absolute bottom-[20%] left-[48%] h-2 w-2 rounded-full bg-sky-300/35 blur-[1px]" />
+      {!small ? (
+        <>
+          <span className="drift-spark pointer-events-none absolute bottom-[32%] left-[10%] h-px w-28 bg-gradient-to-r from-transparent via-amber-200/50 to-transparent" />
+          <span className="drift-spark pointer-events-none absolute right-[8%] top-[48%] h-px w-28 bg-gradient-to-r from-transparent via-violet-200/50 to-transparent" />
+        </>
+      ) : null}
     </>
   );
 }
 
-function CrownIcon() {
+function FloatingDots() {
+  return (
+    <>
+      <span className="float-dot pointer-events-none absolute left-[18%] top-[18%] h-1.5 w-1.5 rounded-full bg-white/30" />
+      <span className="float-dot pointer-events-none absolute bottom-[18%] right-[16%] h-1.5 w-1.5 rounded-full bg-amber-200/35" />
+    </>
+  );
+}
+
+function PrismIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
       <path
-        d="M4.5 17.5h15M6.3 16.8 5 8.5l4.2 3L12 6l2.8 5.5 4.2-3-1.3 8.3"
+        d="M12 3 20 8.5 12 21 4 8.5 12 3Z"
         stroke="currentColor"
         strokeWidth="1.7"
-        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 8.5h16M12 3v18"
+        stroke="currentColor"
+        strokeWidth="1.7"
         strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
-      <path
-        d="M19.2 14.8A7.8 7.8 0 0 1 9.2 4.8 8.1 8.1 0 1 0 19.2 14.8Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StarIcon() {
+function SparkIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
       <path
@@ -988,11 +1110,11 @@ function StarIcon() {
   );
 }
 
-function ShieldIcon() {
+function DropletIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
       <path
-        d="M12 3.5 19 6v5.7c0 4.3-2.8 7.4-7 8.8-4.2-1.4-7-4.5-7-8.8V6l7-2.5Z"
+        d="M12 3.5S6.5 9.2 6.5 14a5.5 5.5 0 0 0 11 0C17.5 9.2 12 3.5 12 3.5Z"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
@@ -1001,17 +1123,29 @@ function ShieldIcon() {
   );
 }
 
-function CrystalIcon() {
+function FrameIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M8 8h8M8 12h8M8 16h5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function GemIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
       <path
         d="m12 3 7 6-7 12L5 9l7-6Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M5 9h14M12 3v18"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinejoin="round"
@@ -1030,6 +1164,42 @@ function UserIcon() {
       />
       <path
         d="M4.8 20c.95-3.25 3.4-5 7.2-5s6.25 1.75 7.2 5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CoinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M12 21c4.4 0 8-2 8-4.5V7.5C20 5 16.4 3 12 3S4 5 4 7.5v9C4 19 7.6 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M20 7.5C20 10 16.4 12 12 12S4 10 4 7.5M20 12c0 2.5-3.6 4.5-8 4.5S4 14.5 4 12"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+    </svg>
+  );
+}
+
+function BagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M6 8.5h12l-1 12H7L6 8.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 8.5V7a3 3 0 0 1 6 0v1.5"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"
