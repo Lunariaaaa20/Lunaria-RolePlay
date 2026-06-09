@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import type { CosmeticItem, CosmeticType } from "./data/cosmeticItems";
 import { getCosmeticById } from "./data/cosmeticItems";
 import CosmeticEffectRenderer from "./CosmeticEffectRenderer";
@@ -13,6 +14,12 @@ type CosmeticProfileRendererProps = {
   className?: string;
 };
 
+type PlayerCosmeticRow = {
+  cosmetic_key: string | null;
+  cosmetic_type: string | null;
+  equipped: boolean | null;
+};
+
 const emptyEquipped: EquippedCosmetics = {
   name_effect: "",
   border: "",
@@ -21,24 +28,59 @@ const emptyEquipped: EquippedCosmetics = {
   particle: "",
 };
 
-function getEquippedStorageKey(playerId: string) {
-  return `lunaria_cosmetic_equipped_${playerId}`;
-}
+async function fetchEquippedCosmetics(playerId: string): Promise<EquippedCosmetics> {
+  const { data, error } = await supabase
+    .from("player_cosmetics")
+    .select("cosmetic_key, cosmetic_type, equipped")
+    .eq("player_id", playerId)
+    .eq("equipped", true);
 
-function readEquippedCosmetics(playerId: string): EquippedCosmetics {
-  if (typeof window === "undefined") return emptyEquipped;
-
-  const raw = localStorage.getItem(getEquippedStorageKey(playerId));
-  if (!raw) return emptyEquipped;
-
-  try {
-    return {
-      ...emptyEquipped,
-      ...JSON.parse(raw),
-    };
-  } catch {
+  if (error || !data) {
     return emptyEquipped;
   }
+
+  const result: EquippedCosmetics = { ...emptyEquipped };
+
+  for (const row of data as PlayerCosmeticRow[]) {
+    if (!row.cosmetic_key || !row.cosmetic_type) continue;
+
+    const type = row.cosmetic_type as CosmeticType;
+
+    if (type in result) {
+      result[type] = row.cosmetic_key;
+    }
+  }
+
+  return result;
+}
+
+function useEquippedCosmetics(playerId: string) {
+  const [equipped, setEquipped] = useState<EquippedCosmetics>(emptyEquipped);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      if (!playerId) {
+        setEquipped(emptyEquipped);
+        return;
+      }
+
+      const result = await fetchEquippedCosmetics(playerId);
+
+      if (alive) {
+        setEquipped(result);
+      }
+    }
+
+    load();
+
+    return () => {
+      alive = false;
+    };
+  }, [playerId]);
+
+  return equipped;
 }
 
 function getThemeBorderClass(item: CosmeticItem | null) {
@@ -85,6 +127,28 @@ function getThemeBackgroundClass(item: CosmeticItem | null) {
   return "bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.16),transparent_44%)]";
 }
 
+function getNameEffectClass(item: CosmeticItem | null) {
+  if (!item) return "";
+
+  if (item.theme === "sovereign-tempest") {
+    return "bg-gradient-to-r from-amber-200 via-white to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(245,158,11,0.35)]";
+  }
+
+  if (item.theme === "abyssal-leviathan") {
+    return "bg-gradient-to-r from-cyan-200 via-white to-emerald-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(34,211,238,0.30)]";
+  }
+
+  if (item.theme === "crimson-aristocrat") {
+    return "bg-gradient-to-r from-red-200 via-amber-100 to-rose-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(248,113,113,0.30)]";
+  }
+
+  if (item.theme === "ethereal-yggdrasil") {
+    return "bg-gradient-to-r from-emerald-200 via-lime-100 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(52,211,153,0.28)]";
+  }
+
+  return "bg-gradient-to-r from-slate-100 via-cyan-100 to-sky-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(125,211,252,0.28)]";
+}
+
 export function CosmeticNameText({
   playerId,
   children,
@@ -94,29 +158,22 @@ export function CosmeticNameText({
   children: React.ReactNode;
   className?: string;
 }) {
-  const equipped = readEquippedCosmetics(playerId);
+  const equipped = useEquippedCosmetics(playerId);
   const nameEffect = getCosmeticById(equipped.name_effect);
 
   if (!nameEffect) {
     return <span className={className}>{children}</span>;
   }
 
-  const effectClass =
-    nameEffect.theme === "sovereign-tempest"
-      ? "bg-gradient-to-r from-amber-200 via-white to-violet-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(245,158,11,0.35)]"
-      : nameEffect.theme === "abyssal-leviathan"
-      ? "bg-gradient-to-r from-cyan-200 via-white to-emerald-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(34,211,238,0.30)]"
-      : nameEffect.theme === "crimson-aristocrat"
-      ? "bg-gradient-to-r from-red-200 via-amber-100 to-rose-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(248,113,113,0.30)]"
-      : nameEffect.theme === "ethereal-yggdrasil"
-      ? "bg-gradient-to-r from-emerald-200 via-lime-100 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(52,211,153,0.28)]"
-      : "bg-gradient-to-r from-slate-100 via-cyan-100 to-sky-200 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(125,211,252,0.28)]";
-
-  return <span className={`${className} ${effectClass}`}>{children}</span>;
+  return (
+    <span className={`${className} ${getNameEffectClass(nameEffect)}`}>
+      {children}
+    </span>
+  );
 }
 
 export function EquippedCosmeticList({ playerId }: { playerId: string }) {
-  const equipped = readEquippedCosmetics(playerId);
+  const equipped = useEquippedCosmetics(playerId);
 
   const items = Object.values(equipped)
     .map((id) => getCosmeticById(id))
@@ -162,14 +219,14 @@ export default function CosmeticProfileRenderer({
   children,
   className = "",
 }: CosmeticProfileRendererProps) {
-  const equipped = readEquippedCosmetics(playerId);
+  const equipped = useEquippedCosmetics(playerId);
 
   const border = getCosmeticById(equipped.border);
   const background = getCosmeticById(equipped.background);
   const aura = getCosmeticById(equipped.aura);
   const particle = getCosmeticById(equipped.particle);
 
-  const mainVisual = particle || aura || background || border;
+  const fallbackVisual = particle || aura || background || border;
 
   return (
     <div
@@ -193,8 +250,8 @@ export default function CosmeticProfileRenderer({
         </div>
       ) : null}
 
-      {!background && !aura && !particle && mainVisual ? (
-        <CosmeticEffectRenderer theme={mainVisual.theme} variant="compact" />
+      {!background && !aura && !particle && fallbackVisual ? (
+        <CosmeticEffectRenderer theme={fallbackVisual.theme} variant="compact" />
       ) : null}
 
       <div className="relative z-10">{children}</div>
