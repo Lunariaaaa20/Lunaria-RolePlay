@@ -1,8 +1,17 @@
- "use client";
+"use client";
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  addCurrency,
+  canAfford,
+  formatCurrency,
+  normalizeCurrency,
+  silverToCurrency,
+  subtractCurrency,
+  type LunariaCurrency,
+} from "@/lib/lunariaCurrency";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -19,7 +28,9 @@ type PlayerProfile = {
   race: string;
   pathway: string;
   guild_rank: string;
+  gold: number;
   silver: number;
+  bronze: number;
   status: string;
 };
 
@@ -61,7 +72,10 @@ type SpinOption = {
   count: number;
   cost: number;
   sigil: string;
+  title: string;
   subtitle: string;
+  tone: string;
+  badge?: string;
 };
 
 type SpinResult = {
@@ -98,25 +112,32 @@ const MAX_ENTRIES_PER_ROUND = 5;
 
 const spinOptions: SpinOption[] = [
   {
-    label: "Veil Spin I",
+    label: "1x Spin",
     count: 1,
     cost: 5,
-    sigil: "I",
-    subtitle: "Single whisper cast",
+    sigil: "☾",
+    title: "Celestial Whisper",
+    subtitle: "Satu bisikan lembut dari balik sayap putih.",
+    tone: "border-sky-300/25 from-sky-500/10 to-violet-500/10 text-sky-200",
   },
   {
-    label: "Veil Spin V",
+    label: "5x Spin",
     count: 5,
     cost: 25,
-    sigil: "V",
-    subtitle: "Five-fold omen draw",
+    sigil: "◉",
+    title: "Bewitched Fate",
+    subtitle: "Takdir yang tersenyum manis, lalu meminta harga.",
+    tone: "border-amber-300/30 from-amber-500/14 to-red-500/10 text-amber-200",
+    badge: "Most Tempting",
   },
   {
-    label: "Veil Spin X",
+    label: "10x Spin",
     count: 10,
     cost: 50,
-    sigil: "X",
-    subtitle: "Grand ritual cascade",
+    sigil: "♛",
+    title: "Forbidden Pact",
+    subtitle: "Sepuluh ketukan pada pintu yang tidak seharusnya dibuka.",
+    tone: "border-red-300/25 from-red-500/14 to-fuchsia-500/10 text-red-200",
   },
 ];
 
@@ -136,6 +157,25 @@ function getSession(): LunariaSession | null {
     sessionStorage.removeItem("lunaria_session");
     return null;
   }
+}
+
+function getPlayerCurrency(player: PlayerProfile): LunariaCurrency {
+  return normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+}
+
+function normalizePlayer(player: PlayerProfile): PlayerProfile {
+  const currency = getPlayerCurrency(player);
+
+  return {
+    ...player,
+    gold: currency.gold,
+    silver: currency.silver,
+    bronze: currency.bronze,
+  };
 }
 
 function generateTenNumbers() {
@@ -180,6 +220,12 @@ function formatTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatSilverChange(value: number) {
+  const currency = silverToCurrency(Math.abs(value));
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${formatCurrency(currency)}`;
 }
 
 function getSpinResult(): SpinResult {
@@ -232,7 +278,7 @@ function getSpinResult(): SpinResult {
   };
 }
 
-export default function FortuneHallPage() {
+export default function Calendar() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [activeRound, setActiveRound] = useState<NumberRound | null>(null);
@@ -251,7 +297,10 @@ export default function FortuneHallPage() {
   const [lastSpinText, setLastSpinText] = useState("");
 
   const isAdminSession = session?.role === "admin";
-  const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
+  const isPlayerSession =
+    session?.role === "player" && Boolean(session.playerId);
+
+  const playerBalance = player ? getPlayerCurrency(player) : null;
 
   const activeNumbers = useMemo(() => {
     if (activeRound?.numbers?.length) return activeRound.numbers;
@@ -290,6 +339,48 @@ export default function FortuneHallPage() {
     };
   }, [activeRound?.ends_at]);
 
+  const updatePlayerCurrency = async (
+    playerId: string,
+    nextCurrency: LunariaCurrency
+  ) => {
+    const normalized = normalizeCurrency(nextCurrency);
+
+    const { error } = await supabase
+      .from("players")
+      .update({
+        gold: normalized.gold,
+        silver: normalized.silver,
+        bronze: normalized.bronze,
+      })
+      .eq("id", playerId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return normalized;
+  };
+
+  const readPlayerCurrency = async (playerId: string) => {
+    const { data, error } = await supabase
+      .from("players")
+      .select("id, gold, silver, bronze")
+      .eq("id", playerId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) return null;
+
+    return normalizeCurrency({
+      gold: Number(data.gold || 0),
+      silver: Number(data.silver || 0),
+      bronze: Number(data.bronze || 0),
+    });
+  };
+
   const settleOneRound = async (round: NumberRound) => {
     const winningNumber = pickWinningNumber(round.numbers);
 
@@ -311,23 +402,15 @@ export default function FortuneHallPage() {
       const reward = isWin ? getRewardAmount(entry.bet_amount) : 0;
 
       if (isWin) {
-        const { data: targetPlayer, error: readPlayerError } = await supabase
-          .from("players")
-          .select("id, silver")
-          .eq("id", entry.player_id)
-          .maybeSingle();
+        const currentCurrency = await readPlayerCurrency(entry.player_id);
 
-        if (readPlayerError) {
-          throw new Error(readPlayerError.message);
-        }
+        if (currentCurrency) {
+          const nextCurrency = addCurrency(
+            currentCurrency,
+            silverToCurrency(reward)
+          );
 
-        if (targetPlayer) {
-          await supabase
-            .from("players")
-            .update({
-              silver: Number(targetPlayer.silver) + reward,
-            })
-            .eq("id", entry.player_id);
+          await updatePlayerCurrency(entry.player_id, nextCurrency);
         }
       }
 
@@ -342,9 +425,11 @@ export default function FortuneHallPage() {
       await supabase.from("fortune_logs").insert({
         player_id: entry.player_id,
         mode: "Veiled Number Rite",
-        detail: `Marked ${entry.picked_number} • Sealed result ${winningNumber} • Tribute ${entry.bet_amount}S`,
-        result: isWin ? "Veil Favored You" : "The Veil Stayed Silent",
-        silver_change: isWin ? reward : 0,
+        detail: `Marked ${entry.picked_number} • Chosen ${winningNumber} • Tribute ${formatCurrency(
+          silverToCurrency(entry.bet_amount)
+        )}`,
+        result: isWin ? "The Veil Answered" : "The Circle Stayed Silent",
+        silver_change: reward,
       });
     }
 
@@ -466,7 +551,9 @@ export default function FortuneHallPage() {
 
       const { data: playerData, error: playerError } = await supabase
         .from("players")
-        .select("id, character_name, race, pathway, guild_rank, silver, status")
+        .select(
+          "id, character_name, race, pathway, guild_rank, gold, silver, bronze, status"
+        )
         .eq("id", currentSession.playerId)
         .eq("status", "active")
         .maybeSingle();
@@ -483,7 +570,7 @@ export default function FortuneHallPage() {
         return;
       }
 
-      currentPlayer = playerData as unknown as PlayerProfile;
+      currentPlayer = normalizePlayer(playerData as unknown as PlayerProfile);
     }
 
     const { data: roundData, error: roundError } = await supabase
@@ -531,7 +618,7 @@ export default function FortuneHallPage() {
 
     if (logError) {
       setIsLoading(false);
-      setErrorMessage(`Gagal membaca catatan takdir: ${logError.message}`);
+      setErrorMessage(`Gagal membaca fortune log: ${logError.message}`);
       return;
     }
 
@@ -557,6 +644,7 @@ export default function FortuneHallPage() {
 
   useEffect(() => {
     loadFortuneData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleJoinNumberRound = async () => {
@@ -568,8 +656,8 @@ export default function FortuneHallPage() {
       return;
     }
 
-    if (!player) {
-      setErrorMessage("Data player belum terbaca. Refresh dulu.");
+    if (!player || !playerBalance) {
+      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
       return;
     }
 
@@ -583,8 +671,14 @@ export default function FortuneHallPage() {
       return;
     }
 
-    if (player.silver < selectedBet) {
-      setErrorMessage(`Silver tidak cukup. Kamu butuh ${selectedBet}S.`);
+    const betCost = silverToCurrency(selectedBet);
+
+    if (!canAfford(playerBalance, betCost)) {
+      setErrorMessage(
+        `Balance tidak cukup. Dibutuhkan ${formatCurrency(
+          betCost
+        )}, sedangkan milikmu ${formatCurrency(playerBalance)}.`
+      );
       return;
     }
 
@@ -632,15 +726,14 @@ export default function FortuneHallPage() {
         round = newRound as unknown as NumberRound;
       }
 
-      const newSilver = player.silver - selectedBet;
+      const nextBalance = subtractCurrency(playerBalance, betCost);
 
-      const { error: updatePlayerError } = await supabase
-        .from("players")
-        .update({ silver: newSilver })
-        .eq("id", session.playerId);
-
-      if (updatePlayerError) {
-        setErrorMessage(`Gagal mengurangi silver: ${updatePlayerError.message}`);
+      try {
+        await updatePlayerCurrency(session.playerId, nextBalance);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown balance error.";
+        setErrorMessage(`Gagal mengurangi balance: ${message}`);
         return;
       }
 
@@ -656,10 +749,7 @@ export default function FortuneHallPage() {
         });
 
       if (insertEntryError) {
-        await supabase
-          .from("players")
-          .update({ silver: player.silver })
-          .eq("id", session.playerId);
+        await updatePlayerCurrency(session.playerId, playerBalance);
 
         setErrorMessage(`Gagal mengunci angka: ${insertEntryError.message}`);
         return;
@@ -668,13 +758,17 @@ export default function FortuneHallPage() {
       await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
         mode: "Veiled Number Rite",
-        detail: `Marked sigil ${selectedNumber} • Tribute ${selectedBet}S`,
+        detail: `Marked sigil ${selectedNumber} • Tribute ${formatCurrency(
+          betCost
+        )}`,
         result: "Seal Accepted",
         silver_change: -selectedBet,
       });
 
       setNotice(
-        `Sigil ${selectedNumber} telah diterima. Persembahan ${selectedBet}S masuk ke lingkaran.`
+        `Sigil ${selectedNumber} telah diterima. Persembahan ${formatCurrency(
+          betCost
+        )} masuk ke lingkaran.`
       );
 
       await loadFortuneData();
@@ -697,13 +791,19 @@ export default function FortuneHallPage() {
       return;
     }
 
-    if (!player) {
-      setErrorMessage("Data player belum terbaca. Refresh dulu.");
+    if (!player || !playerBalance) {
+      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
       return;
     }
 
-    if (player.silver < option.cost) {
-      setErrorMessage(`Silver tidak cukup. Kamu butuh ${option.cost}S.`);
+    const spinCost = silverToCurrency(option.cost);
+
+    if (!canAfford(playerBalance, spinCost)) {
+      setErrorMessage(
+        `Balance tidak cukup. Dibutuhkan ${formatCurrency(
+          spinCost
+        )}, sedangkan milikmu ${formatCurrency(playerBalance)}.`
+      );
       return;
     }
 
@@ -719,53 +819,67 @@ export default function FortuneHallPage() {
         results.push(result.label);
       }
 
+      const rewardCurrency = silverToCurrency(totalReward);
+      const afterCost = subtractCurrency(playerBalance, spinCost);
+      const nextBalance = addCurrency(afterCost, rewardCurrency);
       const net = totalReward - option.cost;
-      const newSilver = player.silver + net;
 
-      if (newSilver < 0) {
-        setErrorMessage("Silver tidak cukup untuk menerima hasil ritual.");
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from("players")
-        .update({ silver: newSilver })
-        .eq("id", session.playerId);
-
-      if (updateError) {
-        setErrorMessage(`Gagal update silver: ${updateError.message}`);
+      try {
+        await updatePlayerCurrency(session.playerId, nextBalance);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown balance error.";
+        setErrorMessage(`Gagal update balance: ${message}`);
         return;
       }
 
       const { error: logError } = await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
         mode: "Veil Spin",
-        detail: `${option.label} • ${results.join(", ")}`,
+        detail: `${option.title} • ${results.join(", ")}`,
         result:
-          net > 0 ? "The Veil Smiled" : net < 0 ? "The Veil Took Its Due" : "Balance Preserved",
+          net > 0
+            ? "The Veil Smiled"
+            : net < 0
+            ? "The Veil Took Its Due"
+            : "Balance Preserved",
         silver_change: net,
       });
 
       if (logError) {
-        await supabase
-          .from("players")
-          .update({ silver: player.silver })
-          .eq("id", session.playerId);
+        await updatePlayerCurrency(session.playerId, playerBalance);
 
         setErrorMessage(`Gagal menyimpan ritual log: ${logError.message}`);
         return;
       }
 
-      setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
-      setLastSpinText(
-        `${option.label}: ${results.join(", ")} • ${net >= 0 ? "+" : ""}${net}S`
+      setPlayer((prev) =>
+        prev
+          ? {
+              ...prev,
+              gold: nextBalance.gold,
+              silver: nextBalance.silver,
+              bronze: nextBalance.bronze,
+            }
+          : prev
       );
+
+      setLastSpinText(
+        `${option.title}: ${results.join(", ")} • ${
+          net >= 0 ? "+" : ""
+        }${formatCurrency(silverToCurrency(net))}`
+      );
+
       setNotice(
         net > 0
-          ? `${option.label} berakhir manis. Veil memberimu +${net}S.`
+          ? `${option.title} berakhir manis. Veil memberimu ${formatCurrency(
+              silverToCurrency(net)
+            )}.`
           : net < 0
-          ? `${option.label} menuntut harga. Veil mengambil ${Math.abs(net)}S.`
-          : `${option.label} selesai. Takdir tetap seimbang.`
+          ? `${option.title} menuntut harga. Veil mengambil ${formatCurrency(
+              silverToCurrency(Math.abs(net))
+            )}.`
+          : `${option.title} selesai. Takdir tetap seimbang.`
       );
 
       await loadFortuneData();
@@ -877,14 +991,20 @@ export default function FortuneHallPage() {
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
               Aula mewah yang tampak suci di permukaan, namun menyembunyikan
               lingkaran takdir di balik cahaya. Setiap angka, spin, dan ritual
-              mengalir menggunakan silver karakter login sendiri.
+              mengalir menggunakan balance karakter login sendiri.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:min-w-[320px]">
             <TopHeroStat
-              label="Silver Vessel"
-              value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+              label="Vessel Balance"
+              value={
+                playerBalance
+                  ? formatCurrency(playerBalance)
+                  : isAdminSession
+                  ? "ADMIN"
+                  : "-"
+              }
               tone="text-amber-300"
             />
             <TopHeroStat
@@ -940,7 +1060,7 @@ export default function FortuneHallPage() {
               <p className="mt-3 text-sm leading-7 text-slate-400">
                 Panel khusus admin untuk testing dan kontrol sistem. Penutupan
                 paksa akan langsung mengungkap sigil terpilih. Reset aktif akan
-                menghapus ritual tanpa rollback silver testing.
+                menghapus ritual tanpa rollback balance testing.
               </p>
             </div>
 
@@ -988,8 +1108,8 @@ export default function FortuneHallPage() {
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard
-          label="Silver Balance"
-          value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+          label="Current Balance"
+          value={playerBalance ? formatCurrency(playerBalance) : isAdminSession ? "ADMIN" : "-"}
           desc="Current vessel reserve"
           tone="text-amber-300"
           icon={<HaloMaskIcon className="h-5 w-5" />}
@@ -1004,7 +1124,7 @@ export default function FortuneHallPage() {
         <SummaryCard
           label="Devoured Offers"
           value={String(totalLosses)}
-          desc="Silver taken by the veil"
+          desc="Balance taken by the veil"
           tone="text-red-300"
           icon={<InfernalMarkIcon className="h-5 w-5" />}
         />
@@ -1096,8 +1216,7 @@ export default function FortuneHallPage() {
                               : "border-red-400/25 bg-red-400/10 text-red-300"
                           }`}
                         >
-                          {log.silver_change >= 0 ? "+" : ""}
-                          {log.silver_change}S
+                          {formatSilverChange(log.silver_change)}
                         </span>
                       </div>
 
@@ -1174,7 +1293,7 @@ export default function FortuneHallPage() {
                 {currentPlayerEntry ? (
                   <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-300">
                     Your Mark: {currentPlayerEntry.picked_number} •{" "}
-                    {currentPlayerEntry.bet_amount}S
+                    {formatCurrency(silverToCurrency(currentPlayerEntry.bet_amount))}
                   </div>
                 ) : null}
               </div>
@@ -1215,7 +1334,7 @@ export default function FortuneHallPage() {
                           : "border-white/10 bg-black/30 text-slate-400 hover:border-violet-400/25"
                       }`}
                     >
-                      {bet}S
+                      {formatCurrency(silverToCurrency(bet))}
                     </button>
                   ))}
                 </div>
@@ -1250,7 +1369,9 @@ export default function FortuneHallPage() {
                   ? "Mark Already Sealed"
                   : isJoining
                   ? "Sealing..."
-                  : `Seal Sigil ${selectedNumber || "-"} • ${selectedBet}S`}
+                  : `Seal Sigil ${selectedNumber || "-"} • ${formatCurrency(
+                      silverToCurrency(selectedBet)
+                    )}`}
               </button>
             </div>
           </section>
@@ -1288,27 +1409,39 @@ export default function FortuneHallPage() {
               {spinOptions.map((option) => (
                 <div
                   key={option.label}
-                  className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-violet-400/20 hover:bg-white/[0.055]"
+                  className={`group relative overflow-hidden rounded-[28px] border bg-gradient-to-br ${option.tone} p-5 transition hover:bg-white/[0.055]`}
                 >
-                  <div className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-lg font-black text-violet-200 transition group-hover:scale-105">
+                  {option.badge ? (
+                    <div className="absolute right-4 top-4 rounded-full border border-amber-300/25 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
+                      {option.badge}
+                    </div>
+                  ) : null}
+
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-2xl">
                     {option.sigil}
                   </div>
 
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+                  <p className="mt-5 text-xs font-black uppercase tracking-[0.22em] text-slate-500">
                     {option.label}
                   </p>
 
-                  <p className="mt-4 text-4xl font-black text-amber-300">
-                    {option.cost}S
+                  <h3 className="mt-2 text-2xl font-black text-white">
+                    {option.title}
+                  </h3>
+
+                  <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-400">
+                    {option.subtitle}
                   </p>
 
-                  <p className="mt-2 text-sm text-slate-400">{option.subtitle}</p>
+                  <p className="mt-5 text-4xl font-black text-amber-300">
+                    {formatCurrency(silverToCurrency(option.cost))}
+                  </p>
 
                   <button
                     type="button"
                     onClick={() => handleSpin(option)}
                     disabled={isSpinning || isLoading || !isPlayerSession}
-                    className="mt-6 w-full rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+                    className="mt-6 w-full rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-violet-200 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
                   >
                     {isAdminSession
                       ? "Admin Disabled"
