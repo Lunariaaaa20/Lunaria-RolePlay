@@ -43,6 +43,7 @@ type NumberEntry = {
   result: "pending" | "win" | "lose";
   reward_amount: number;
   created_at: string;
+  player_name?: string;
 };
 
 type FortuneLog = {
@@ -238,9 +239,11 @@ export default function Calendar() {
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isAdminWorking, setIsAdminWorking] = useState(false);
   const [countdown, setCountdown] = useState("--:--:--");
   const [lastSpinText, setLastSpinText] = useState("");
 
+  const isAdminSession = session?.role === "admin";
   const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
 
   const activeNumbers = useMemo(() => {
@@ -280,6 +283,76 @@ export default function Calendar() {
     };
   }, [activeRound?.ends_at]);
 
+  const settleOneRound = async (round: NumberRound) => {
+    const winningNumber = pickWinningNumber(round.numbers);
+
+    const { data: entriesData, error: entriesError } = await supabase
+      .from("fortune_number_entries")
+      .select(
+        "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
+      )
+      .eq("round_id", round.id);
+
+    if (entriesError) {
+      throw new Error(entriesError.message);
+    }
+
+    const entries = (entriesData as unknown as NumberEntry[] | null) || [];
+
+    for (const entry of entries) {
+      const isWin = entry.picked_number === winningNumber;
+      const reward = isWin ? getRewardAmount(entry.bet_amount) : 0;
+
+      if (isWin) {
+        const { data: targetPlayer, error: readPlayerError } = await supabase
+          .from("players")
+          .select("id, silver")
+          .eq("id", entry.player_id)
+          .maybeSingle();
+
+        if (readPlayerError) {
+          throw new Error(readPlayerError.message);
+        }
+
+        if (targetPlayer) {
+          await supabase
+            .from("players")
+            .update({
+              silver: Number(targetPlayer.silver) + reward,
+            })
+            .eq("id", entry.player_id);
+        }
+      }
+
+      await supabase
+        .from("fortune_number_entries")
+        .update({
+          result: isWin ? "win" : "lose",
+          reward_amount: reward,
+        })
+        .eq("id", entry.id);
+
+      await supabase.from("fortune_logs").insert({
+        player_id: entry.player_id,
+        mode: "Daily Number Omen",
+        detail: `Picked ${entry.picked_number} • Winning ${winningNumber} • Bet ${entry.bet_amount}S`,
+        result: isWin ? "Number Omen Win" : "Number Omen Loss",
+        silver_change: reward,
+      });
+    }
+
+    await supabase
+      .from("fortune_number_rounds")
+      .update({
+        status: "settled",
+        winning_number: winningNumber,
+        settled_at: new Date().toISOString(),
+      })
+      .eq("id", round.id);
+
+    return winningNumber;
+  };
+
   const settleExpiredRounds = async () => {
     const nowIso = new Date().toISOString();
 
@@ -298,72 +371,51 @@ export default function Calendar() {
     const rounds = (expiredRounds as unknown as NumberRound[] | null) || [];
 
     for (const round of rounds) {
-      const winningNumber = pickWinningNumber(round.numbers);
-
-      const { data: entriesData, error: entriesError } = await supabase
-        .from("fortune_number_entries")
-        .select(
-          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
-        )
-        .eq("round_id", round.id);
-
-      if (entriesError) {
-        throw new Error(entriesError.message);
-      }
-
-      const entries = (entriesData as unknown as NumberEntry[] | null) || [];
-
-      for (const entry of entries) {
-        const isWin = entry.picked_number === winningNumber;
-        const reward = isWin ? getRewardAmount(entry.bet_amount) : 0;
-
-        if (isWin) {
-          const { data: targetPlayer, error: readPlayerError } = await supabase
-            .from("players")
-            .select("id, silver")
-            .eq("id", entry.player_id)
-            .maybeSingle();
-
-          if (readPlayerError) {
-            throw new Error(readPlayerError.message);
-          }
-
-          if (targetPlayer) {
-            await supabase
-              .from("players")
-              .update({
-                silver: Number(targetPlayer.silver) + reward,
-              })
-              .eq("id", entry.player_id);
-          }
-        }
-
-        await supabase
-          .from("fortune_number_entries")
-          .update({
-            result: isWin ? "win" : "lose",
-            reward_amount: reward,
-          })
-          .eq("id", entry.id);
-
-        await supabase.from("fortune_logs").insert({
-          player_id: entry.player_id,
-          mode: "Daily Number Omen",
-          detail: `Picked ${entry.picked_number} • Winning ${winningNumber} • Bet ${entry.bet_amount}S`,
-          result: isWin ? "Number Omen Win" : "Number Omen Loss",
-          silver_change: reward,
-        });
-      }
-
-      await supabase
-        .from("fortune_number_rounds")
-        .update({
-          status: "settled",
-          winning_number: winningNumber,
-          settled_at: new Date().toISOString(),
-        })
-        .eq("id", round.id);
+      await settleOneRound(round);
     }
+  };
+
+  const loadEntriesWithNames = async (roundId: string) => {
+    const { data: entriesData, error: entriesError } = await supabase
+      .from("fortune_number_entries")
+      .select(
+        "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
+      )
+      .eq("round_id", roundId)
+      .order("created_at", { ascending: true });
+
+    if (entriesError) {
+      throw new Error(entriesError.message);
+    }
+
+    const entries = (entriesData as unknown as NumberEntry[] | null) || [];
+    const playerIds = [...new Set(entries.map((entry) => entry.player_id))];
+
+    if (!playerIds.length) {
+      return entries;
+    }
+
+    const { data: playerRows, error: playerRowsError } = await supabase
+      .from("players")
+      .select("id, character_name")
+      .in("id", playerIds);
+
+    if (playerRowsError) {
+      return entries;
+    }
+
+    const playerMap = new Map<string, string>();
+
+    ((playerRows as unknown as { id: string; character_name: string }[] | null) ||
+      []
+    ).forEach((row) => {
+      playerMap.set(row.id, row.character_name);
+    });
+
+    return entries.map((entry) => ({
+      ...entry,
+      player_name: playerMap.get(entry.player_id) || "Unknown Player",
+    }));
   };
 
   const loadFortuneData = async () => {
@@ -383,28 +435,6 @@ export default function Calendar() {
       return;
     }
 
-    if (currentSession.role === "admin") {
-      setPlayer(null);
-      setActiveRound(null);
-      setRoundEntries([]);
-      setLogs([]);
-      setIsLoading(false);
-      setErrorMessage(
-        "Admin mode hanya untuk kontrol data. Login sebagai player untuk memakai Fortune Hall."
-      );
-      return;
-    }
-
-    if (!currentSession.playerId) {
-      setPlayer(null);
-      setActiveRound(null);
-      setRoundEntries([]);
-      setLogs([]);
-      setIsLoading(false);
-      setErrorMessage("Session player tidak valid. Silakan logout lalu login ulang.");
-      return;
-    }
-
     try {
       await settleExpiredRounds();
     } catch (error) {
@@ -413,23 +443,39 @@ export default function Calendar() {
       setErrorMessage(`Gagal memproses ronde selesai: ${message}`);
     }
 
-    const { data: playerData, error: playerError } = await supabase
-      .from("players")
-      .select("id, character_name, race, pathway, guild_rank, silver, status")
-      .eq("id", currentSession.playerId)
-      .eq("status", "active")
-      .maybeSingle();
+    let currentPlayer: PlayerProfile | null = null;
 
-    if (playerError) {
-      setIsLoading(false);
-      setErrorMessage(`Gagal membaca data player: ${playerError.message}`);
-      return;
-    }
+    if (currentSession.role === "player") {
+      if (!currentSession.playerId) {
+        setPlayer(null);
+        setActiveRound(null);
+        setRoundEntries([]);
+        setLogs([]);
+        setIsLoading(false);
+        setErrorMessage("Session player tidak valid. Silakan logout lalu login ulang.");
+        return;
+      }
 
-    if (!playerData) {
-      setIsLoading(false);
-      setErrorMessage("Player tidak ditemukan atau belum active.");
-      return;
+      const { data: playerData, error: playerError } = await supabase
+        .from("players")
+        .select("id, character_name, race, pathway, guild_rank, silver, status")
+        .eq("id", currentSession.playerId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (playerError) {
+        setIsLoading(false);
+        setErrorMessage(`Gagal membaca data player: ${playerError.message}`);
+        return;
+      }
+
+      if (!playerData) {
+        setIsLoading(false);
+        setErrorMessage("Player tidak ditemukan atau belum active.");
+        return;
+      }
+
+      currentPlayer = playerData as unknown as PlayerProfile;
     }
 
     const { data: roundData, error: roundError } = await supabase
@@ -448,32 +494,32 @@ export default function Calendar() {
       return;
     }
 
+    const round = (roundData as unknown as NumberRound | null) || null;
     let entries: NumberEntry[] = [];
 
-    if (roundData) {
-      const { data: entriesData, error: entriesError } = await supabase
-        .from("fortune_number_entries")
-        .select(
-          "id, round_id, player_id, picked_number, bet_amount, result, reward_amount, created_at"
-        )
-        .eq("round_id", roundData.id)
-        .order("created_at", { ascending: true });
-
-      if (entriesError) {
+    if (round) {
+      try {
+        entries = await loadEntriesWithNames(round.id);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown entries error.";
         setIsLoading(false);
-        setErrorMessage(`Gagal membaca peserta ronde: ${entriesError.message}`);
+        setErrorMessage(`Gagal membaca peserta ronde: ${message}`);
         return;
       }
-
-      entries = (entriesData as unknown as NumberEntry[] | null) || [];
     }
 
-    const { data: logData, error: logError } = await supabase
+    let logQuery = supabase
       .from("fortune_logs")
       .select("id, player_id, mode, detail, result, silver_change, created_at")
-      .eq("player_id", currentSession.playerId)
       .order("created_at", { ascending: false })
       .limit(10);
+
+    if (currentSession.role === "player" && currentSession.playerId) {
+      logQuery = logQuery.eq("player_id", currentSession.playerId);
+    }
+
+    const { data: logData, error: logError } = await logQuery;
 
     if (logError) {
       setIsLoading(false);
@@ -481,9 +527,7 @@ export default function Calendar() {
       return;
     }
 
-    const round = (roundData as unknown as NumberRound | null) || null;
-
-    setPlayer(playerData as unknown as PlayerProfile);
+    setPlayer(currentPlayer);
     setActiveRound(round);
     setRoundEntries(entries);
     setLogs((logData as unknown as FortuneLog[] | null) || []);
@@ -728,6 +772,83 @@ export default function Calendar() {
     }
   };
 
+  const handleForceSettleRound = async () => {
+    setErrorMessage("");
+    setNotice("");
+
+    if (!isAdminSession) {
+      setErrorMessage("Hanya admin yang bisa memakai Force Settle.");
+      return;
+    }
+
+    if (!activeRound) {
+      setErrorMessage("Tidak ada ronde aktif untuk diselesaikan.");
+      return;
+    }
+
+    setIsAdminWorking(true);
+
+    try {
+      const winningNumber = await settleOneRound(activeRound);
+      setNotice(`Admin Force Settle berhasil. Winning number: ${winningNumber}.`);
+      await loadFortuneData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown force settle error.";
+      setErrorMessage(`Force settle gagal: ${message}`);
+    } finally {
+      setIsAdminWorking(false);
+    }
+  };
+
+  const handleResetActiveRound = async () => {
+    setErrorMessage("");
+    setNotice("");
+
+    if (!isAdminSession) {
+      setErrorMessage("Hanya admin yang bisa reset ronde.");
+      return;
+    }
+
+    if (!activeRound) {
+      setErrorMessage("Tidak ada ronde aktif untuk direset.");
+      return;
+    }
+
+    setIsAdminWorking(true);
+
+    try {
+      const { error: deleteEntriesError } = await supabase
+        .from("fortune_number_entries")
+        .delete()
+        .eq("round_id", activeRound.id);
+
+      if (deleteEntriesError) {
+        setErrorMessage(`Gagal hapus entry ronde: ${deleteEntriesError.message}`);
+        return;
+      }
+
+      const { error: deleteRoundError } = await supabase
+        .from("fortune_number_rounds")
+        .delete()
+        .eq("id", activeRound.id);
+
+      if (deleteRoundError) {
+        setErrorMessage(`Gagal reset ronde: ${deleteRoundError.message}`);
+        return;
+      }
+
+      setNotice("Admin Reset berhasil. Ronde aktif sudah dihapus.");
+      await loadFortuneData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown reset error.";
+      setErrorMessage(`Reset ronde gagal: ${message}`);
+    } finally {
+      setIsAdminWorking(false);
+    }
+  };
+
   return (
     <main className="space-y-6 text-slate-100">
       <section className="overflow-hidden rounded-[32px] border border-amber-500/20 bg-gradient-to-br from-black via-slate-950 to-violet-950/60 p-6 shadow-[0_0_55px_rgba(245,158,11,0.10)]">
@@ -753,7 +874,7 @@ export default function Calendar() {
               Current Balance
             </p>
             <p className="mt-1 text-4xl font-black text-white">
-              {player ? `${player.silver}S` : "-"}
+              {player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
             </p>
           </div>
         </div>
@@ -786,10 +907,100 @@ export default function Calendar() {
         </section>
       ) : null}
 
+      {isAdminSession ? (
+        <section className="rounded-[34px] border border-red-400/25 bg-gradient-to-br from-red-950/35 via-black to-amber-950/25 p-6 shadow-[0_0_45px_rgba(248,113,113,0.08)]">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.32em] text-red-300">
+                Admin Fortune Control
+              </p>
+
+              <h2 className="mt-3 text-3xl font-black text-white">
+                Round Master Panel
+              </h2>
+
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+                Panel ini khusus admin untuk testing. Force Settle langsung
+                mengeluarkan hasil ronde aktif. Reset Active Round menghapus
+                ronde aktif tanpa mengembalikan silver test.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleForceSettleRound}
+                disabled={isAdminWorking || !activeRound}
+                className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+              >
+                Force Settle
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetActiveRound}
+                disabled={isAdminWorking || !activeRound}
+                className="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+              >
+                Reset Active Round
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <StatCard
+              label="Round Status"
+              value={activeRound ? "ACTIVE" : "NONE"}
+              tone={activeRound ? "text-emerald-300" : "text-slate-400"}
+            />
+            <StatCard label="Slots" value={participantSlots} tone="text-amber-300" />
+            <StatCard
+              label="Timer"
+              value={activeRound ? countdown : "-"}
+              tone="text-violet-300"
+            />
+            <StatCard
+              label="Entries"
+              value={String(roundEntries.length)}
+              tone="text-sky-300"
+            />
+          </div>
+
+          <div className="mt-6 rounded-[28px] border border-white/10 bg-black/35 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
+              Active Entries
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              {roundEntries.length ? (
+                roundEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                  >
+                    <p className="text-sm font-black text-white">
+                      {entry.player_name || "Unknown Player"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Number {entry.picked_number} • Bet {entry.bet_amount}S •{" "}
+                      {entry.result}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-500">
+                  Belum ada entry aktif.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="Current Silver"
-          value={player ? `${player.silver}S` : "-"}
+          value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
           tone="text-amber-300"
         />
         <StatCard
@@ -819,11 +1030,14 @@ export default function Calendar() {
 
                 <div className="min-w-0">
                   <h2 className="truncate text-xl font-black text-white">
-                    {player?.character_name || "No Player Session"}
+                    {player?.character_name ||
+                      (isAdminSession ? "Guild Admin" : "No Player Session")}
                   </h2>
                   <p className="mt-1 text-sm text-slate-400">
                     {player
                       ? `${player.guild_rank} • ${player.pathway}`
+                      : isAdminSession
+                      ? "Fortune Control"
                       : "Login required"}
                   </p>
                 </div>
@@ -961,7 +1175,7 @@ export default function Calendar() {
                     key={number}
                     type="button"
                     onClick={() => setSelectedNumber(number)}
-                    disabled={Boolean(currentPlayerEntry)}
+                    disabled={Boolean(currentPlayerEntry) || isAdminSession}
                     className={`rounded-3xl border px-4 py-5 text-3xl font-black transition disabled:cursor-not-allowed ${
                       selectedNumber === number
                         ? "border-amber-400/45 bg-amber-500/15 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.10)]"
@@ -984,7 +1198,7 @@ export default function Calendar() {
                       key={bet}
                       type="button"
                       onClick={() => setSelectedBet(bet)}
-                      disabled={Boolean(currentPlayerEntry)}
+                      disabled={Boolean(currentPlayerEntry) || isAdminSession}
                       className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed ${
                         selectedBet === bet
                           ? "border-violet-400/35 bg-violet-500/15 text-violet-200"
@@ -1019,7 +1233,9 @@ export default function Calendar() {
                 }
                 className="mt-5 w-full rounded-2xl border border-amber-400/35 bg-amber-500/15 px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
               >
-                {currentPlayerEntry
+                {isAdminSession
+                  ? "Admin Cannot Join Player Round"
+                  : currentPlayerEntry
                   ? "Number Already Locked"
                   : isJoining
                   ? "Locking..."
@@ -1076,7 +1292,11 @@ export default function Calendar() {
                     disabled={isSpinning || isLoading || !isPlayerSession}
                     className="mt-5 w-full rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
                   >
-                    {isSpinning ? "Spinning..." : "Spin"}
+                    {isAdminSession
+                      ? "Admin Disabled"
+                      : isSpinning
+                      ? "Spinning..."
+                      : "Spin"}
                   </button>
                 </div>
               ))}
