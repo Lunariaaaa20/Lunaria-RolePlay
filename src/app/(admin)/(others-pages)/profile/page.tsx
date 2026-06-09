@@ -67,14 +67,14 @@ const pathwayTheme: Record<string, string> = {
 function getSession(): LunariaSession | null {
   if (typeof window === "undefined") return null;
 
-  const sessionSession = sessionStorage.getItem("lunaria_session");
-  const localSession = localStorage.getItem("lunaria_session");
-  const raw = sessionSession || localSession;
+  const sessionRaw =
+    sessionStorage.getItem("lunaria_session") ||
+    localStorage.getItem("lunaria_session");
 
-  if (!raw) return null;
+  if (!sessionRaw) return null;
 
   try {
-    return JSON.parse(raw) as LunariaSession;
+    return JSON.parse(sessionRaw) as LunariaSession;
   } catch {
     localStorage.removeItem("lunaria_session");
     sessionStorage.removeItem("lunaria_session");
@@ -89,6 +89,23 @@ function calculatePoints(player: Player) {
     player.dangerous_quests * 60 +
     player.special_quests * 120
   );
+}
+
+function getTotalQuests(player: Player) {
+  return (
+    player.common_quests +
+    player.uncommon_quests +
+    player.dangerous_quests +
+    player.special_quests
+  );
+}
+
+function getDisplayStatus(player: Player) {
+  if (player.guild_rank === "High Council") return "Moon-Crowned Authority";
+  if (player.guild_rank === "Arbiter") return "Royal Verdict Bearer";
+  if (player.guild_rank === "Warden") return "Oathbound Field Warden";
+  if (player.guild_rank === "Seeker") return "Moonlit Seeker";
+  return "Awakened Adventurer";
 }
 
 export default function AdventurerIdCardPage() {
@@ -116,11 +133,19 @@ export default function AdventurerIdCardPage() {
 
   const canEditPhoto = Boolean(selectedPlayer && (isAdmin || isOwner));
 
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      if (a.id === session?.playerId) return -1;
+      if (b.id === session?.playerId) return 1;
+      return a.character_name.localeCompare(b.character_name);
+    });
+  }, [players, session?.playerId]);
+
   const idCardText = useMemo(() => {
     if (!selectedPlayer) return "";
 
     return `╔══════════════════════╗
-* ADVENTURER'S GUILD LICENSE
+* LUNARIA ADVENTURER LICENSE
 ╚══════════════════════╝
 *Name :* ${selectedPlayer.character_name}
 *Race :* ${selectedPlayer.race}
@@ -155,10 +180,10 @@ export default function AdventurerIdCardPage() {
 
 ━━━━━━━━━━━━━━━━━━
 Registered Guild :
-Adventurer's Guild of Aethelgard
+Lunaria Adventurer Registry
 
 Status :
-${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.status}`;
+${getDisplayStatus(selectedPlayer)}`;
   }, [selectedPlayer]);
 
   const showNotice = (message: string) => {
@@ -195,7 +220,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
       return;
     }
 
-    setEquippedCosmetics((data as EquippedCosmetic[] | null) || []);
+    setEquippedCosmetics((data as unknown as EquippedCosmetic[]) || []);
   };
 
   const fetchPlayers = async () => {
@@ -254,7 +279,6 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
     }
 
     const playerData = (data || []) as Player[];
-
     setPlayers(playerData);
 
     if (playerData.length === 0) {
@@ -277,11 +301,10 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
         ? selectedPlayerId
         : playerData[0].id;
 
-    setSelectedPlayerId(preferredId);
-
     const currentPlayer =
       playerData.find((player) => player.id === preferredId) || playerData[0];
 
+    setSelectedPlayerId(currentPlayer.id);
     setPhotoInput(currentPlayer.photo_url || "");
     fetchEquippedCosmetics(currentPlayer.id);
   };
@@ -309,9 +332,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
     setCopied(true);
     showNotice("ID Card copied.");
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 1800);
+    setTimeout(() => setCopied(false), 1800);
   };
 
   const handleSavePhoto = async () => {
@@ -358,59 +379,74 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
   return (
     <main className="space-y-6 text-slate-100">
-      <section className="relative overflow-hidden rounded-[34px] border border-amber-400/25 bg-gradient-to-br from-black via-slate-950 to-violet-950/70 p-6 shadow-[0_0_65px_rgba(245,158,11,0.12)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.24),transparent_34%)]" />
+      <section className="relative overflow-hidden rounded-[32px] border border-amber-400/25 bg-gradient-to-br from-[#080911] via-[#07101d] to-violet-950/70 p-5 shadow-[0_0_65px_rgba(245,158,11,0.10)] md:p-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.20),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.30),transparent_36%)]" />
+        <div className="pointer-events-none absolute right-8 top-8 h-24 w-24 rounded-full border border-amber-300/20 bg-amber-300/10 blur-2xl" />
 
-        <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.36em] text-amber-300">
-              Lunaria Guild Registry
-            </p>
+        <div className="relative z-10 grid grid-cols-1 gap-5 xl:grid-cols-12 xl:items-center">
+          <div className="xl:col-span-7">
+            <div className="inline-flex rounded-full border border-amber-400/25 bg-amber-500/10 px-4 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-300">
+                Lunaria Guild Registry
+              </p>
+            </div>
 
-            <h1 className="mt-3 text-4xl font-black text-white md:text-5xl">
+            <h1 className="mt-4 text-4xl font-black leading-tight text-white md:text-5xl">
               Adventurer ID Card
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400">
-              ID Card publik untuk melihat adventurer aktif. Saat player login,
-              halaman otomatis membuka kartu miliknya sendiri, namun tetap bisa
-              melihat kartu adventurer aktif lain.
+              Lisensi resmi adventurer Lunaria. Player otomatis membuka kartu
+              miliknya sendiri, namun tetap bisa melihat ID Card adventurer aktif
+              lain sebagai arsip publik guild.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="grid grid-cols-2 gap-3 xl:col-span-5">
             <button
               onClick={fetchPlayers}
-              className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] text-sky-300 transition hover:bg-sky-500/20"
+              className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-sky-300 transition hover:bg-sky-500/20"
             >
-              Refresh Data
+              Refresh
             </button>
 
             <button
               onClick={handleCopy}
               disabled={!selectedPlayer}
-              className="rounded-2xl border border-amber-400/35 bg-amber-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl border border-amber-400/35 bg-amber-500/10 px-4 py-4 text-xs font-black uppercase tracking-[0.2em] text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {copied ? "Copied" : "Copy ID Card"}
+              {copied ? "Copied" : "Copy ID"}
             </button>
+
+            <MiniHeroStat
+              label="Active Registry"
+              value={String(players.length)}
+              tone="text-emerald-300"
+            />
+
+            <MiniHeroStat
+              label="Viewer"
+              value={session?.role === "admin" ? "Admin" : session?.characterName || "-"}
+              tone="text-amber-300"
+            />
           </div>
         </div>
       </section>
 
       {notice ? (
-        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200 shadow-[0_0_35px_rgba(52,211,153,0.08)]">
+        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-4 text-emerald-200">
           <p className="text-sm font-bold">{notice}</p>
         </section>
       ) : null}
 
       {errorMessage ? (
-        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200 shadow-[0_0_35px_rgba(248,113,113,0.08)]">
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-4 text-red-200">
           <p className="text-sm font-bold">{errorMessage}</p>
         </section>
       ) : null}
 
       {isLoading ? (
-        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
+        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-4 text-sky-200">
           <p className="text-sm font-bold">Loading active ID Cards...</p>
         </section>
       ) : null}
@@ -424,11 +460,11 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
       {selectedPlayer ? (
         <>
-          {players.length > 1 ? (
-            <section className="rounded-[30px] border border-white/10 bg-black/30 p-5 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+            <div className="rounded-[28px] border border-white/10 bg-black/30 p-5 shadow-[0_0_45px_rgba(15,23,42,0.45)] xl:col-span-8">
               <label className="block">
                 <span className="mb-3 block text-xs font-black uppercase tracking-[0.26em] text-slate-500">
-                  Select Adventurer
+                  Public Active ID Viewer
                 </span>
 
                 <select
@@ -436,251 +472,287 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   onChange={(event) => handleSelectPlayer(event.target.value)}
                   className="lunaria-id-input"
                 >
-                  {players.map((player) => (
+                  {sortedPlayers.map((player) => (
                     <option key={player.id} value={player.id}>
-                      {player.character_name} — {player.guild_rank}
+                      {player.id === session?.playerId ? "★ " : ""}
+                      {player.character_name} — {player.guild_rank} —{" "}
+                      {player.pathway}
                     </option>
                   ))}
                 </select>
               </label>
-            </section>
-          ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 xl:col-span-4">
+              <SmallStat
+                label="Total Quest"
+                value={String(getTotalQuests(selectedPlayer))}
+                tone="text-sky-300"
+              />
+              <SmallStat
+                label="Prestige"
+                value={String(calculatePoints(selectedPlayer))}
+                tone="text-violet-300"
+              />
+            </div>
+          </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <div className="xl:col-span-5">
-              <div className="relative overflow-hidden rounded-[36px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_65px_rgba(245,158,11,0.14)]">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.22),transparent_30%)]" />
+            <div className="xl:col-span-4">
+              <div className="sticky top-24">
+                <div className="relative overflow-hidden rounded-[34px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_70px_rgba(245,158,11,0.12)]">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.24),transparent_30%)]" />
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
 
-                <div className="relative z-10 rounded-[30px] border border-amber-400/20 bg-black/35 p-5">
-                  <div className="mb-6 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-300">
-                        Adventurer&apos;s Guild License
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Registered Guild of Aethelgard
-                      </p>
-                    </div>
+                  <div className="relative z-10 rounded-[28px] border border-amber-400/20 bg-black/35 p-5">
+                    <div className="mb-5 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                          Moonbound License
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Lunaria Adventurer Registry
+                        </p>
+                      </div>
 
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xl text-amber-300">
-                      ⚜
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center text-center">
-                    <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-[34px] border border-amber-400/30 bg-gradient-to-br from-slate-900 via-black to-violet-950 shadow-[0_0_38px_rgba(245,158,11,0.18)]">
-                      {selectedPlayer.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={selectedPlayer.photo_url}
-                          alt={selectedPlayer.character_name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-6xl">🧙</span>
-                      )}
-
-                      <div className="absolute bottom-2 rounded-full border border-amber-400/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                        Character Photo
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10">
+                        <MoonIcon className="h-6 w-6 text-amber-300" />
                       </div>
                     </div>
 
-                    <h2 className="mt-6 text-4xl font-black text-white">
-                      {selectedPlayer.character_name}
-                    </h2>
+                    <div className="flex flex-col items-center text-center">
+                      <div className="relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-[34px] border border-amber-400/30 bg-gradient-to-br from-slate-900 via-black to-violet-950 shadow-[0_0_38px_rgba(245,158,11,0.18)]">
+                        {selectedPlayer.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={selectedPlayer.photo_url}
+                            alt={selectedPlayer.character_name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-6xl">☾</span>
+                        )}
 
-                    <p className="mt-2 text-sm text-slate-400">
-                      {selectedPlayer.race} • {selectedPlayer.pathway}
-                    </p>
+                        <div className="absolute bottom-2 rounded-full border border-amber-400/30 bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                          Vessel Photo
+                        </div>
+                      </div>
 
-                    <div className="mt-5 flex flex-wrap justify-center gap-3">
-                      <span
-                        className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${
-                          rankTheme[selectedPlayer.guild_rank] ||
-                          "border-slate-400/30 bg-slate-400/10 text-slate-200"
-                        }`}
-                      >
-                        {selectedPlayer.guild_rank}
-                      </span>
+                      <h2 className="mt-5 text-3xl font-black leading-tight text-white">
+                        {selectedPlayer.character_name}
+                      </h2>
 
-                      <span
-                        className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${
-                          pathwayTheme[selectedPlayer.pathway] ||
-                          "border-violet-400/30 bg-violet-400/10 text-violet-200"
-                        }`}
-                      >
-                        {selectedPlayer.pathway}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-7 grid grid-cols-3 gap-3">
-                    <CurrencyBox
-                      label="Gold"
-                      value={selectedPlayer.gold}
-                      color="text-amber-300"
-                    />
-                    <CurrencyBox
-                      label="Silver"
-                      value={selectedPlayer.silver}
-                      color="text-slate-200"
-                    />
-                    <CurrencyBox
-                      label="Bronze"
-                      value={selectedPlayer.bronze}
-                      color="text-orange-300"
-                    />
-                  </div>
-
-                  <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300">
-                      Active Adventurer
-                    </p>
-                  </div>
-
-                  <div className="mt-5 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
-                      Equipped Cosmetics
-                    </p>
-
-                    <div className="mt-4 space-y-3">
-                      {equippedCosmetics.length ? (
-                        equippedCosmetics.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
-                          >
-                            <p className="text-sm font-bold text-white">
-                              ◆ {item.cosmetics?.name || "Unknown Cosmetic"}
-                            </p>
-
-                            <p className="text-xs text-slate-500">
-                              {item.cosmetics?.type || "Cosmetic"}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-400">
-                          No cosmetic equipped.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {canEditPhoto ? (
-                    <div className="mt-5 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
-                      <p className="text-xs font-black uppercase tracking-[0.26em] text-sky-300">
-                        Edit Character Photo
+                      <p className="mt-2 text-sm text-slate-400">
+                        {selectedPlayer.race} • {selectedPlayer.pathway}
                       </p>
 
-                      <p className="mt-2 text-sm leading-6 text-slate-300">
-                        Tempel link gambar karakter. Player hanya bisa edit foto
-                        ID Card sendiri. Admin bisa edit semua player aktif.
-                      </p>
+                      <div className="mt-4 flex flex-wrap justify-center gap-3">
+                        <span
+                          className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.16em] ${
+                            rankTheme[selectedPlayer.guild_rank] ||
+                            "border-slate-400/30 bg-slate-400/10 text-slate-200"
+                          }`}
+                        >
+                          {selectedPlayer.guild_rank}
+                        </span>
 
-                      <input
-                        value={photoInput}
-                        onChange={(event) => setPhotoInput(event.target.value)}
-                        placeholder="https://example.com/character-photo.png"
-                        className="lunaria-id-input mt-4"
+                        <span
+                          className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.16em] ${
+                            pathwayTheme[selectedPlayer.pathway] ||
+                            "border-violet-400/30 bg-violet-400/10 text-violet-200"
+                          }`}
+                        >
+                          {selectedPlayer.pathway}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-3 gap-3">
+                      <CurrencyBox
+                        label="Gold"
+                        value={selectedPlayer.gold}
+                        color="text-amber-300"
                       />
-
-                      <button
-                        onClick={handleSavePhoto}
-                        disabled={isSavingPhoto}
-                        className="mt-4 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isSavingPhoto ? "Saving..." : "Save Photo"}
-                      </button>
+                      <CurrencyBox
+                        label="Silver"
+                        value={selectedPlayer.silver}
+                        color="text-slate-100"
+                      />
+                      <CurrencyBox
+                        label="Bronze"
+                        value={selectedPlayer.bronze}
+                        color="text-orange-300"
+                      />
                     </div>
-                  ) : (
-                    <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                      <p className="text-xs font-black uppercase tracking-[0.26em] text-slate-500">
-                        Photo Permission
-                      </p>
 
-                      <p className="mt-2 text-sm leading-6 text-slate-300">
-                        Kamu sedang melihat ID Card player lain. Foto hanya bisa
-                        diubah oleh pemilik ID Card atau admin.
+                    <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+                        {getDisplayStatus(selectedPlayer)}
                       </p>
                     </div>
-                  )}
+
+                    <div className="mt-4 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">
+                        Equipped Cosmetics
+                      </p>
+
+                      <div className="mt-3 space-y-3">
+                        {equippedCosmetics.length ? (
+                          equippedCosmetics.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
+                            >
+                              <p className="text-sm font-bold text-white">
+                                ◆ {item.cosmetics?.name || "Unknown Cosmetic"}
+                              </p>
+
+                              <p className="text-xs text-slate-500">
+                                {item.cosmetics?.type || "Cosmetic"}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400">
+                            No cosmetic equipped.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {canEditPhoto ? (
+                      <div className="mt-4 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-300">
+                          Character Photo
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          Player bisa edit foto sendiri. Admin bisa edit semua
+                          ID aktif.
+                        </p>
+
+                        <input
+                          value={photoInput}
+                          onChange={(event) => setPhotoInput(event.target.value)}
+                          placeholder="https://example.com/photo.png"
+                          className="lunaria-id-input mt-4"
+                        />
+
+                        <button
+                          onClick={handleSavePhoto}
+                          disabled={isSavingPhoto}
+                          className="mt-4 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isSavingPhoto ? "Saving..." : "Save Photo"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                        <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
+                          Photo Permission
+                        </p>
+
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
+                          Kamu sedang melihat ID Card player lain. Foto hanya
+                          bisa diubah oleh pemilik kartu atau admin.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="xl:col-span-7">
-              <div className="h-full rounded-[36px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <InfoBox label="Name" value={selectedPlayer.character_name} />
-                  <InfoBox label="Race" value={selectedPlayer.race} />
-                  <InfoBox label="Guild Rank" value={selectedPlayer.guild_rank} />
-                  <InfoBox label="Pathway" value={selectedPlayer.pathway} />
-                </div>
+            <div className="space-y-6 xl:col-span-8">
+              <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <InfoBox label="Name" value={selectedPlayer.character_name} />
+                <InfoBox label="Race" value={selectedPlayer.race} />
+                <InfoBox label="Guild Rank" value={selectedPlayer.guild_rank} />
+                <InfoBox label="Pathway" value={selectedPlayer.pathway} />
+              </section>
 
-                <div className="mt-4">
-                  <InfoBox label="Misi" value={selectedPlayer.mission} />
-                </div>
+              <section className="rounded-[30px] border border-white/10 bg-black/35 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
+                  Current Mission
+                </p>
 
-                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <DataPanel
-                    title="Primary Skills"
-                    items={[selectedPlayer.skill_1, selectedPlayer.skill_2]}
+                <p className="mt-3 text-2xl font-black text-white">
+                  {selectedPlayer.mission || "-"}
+                </p>
+
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  Misi aktif tercatat langsung dari Guild Registry. Perubahan
+                  dari Admin Panel akan muncul setelah data diperbarui.
+                </p>
+              </section>
+
+              <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <DataPanel
+                  title="Primary Skills"
+                  items={[selectedPlayer.skill_1, selectedPlayer.skill_2]}
+                />
+
+                <DataPanel
+                  title="Inventory"
+                  items={[
+                    selectedPlayer.inventory_1 || "-",
+                    selectedPlayer.inventory_2 || "-",
+                    selectedPlayer.inventory_3 || "-",
+                  ]}
+                />
+              </section>
+
+              <section className="rounded-[30px] border border-violet-400/20 bg-violet-400/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
+                  Quest Record
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+                  <QuestBox label="Common" value={selectedPlayer.common_quests} />
+                  <QuestBox
+                    label="Uncommon"
+                    value={selectedPlayer.uncommon_quests}
                   />
-                  <DataPanel
-                    title="Inventory"
-                    items={[
-                      selectedPlayer.inventory_1 || "-",
-                      selectedPlayer.inventory_2 || "-",
-                      selectedPlayer.inventory_3 || "-",
-                    ]}
+                  <QuestBox
+                    label="Dangerous"
+                    value={selectedPlayer.dangerous_quests}
                   />
+                  <QuestBox label="Special" value={selectedPlayer.special_quests} />
+                  <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
                 </div>
+              </section>
 
-                <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
-                    Quest Record
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <QuestBox label="Common" value={selectedPlayer.common_quests} />
-                    <QuestBox
-                      label="Uncommon"
-                      value={selectedPlayer.uncommon_quests}
-                    />
-                    <QuestBox
-                      label="Dangerous"
-                      value={selectedPlayer.dangerous_quests}
-                    />
-                    <QuestBox label="Special" value={selectedPlayer.special_quests} />
-                    <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-3xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-black/20 to-violet-500/10 p-5">
+              <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="rounded-[30px] border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-black/20 to-violet-500/10 p-5">
                   <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
                     Registered Guild
                   </p>
-                  <p className="mt-2 text-lg font-black text-white">
-                    Adventurer&apos;s Guild of Aethelgard
+
+                  <p className="mt-2 text-xl font-black text-white">
+                    Lunaria Adventurer Registry
                   </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-400">
-                    ID Card publik hanya menampilkan adventurer aktif. Player
-                    inactive, banned, atau deleted tidak muncul di dropdown.
+
+                  <p className="mt-3 text-sm leading-7 text-slate-400">
+                    Hanya adventurer aktif yang muncul di viewer publik. Player
+                    inactive, banned, atau deleted tidak tampil.
                   </p>
                 </div>
 
-                <div className="mt-6 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                <div className="rounded-[30px] border border-emerald-400/20 bg-emerald-400/10 p-5">
                   <p className="text-xs font-black uppercase tracking-[0.26em] text-emerald-300">
-                    Security Notice
+                    Security Seal
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
+
+                  <p className="mt-2 text-xl font-black text-white">
+                    Credential Hidden
+                  </p>
+
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
                     Username dan access code tidak ditampilkan di ID Card.
-                    Transaksi tetap memakai playerId dari session login, bukan
-                    ID Card yang sedang dilihat.
+                    Transaksi tetap memakai playerId dari session login.
                   </p>
                 </div>
-              </div>
+              </section>
             </div>
           </section>
         </>
@@ -691,7 +763,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
           width: 100%;
           border-radius: 1rem;
           border: 1px solid rgba(245, 158, 11, 0.18);
-          background: rgba(0, 0, 0, 0.28);
+          background: rgba(0, 0, 0, 0.3);
           padding: 0.95rem 1rem;
           color: rgb(241, 245, 249);
           outline: none;
@@ -716,9 +788,47 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
   );
 }
 
+function MiniHeroStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-2 truncate text-xl font-black ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+function SmallStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-3 text-4xl font-black ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
 function InfoBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+    <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
       <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
         {label}
       </p>
@@ -757,7 +867,7 @@ function QuestBox({ label, value }: { label: string; value: number }) {
 
 function DataPanel({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+    <div className="rounded-[30px] border border-white/10 bg-white/[0.04] p-5">
       <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
         {title}
       </p>
@@ -777,5 +887,30 @@ function DataPanel({ title, items }: { title: string; items: string[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function MoonIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M20.3 15.15A8.3 8.3 0 0 1 8.85 3.7 8.6 8.6 0 1 0 20.3 15.15Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14.8 4.4h.01M17.2 6.8h.01M18.4 10.2h.01"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
