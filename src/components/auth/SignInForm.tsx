@@ -37,6 +37,11 @@ export default function SignInForm() {
       loginAt: new Date().toISOString(),
     };
 
+    // Penting:
+    // Hapus session lama dulu supaya login admin/player tidak saling nyangkut.
+    localStorage.removeItem("lunaria_session");
+    sessionStorage.removeItem("lunaria_session");
+
     if (keepLogin) {
       localStorage.setItem("lunaria_session", JSON.stringify(payload));
     } else {
@@ -110,7 +115,9 @@ export default function SignInForm() {
     setNotice("");
     setErrorMessage("");
 
-    if (adminCode.trim() !== ADMIN_CODE) {
+    const cleanAdminCode = adminCode.trim();
+
+    if (cleanAdminCode !== ADMIN_CODE) {
       setErrorMessage("Admin code salah.");
       return;
     }
@@ -142,9 +149,11 @@ export default function SignInForm() {
                 <p className="text-xs font-black uppercase tracking-[0.42em] text-amber-300">
                   Lunaria
                 </p>
+
                 <h1 className="mt-4 text-5xl font-black leading-tight text-white">
                   Roleplay Guild Access Gate
                 </h1>
+
                 <p className="mt-5 max-w-md text-sm leading-7 text-slate-400">
                   Login khusus adventurer dan admin Lunaria. Player hanya masuk
                   memakai username dan access code yang diberikan setelah
@@ -186,9 +195,11 @@ export default function SignInForm() {
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
                   Access Verification
                 </p>
+
                 <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
                   Sign In
                 </h2>
+
                 <p className="mt-3 text-sm leading-6 text-slate-400">
                   Pilih mode login. Player memakai credential dari Admin Panel.
                   Admin memakai kode khusus.
@@ -202,6 +213,7 @@ export default function SignInForm() {
                     setMode("player");
                     setErrorMessage("");
                     setNotice("");
+                    setShowCode(false);
                   }}
                   className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition ${
                     mode === "player"
@@ -218,6 +230,7 @@ export default function SignInForm() {
                     setMode("admin");
                     setErrorMessage("");
                     setNotice("");
+                    setShowCode(false);
                   }}
                   className={`rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition ${
                     mode === "admin"
@@ -247,7 +260,7 @@ export default function SignInForm() {
                     <input
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
-                      placeholder="Example: lucia384"
+                      placeholder="Example: dyzen384"
                       className="lunaria-gate-input"
                       autoComplete="username"
                     />
@@ -259,7 +272,7 @@ export default function SignInForm() {
                         value={accessCode}
                         onChange={(event) => setAccessCode(event.target.value)}
                         type={showCode ? "text" : "password"}
-                        placeholder="Example: LUCI-9132"
+                        placeholder="Example: DYZE-1899"
                         className="lunaria-gate-input pr-28"
                         autoComplete="current-password"
                       />
@@ -335,10 +348,11 @@ export default function SignInForm() {
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-red-300">
                       Admin Code
                     </p>
+
                     <p className="mt-2 text-sm leading-6 text-slate-300">
                       Untuk MVP, admin code masih ditulis di file frontend.
-                      Nanti tahap final kita pindahkan ke server/API agar lebih
-                      aman.
+                      Nanti tahap final bisa dipindahkan ke server/API agar
+                      lebih aman.
                     </p>
                   </div>
                 </form>
@@ -348,6 +362,7 @@ export default function SignInForm() {
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
                   Registration
                 </p>
+
                 <p className="mt-2 text-sm leading-6 text-slate-300">
                   Belum punya access code? Daftar dulu lewat Registration,
                   tunggu admin approve, lalu admin akan mengirim username dan
