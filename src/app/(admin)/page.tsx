@@ -77,7 +77,7 @@ const lunarBenefits = [
   },
   {
     title: "Eclipse Rank Prestige",
-    text: "Top leaderboard bukan sekadar angka, tapi simbol status dan kehormatan di dalam guild.",
+    text: "Top leaderboard menjadi simbol kehormatan, aura eksklusif, dan status tertinggi guild.",
     icon: "crown",
   },
   {
@@ -162,10 +162,12 @@ function getTopTheme(rank: number) {
       title: "Eclipse Sovereign",
       icon: "crown",
       frame:
-        "border-amber-300/45 bg-gradient-to-br from-amber-950/35 via-red-950/20 to-black shadow-[0_0_90px_rgba(245,158,11,0.22)]",
-      glow: "bg-amber-300/25",
-      text: "from-amber-200 via-yellow-300 to-amber-500",
-      chip: "border-amber-300/35 bg-amber-400/10 text-amber-200",
+        "lunar-top-card lunar-top-gold border-amber-300/50 bg-gradient-to-br from-amber-950/45 via-red-950/25 to-black",
+      glow: "bg-amber-300/35",
+      nameClass: "lunar-name-gold",
+      scoreClass: "lunar-score-gold",
+      chip: "border-amber-300/40 bg-amber-400/15 text-amber-100",
+      subtitle: "Pemegang mahkota bulan. Nama ini bersinar sebagai simbol tertinggi Lunaria.",
     };
   }
 
@@ -175,10 +177,12 @@ function getTopTheme(rank: number) {
       title: "Silvermoon Knight",
       icon: "moon",
       frame:
-        "border-sky-300/35 bg-gradient-to-br from-sky-950/40 via-blue-950/20 to-black shadow-[0_0_80px_rgba(56,189,248,0.16)]",
-      glow: "bg-sky-300/20",
-      text: "from-sky-200 via-cyan-300 to-blue-400",
-      chip: "border-sky-300/30 bg-sky-400/10 text-sky-200",
+        "lunar-top-card lunar-top-blue border-sky-300/40 bg-gradient-to-br from-sky-950/45 via-blue-950/25 to-black",
+      glow: "bg-sky-300/30",
+      nameClass: "lunar-name-blue",
+      scoreClass: "lunar-score-blue",
+      chip: "border-sky-300/35 bg-sky-400/15 text-sky-100",
+      subtitle: "Ksatria bulan perak. Posisi bergengsi untuk adventurer yang terus naik.",
     };
   }
 
@@ -187,10 +191,12 @@ function getTopTheme(rank: number) {
     title: "Astral Noble",
     icon: "star",
     frame:
-      "border-violet-300/35 bg-gradient-to-br from-violet-950/45 via-fuchsia-950/20 to-black shadow-[0_0_80px_rgba(168,85,247,0.16)]",
-    glow: "bg-violet-300/20",
-    text: "from-violet-200 via-purple-300 to-fuchsia-400",
-    chip: "border-violet-300/30 bg-violet-400/10 text-violet-200",
+      "lunar-top-card lunar-top-purple border-violet-300/40 bg-gradient-to-br from-violet-950/50 via-fuchsia-950/25 to-black",
+    glow: "bg-violet-300/30",
+    nameClass: "lunar-name-purple",
+    scoreClass: "lunar-score-purple",
+    chip: "border-violet-300/35 bg-violet-400/15 text-violet-100",
+    subtitle: "Bangsawan bintang. Satu langkah lagi menuju legenda guild.",
   };
 }
 
@@ -469,9 +475,9 @@ export default function LunariaDashboard() {
                   Top Adventurers
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Mereka yang berdiri di puncak tidak hanya membawa angka, tetapi
-                  membawa nama, aura, dan kehormatan yang terlihat oleh seluruh
-                  guild.
+                  Top 3 adalah panggung kehormatan Lunaria. Nama mereka mendapat
+                  aura eksklusif, throne frame, dan visual prestige yang tidak
+                  tersedia di Cosmetic Shop.
                 </p>
               </div>
 
@@ -495,15 +501,24 @@ export default function LunariaDashboard() {
                       key={player.id}
                       className={`relative overflow-hidden rounded-[34px] border p-5 ${theme.frame}`}
                     >
+                      <div className="lunar-shimmer" />
+                      <div className="lunar-orbit lunar-orbit-one" />
+                      <div className="lunar-orbit lunar-orbit-two" />
+
                       <div
                         className={`pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full blur-3xl ${theme.glow}`}
                       />
-                      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
+                      <div
+                        className={`pointer-events-none absolute -bottom-20 left-10 h-44 w-44 rounded-full blur-3xl ${theme.glow}`}
+                      />
+
+                      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
 
                       <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-4">
                           <div
-                            className={`flex h-16 w-16 items-center justify-center rounded-[24px] border ${theme.chip}`}
+                            className={`lunar-rank-icon flex h-16 w-16 items-center justify-center rounded-[24px] border ${theme.chip}`}
                           >
                             <Icon name={theme.icon} className="h-8 w-8" />
                           </div>
@@ -515,26 +530,33 @@ export default function LunariaDashboard() {
                               >
                                 {theme.badge}
                               </span>
-                              <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-300">
+
+                              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-200">
                                 {theme.title}
                               </span>
                             </div>
 
-                            <h3 className="mt-3 text-2xl font-black text-white md:text-3xl">
+                            <h3
+                              className={`mt-3 text-2xl font-black md:text-3xl ${theme.nameClass}`}
+                            >
                               {player.character_name}
                             </h3>
-                            <p className="mt-1 text-sm text-slate-400">
+
+                            <p className="mt-1 text-sm text-slate-300">
                               {player.guild_rank} • {player.pathway} • {player.race}
+                            </p>
+
+                            <p className="mt-2 max-w-xl text-xs leading-5 text-slate-500">
+                              {theme.subtitle}
                             </p>
                           </div>
                         </div>
 
                         <div className="text-left md:text-right">
-                          <p
-                            className={`bg-gradient-to-r ${theme.text} bg-clip-text text-5xl font-black text-transparent md:text-6xl`}
-                          >
+                          <p className={`text-5xl font-black md:text-6xl ${theme.scoreClass}`}>
                             {getDisplayScore(player)}
                           </p>
+
                           <p className="mt-1 text-xs font-black uppercase tracking-[0.24em] text-slate-500">
                             {getDisplayLabel(player)}
                           </p>
@@ -733,6 +755,141 @@ export default function LunariaDashboard() {
           animation: lunaria-marquee 26s linear infinite;
         }
 
+        .lunar-top-card {
+          position: relative;
+          isolation: isolate;
+          transform: translateZ(0);
+          animation: lunar-card-float 6s ease-in-out infinite;
+        }
+
+        .lunar-top-card:nth-child(2) {
+          animation-delay: 0.7s;
+        }
+
+        .lunar-top-card:nth-child(3) {
+          animation-delay: 1.3s;
+        }
+
+        .lunar-top-gold {
+          box-shadow:
+            0 0 32px rgba(245, 158, 11, 0.16),
+            inset 0 0 40px rgba(245, 158, 11, 0.06);
+        }
+
+        .lunar-top-blue {
+          box-shadow:
+            0 0 32px rgba(56, 189, 248, 0.13),
+            inset 0 0 40px rgba(56, 189, 248, 0.05);
+        }
+
+        .lunar-top-purple {
+          box-shadow:
+            0 0 32px rgba(168, 85, 247, 0.14),
+            inset 0 0 40px rgba(168, 85, 247, 0.05);
+        }
+
+        .lunar-shimmer {
+          pointer-events: none;
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            transparent 34%,
+            rgba(255, 255, 255, 0.10) 48%,
+            transparent 62%,
+            transparent 100%
+          );
+          transform: translateX(-130%);
+          animation: lunar-shimmer 4.8s ease-in-out infinite;
+        }
+
+        .lunar-orbit {
+          pointer-events: none;
+          position: absolute;
+          z-index: 0;
+          height: 7px;
+          width: 7px;
+          border-radius: 9999px;
+          opacity: 0.8;
+          filter: blur(0.1px);
+        }
+
+        .lunar-orbit-one {
+          left: 12%;
+          top: 18%;
+          background: rgba(245, 158, 11, 0.85);
+          box-shadow: 0 0 22px rgba(245, 158, 11, 0.75);
+          animation: lunar-orbit-one 7s ease-in-out infinite;
+        }
+
+        .lunar-orbit-two {
+          right: 14%;
+          bottom: 18%;
+          background: rgba(196, 181, 253, 0.8);
+          box-shadow: 0 0 22px rgba(196, 181, 253, 0.65);
+          animation: lunar-orbit-two 8s ease-in-out infinite;
+        }
+
+        .lunar-rank-icon {
+          animation: lunar-icon-pulse 3s ease-in-out infinite;
+        }
+
+        .lunar-name-gold {
+          background: linear-gradient(90deg, #fff7cc, #facc15, #f59e0b, #fff1a8);
+          background-size: 240% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 0 30px rgba(245, 158, 11, 0.16);
+          animation: lunar-text-flow 4s linear infinite;
+        }
+
+        .lunar-name-blue {
+          background: linear-gradient(90deg, #e0f2fe, #67e8f9, #38bdf8, #dbeafe);
+          background-size: 240% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 0 30px rgba(56, 189, 248, 0.16);
+          animation: lunar-text-flow 4.5s linear infinite;
+        }
+
+        .lunar-name-purple {
+          background: linear-gradient(90deg, #f5d0fe, #c4b5fd, #a855f7, #f0abfc);
+          background-size: 240% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 0 30px rgba(168, 85, 247, 0.16);
+          animation: lunar-text-flow 5s linear infinite;
+        }
+
+        .lunar-score-gold {
+          color: #facc15;
+          text-shadow:
+            0 0 18px rgba(245, 158, 11, 0.28),
+            0 0 44px rgba(245, 158, 11, 0.14);
+          animation: lunar-score-glow-gold 2.8s ease-in-out infinite;
+        }
+
+        .lunar-score-blue {
+          color: #67e8f9;
+          text-shadow:
+            0 0 18px rgba(56, 189, 248, 0.28),
+            0 0 44px rgba(56, 189, 248, 0.14);
+          animation: lunar-score-glow-blue 2.8s ease-in-out infinite;
+        }
+
+        .lunar-score-purple {
+          color: #d8b4fe;
+          text-shadow:
+            0 0 18px rgba(168, 85, 247, 0.28),
+            0 0 44px rgba(168, 85, 247, 0.14);
+          animation: lunar-score-glow-purple 2.8s ease-in-out infinite;
+        }
+
         @keyframes lunaria-float {
           0%,
           100% {
@@ -751,6 +908,106 @@ export default function LunariaDashboard() {
           }
           100% {
             transform: translateX(-130%);
+          }
+        }
+
+        @keyframes lunar-card-float {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-4px);
+          }
+        }
+
+        @keyframes lunar-shimmer {
+          0% {
+            transform: translateX(-130%);
+            opacity: 0;
+          }
+          25% {
+            opacity: 1;
+          }
+          55% {
+            transform: translateX(130%);
+            opacity: 0.8;
+          }
+          100% {
+            transform: translateX(130%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes lunar-orbit-one {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 0.35;
+          }
+          50% {
+            transform: translate3d(60px, 18px, 0) scale(1.4);
+            opacity: 0.95;
+          }
+        }
+
+        @keyframes lunar-orbit-two {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 0.3;
+          }
+          50% {
+            transform: translate3d(-70px, -20px, 0) scale(1.35);
+            opacity: 0.85;
+          }
+        }
+
+        @keyframes lunar-icon-pulse {
+          0%,
+          100% {
+            transform: scale(1);
+            filter: brightness(1);
+          }
+          50% {
+            transform: scale(1.06);
+            filter: brightness(1.25);
+          }
+        }
+
+        @keyframes lunar-text-flow {
+          to {
+            background-position: 240% center;
+          }
+        }
+
+        @keyframes lunar-score-glow-gold {
+          0%,
+          100% {
+            filter: brightness(1);
+          }
+          50% {
+            filter: brightness(1.25);
+          }
+        }
+
+        @keyframes lunar-score-glow-blue {
+          0%,
+          100% {
+            filter: brightness(1);
+          }
+          50% {
+            filter: brightness(1.22);
+          }
+        }
+
+        @keyframes lunar-score-glow-purple {
+          0%,
+          100% {
+            filter: brightness(1);
+          }
+          50% {
+            filter: brightness(1.22);
           }
         }
       `}</style>
@@ -834,24 +1091,13 @@ function Icon({ name, className = "" }: { name: string; className?: string }) {
   if (name === "crown") {
     return (
       <svg viewBox="0 0 24 24" fill="none" className={className}>
-        <path
-          d="M4 18H20"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
+        <path d="M4 18H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <path
           d="M5 16L6.2 7.8L10 12L12 6L14 12L17.8 7.8L19 16H5Z"
           stroke="currentColor"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
-        />
-        <path
-          d="M8.5 16V13.8M12 16V12.8M15.5 16V13.8"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
         />
       </svg>
     );
