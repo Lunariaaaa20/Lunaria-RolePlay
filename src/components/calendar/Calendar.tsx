@@ -1,8 +1,17 @@
-"use client";
+ "use client";
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  addCurrency,
+  canAfford,
+  formatCurrency,
+  normalizeCurrency,
+  silverToCurrency,
+  subtractCurrency,
+  type LunariaCurrency,
+} from "@/lib/lunariaCurrency";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -19,7 +28,9 @@ type PlayerProfile = {
   race: string;
   pathway: string;
   guild_rank: string;
+  gold: number;
   silver: number;
+  bronze: number;
   status: string;
 };
 
@@ -131,6 +142,25 @@ function getSession(): LunariaSession | null {
   }
 }
 
+function getPlayerCurrency(player: PlayerProfile): LunariaCurrency {
+  return normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+}
+
+function normalizePlayer(player: PlayerProfile): PlayerProfile {
+  const currency = getPlayerCurrency(player);
+
+  return {
+    ...player,
+    gold: currency.gold,
+    silver: currency.silver,
+    bronze: currency.bronze,
+  };
+}
+
 function generateTenNumbers() {
   const shuffled = [...NUMBER_POOL].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 10);
@@ -173,6 +203,12 @@ function formatTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatSilverChange(value: number) {
+  const currency = silverToCurrency(Math.abs(value));
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${formatCurrency(currency)}`;
 }
 
 function getSpinResult(): SpinResult {
@@ -244,7 +280,10 @@ export default function Calendar() {
   const [lastSpinText, setLastSpinText] = useState("");
 
   const isAdminSession = session?.role === "admin";
-  const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
+  const isPlayerSession =
+    session?.role === "player" && Boolean(session.playerId);
+
+  const playerBalance = player ? getPlayerCurrency(player) : null;
 
   const activeNumbers = useMemo(() => {
     if (activeRound?.numbers?.length) return activeRound.numbers;
@@ -283,6 +322,48 @@ export default function Calendar() {
     };
   }, [activeRound?.ends_at]);
 
+  const updatePlayerCurrency = async (
+    playerId: string,
+    nextCurrency: LunariaCurrency
+  ) => {
+    const normalized = normalizeCurrency(nextCurrency);
+
+    const { error } = await supabase
+      .from("players")
+      .update({
+        gold: normalized.gold,
+        silver: normalized.silver,
+        bronze: normalized.bronze,
+      })
+      .eq("id", playerId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return normalized;
+  };
+
+  const readPlayerCurrency = async (playerId: string) => {
+    const { data, error } = await supabase
+      .from("players")
+      .select("id, gold, silver, bronze")
+      .eq("id", playerId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) return null;
+
+    return normalizeCurrency({
+      gold: Number(data.gold || 0),
+      silver: Number(data.silver || 0),
+      bronze: Number(data.bronze || 0),
+    });
+  };
+
   const settleOneRound = async (round: NumberRound) => {
     const winningNumber = pickWinningNumber(round.numbers);
 
@@ -304,23 +385,15 @@ export default function Calendar() {
       const reward = isWin ? getRewardAmount(entry.bet_amount) : 0;
 
       if (isWin) {
-        const { data: targetPlayer, error: readPlayerError } = await supabase
-          .from("players")
-          .select("id, silver")
-          .eq("id", entry.player_id)
-          .maybeSingle();
+        const currentCurrency = await readPlayerCurrency(entry.player_id);
 
-        if (readPlayerError) {
-          throw new Error(readPlayerError.message);
-        }
+        if (currentCurrency) {
+          const nextCurrency = addCurrency(
+            currentCurrency,
+            silverToCurrency(reward)
+          );
 
-        if (targetPlayer) {
-          await supabase
-            .from("players")
-            .update({
-              silver: Number(targetPlayer.silver) + reward,
-            })
-            .eq("id", entry.player_id);
+          await updatePlayerCurrency(entry.player_id, nextCurrency);
         }
       }
 
@@ -335,7 +408,9 @@ export default function Calendar() {
       await supabase.from("fortune_logs").insert({
         player_id: entry.player_id,
         mode: "Daily Number Omen",
-        detail: `Picked ${entry.picked_number} • Winning ${winningNumber} • Bet ${entry.bet_amount}S`,
+        detail: `Picked ${entry.picked_number} • Winning ${winningNumber} • Bet ${formatCurrency(
+          silverToCurrency(entry.bet_amount)
+        )}`,
         result: isWin ? "Number Omen Win" : "Number Omen Loss",
         silver_change: reward,
       });
@@ -406,7 +481,8 @@ export default function Calendar() {
 
     const playerMap = new Map<string, string>();
 
-    ((playerRows as unknown as { id: string; character_name: string }[] | null) ||
+    (
+      (playerRows as unknown as { id: string; character_name: string }[] | null) ||
       []
     ).forEach((row) => {
       playerMap.set(row.id, row.character_name);
@@ -452,13 +528,17 @@ export default function Calendar() {
         setRoundEntries([]);
         setLogs([]);
         setIsLoading(false);
-        setErrorMessage("Session player tidak valid. Silakan logout lalu login ulang.");
+        setErrorMessage(
+          "Session player tidak valid. Silakan logout lalu login ulang."
+        );
         return;
       }
 
       const { data: playerData, error: playerError } = await supabase
         .from("players")
-        .select("id, character_name, race, pathway, guild_rank, silver, status")
+        .select(
+          "id, character_name, race, pathway, guild_rank, gold, silver, bronze, status"
+        )
         .eq("id", currentSession.playerId)
         .eq("status", "active")
         .maybeSingle();
@@ -475,7 +555,7 @@ export default function Calendar() {
         return;
       }
 
-      currentPlayer = playerData as unknown as PlayerProfile;
+      currentPlayer = normalizePlayer(playerData as unknown as PlayerProfile);
     }
 
     const { data: roundData, error: roundError } = await supabase
@@ -549,6 +629,7 @@ export default function Calendar() {
 
   useEffect(() => {
     loadFortuneData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleJoinNumberRound = async () => {
@@ -560,7 +641,7 @@ export default function Calendar() {
       return;
     }
 
-    if (!player) {
+    if (!player || !playerBalance) {
       setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
       return;
     }
@@ -575,8 +656,14 @@ export default function Calendar() {
       return;
     }
 
-    if (player.silver < selectedBet) {
-      setErrorMessage(`Silver tidak cukup. Kamu butuh ${selectedBet}S.`);
+    const betCost = silverToCurrency(selectedBet);
+
+    if (!canAfford(playerBalance, betCost)) {
+      setErrorMessage(
+        `Uang tidak cukup. Butuh ${formatCurrency(
+          betCost
+        )}. Balance kamu ${formatCurrency(playerBalance)}.`
+      );
       return;
     }
 
@@ -626,15 +713,14 @@ export default function Calendar() {
         round = newRound as unknown as NumberRound;
       }
 
-      const newSilver = player.silver - selectedBet;
+      const nextBalance = subtractCurrency(playerBalance, betCost);
 
-      const { error: updatePlayerError } = await supabase
-        .from("players")
-        .update({ silver: newSilver })
-        .eq("id", session.playerId);
-
-      if (updatePlayerError) {
-        setErrorMessage(`Gagal mengurangi silver: ${updatePlayerError.message}`);
+      try {
+        await updatePlayerCurrency(session.playerId, nextBalance);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown balance error.";
+        setErrorMessage(`Gagal mengurangi balance: ${message}`);
         return;
       }
 
@@ -650,25 +736,28 @@ export default function Calendar() {
         });
 
       if (insertEntryError) {
-        await supabase
-          .from("players")
-          .update({ silver: player.silver })
-          .eq("id", session.playerId);
+        await updatePlayerCurrency(session.playerId, playerBalance);
 
-        setErrorMessage(`Gagal menyimpan pilihan nomor: ${insertEntryError.message}`);
+        setErrorMessage(
+          `Gagal menyimpan pilihan nomor: ${insertEntryError.message}`
+        );
         return;
       }
 
       await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
         mode: "Daily Number Omen",
-        detail: `Locked number ${selectedNumber} • Bet ${selectedBet}S`,
+        detail: `Locked number ${selectedNumber} • Bet ${formatCurrency(
+          betCost
+        )}`,
         result: "Entry Locked",
         silver_change: -selectedBet,
       });
 
       setNotice(
-        `Nomor ${selectedNumber} berhasil dikunci dengan bet ${selectedBet}S. Hasil keluar saat countdown selesai.`
+        `Nomor ${selectedNumber} berhasil dikunci dengan bet ${formatCurrency(
+          betCost
+        )}. Sisa balance: ${formatCurrency(nextBalance)}.`
       );
 
       await loadFortuneData();
@@ -691,13 +780,19 @@ export default function Calendar() {
       return;
     }
 
-    if (!player) {
+    if (!player || !playerBalance) {
       setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
       return;
     }
 
-    if (player.silver < option.cost) {
-      setErrorMessage(`Silver tidak cukup. Kamu butuh ${option.cost}S.`);
+    const spinCost = silverToCurrency(option.cost);
+
+    if (!canAfford(playerBalance, spinCost)) {
+      setErrorMessage(
+        `Uang tidak cukup. Butuh ${formatCurrency(
+          spinCost
+        )}. Balance kamu ${formatCurrency(playerBalance)}.`
+      );
       return;
     }
 
@@ -713,21 +808,17 @@ export default function Calendar() {
         results.push(result.label);
       }
 
+      const rewardCurrency = silverToCurrency(totalReward);
+      const afterCost = subtractCurrency(playerBalance, spinCost);
+      const nextBalance = addCurrency(afterCost, rewardCurrency);
       const net = totalReward - option.cost;
-      const newSilver = player.silver + net;
 
-      if (newSilver < 0) {
-        setErrorMessage("Silver tidak cukup untuk menerima hasil spin.");
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from("players")
-        .update({ silver: newSilver })
-        .eq("id", session.playerId);
-
-      if (updateError) {
-        setErrorMessage(`Gagal update silver: ${updateError.message}`);
+      try {
+        await updatePlayerCurrency(session.playerId, nextBalance);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown balance error.";
+        setErrorMessage(`Gagal update balance: ${message}`);
         return;
       }
 
@@ -741,25 +832,39 @@ export default function Calendar() {
       });
 
       if (logError) {
-        await supabase
-          .from("players")
-          .update({ silver: player.silver })
-          .eq("id", session.playerId);
+        await updatePlayerCurrency(session.playerId, playerBalance);
 
         setErrorMessage(`Gagal menyimpan spin log: ${logError.message}`);
         return;
       }
 
-      setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
-      setLastSpinText(
-        `${option.label}: ${results.join(", ")} • ${net >= 0 ? "+" : ""}${net}S`
+      setPlayer((prev) =>
+        prev
+          ? {
+              ...prev,
+              gold: nextBalance.gold,
+              silver: nextBalance.silver,
+              bronze: nextBalance.bronze,
+            }
+          : prev
       );
+
+      setLastSpinText(
+        `${option.label}: ${results.join(", ")} • ${formatSilverChange(net)}`
+      );
+
       setNotice(
         net > 0
-          ? `${option.label} selesai. Profit +${net}S.`
+          ? `${option.label} selesai. Profit ${formatSilverChange(
+              net
+            )}. Sisa balance: ${formatCurrency(nextBalance)}.`
           : net < 0
-          ? `${option.label} selesai. Loss ${Math.abs(net)}S.`
-          : `${option.label} selesai. Break even.`
+          ? `${option.label} selesai. Loss ${formatSilverChange(
+              net
+            )}. Sisa balance: ${formatCurrency(nextBalance)}.`
+          : `${option.label} selesai. Break even. Balance: ${formatCurrency(
+              nextBalance
+            )}.`
       );
 
       await loadFortuneData();
@@ -824,7 +929,9 @@ export default function Calendar() {
         .eq("round_id", activeRound.id);
 
       if (deleteEntriesError) {
-        setErrorMessage(`Gagal hapus entry ronde: ${deleteEntriesError.message}`);
+        setErrorMessage(
+          `Gagal hapus entry ronde: ${deleteEntriesError.message}`
+        );
         return;
       }
 
@@ -863,9 +970,8 @@ export default function Calendar() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-              Mini-game currency RP Lunaria. Semua transaksi memakai silver
-              karakter login sendiri, bukan uang asli. ID Card player lain hanya
-              bisa dilihat, tidak bisa dipakai untuk bermain.
+              Mini-game currency RP Lunaria. Semua transaksi memakai konversi
+              resmi: 1 Gold = 1000 Silver dan 1 Silver = 100 Bronze.
             </p>
           </div>
 
@@ -874,7 +980,11 @@ export default function Calendar() {
               Current Balance
             </p>
             <p className="mt-1 text-4xl font-black text-white">
-              {player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+              {playerBalance
+                ? formatCurrency(playerBalance)
+                : isAdminSession
+                ? "ADMIN"
+                : "-"}
             </p>
           </div>
         </div>
@@ -922,7 +1032,7 @@ export default function Calendar() {
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
                 Panel ini khusus admin untuk testing. Force Settle langsung
                 mengeluarkan hasil ronde aktif. Reset Active Round menghapus
-                ronde aktif tanpa mengembalikan silver test.
+                ronde aktif tanpa mengembalikan currency test.
               </p>
             </div>
 
@@ -953,7 +1063,11 @@ export default function Calendar() {
               value={activeRound ? "ACTIVE" : "NONE"}
               tone={activeRound ? "text-emerald-300" : "text-slate-400"}
             />
-            <StatCard label="Slots" value={participantSlots} tone="text-amber-300" />
+            <StatCard
+              label="Slots"
+              value={participantSlots}
+              tone="text-amber-300"
+            />
             <StatCard
               label="Timer"
               value={activeRound ? countdown : "-"}
@@ -982,7 +1096,8 @@ export default function Calendar() {
                       {entry.player_name || "Unknown Player"}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      Number {entry.picked_number} • Bet {entry.bet_amount}S •{" "}
+                      Number {entry.picked_number} • Bet{" "}
+                      {formatCurrency(silverToCurrency(entry.bet_amount))} •{" "}
                       {entry.result}
                     </p>
                   </div>
@@ -999,8 +1114,14 @@ export default function Calendar() {
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
-          label="Current Silver"
-          value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+          label="Current Balance"
+          value={
+            playerBalance
+              ? formatCurrency(playerBalance)
+              : isAdminSession
+              ? "ADMIN"
+              : "-"
+          }
           tone="text-amber-300"
         />
         <StatCard
@@ -1090,8 +1211,7 @@ export default function Calendar() {
                             : "border-red-400/25 bg-red-400/10 text-red-300"
                         }`}
                       >
-                        {log.silver_change >= 0 ? "+" : ""}
-                        {log.silver_change}S
+                        {formatSilverChange(log.silver_change)}
                       </span>
                     </div>
 
@@ -1164,7 +1284,9 @@ export default function Calendar() {
                 {currentPlayerEntry ? (
                   <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-300">
                     Your Pick: {currentPlayerEntry.picked_number} •{" "}
-                    {currentPlayerEntry.bet_amount}S
+                    {formatCurrency(
+                      silverToCurrency(currentPlayerEntry.bet_amount)
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -1205,7 +1327,7 @@ export default function Calendar() {
                           : "border-white/10 bg-black/30 text-slate-400 hover:border-violet-400/25"
                       }`}
                     >
-                      {bet}S
+                      {formatCurrency(silverToCurrency(bet))}
                     </button>
                   ))}
                 </div>
@@ -1239,7 +1361,9 @@ export default function Calendar() {
                   ? "Number Already Locked"
                   : isJoining
                   ? "Locking..."
-                  : `Lock Number ${selectedNumber || "-"} • ${selectedBet}S`}
+                  : `Lock Number ${selectedNumber || "-"} • ${formatCurrency(
+                      silverToCurrency(selectedBet)
+                    )}`}
               </button>
             </div>
           </div>
@@ -1279,7 +1403,7 @@ export default function Calendar() {
                   </p>
 
                   <p className="mt-3 text-3xl font-black text-amber-300">
-                    {option.cost}S
+                    {formatCurrency(silverToCurrency(option.cost))}
                   </p>
 
                   <p className="mt-2 text-sm text-slate-400">
