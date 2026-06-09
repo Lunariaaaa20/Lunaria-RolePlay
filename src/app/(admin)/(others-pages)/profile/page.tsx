@@ -570,16 +570,7 @@ ${getDisplayStatus(selectedPlayer)}`;
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-[24px] border border-amber-400/20 bg-amber-500/10 p-4 text-center">
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
-                        Total Balance
-                      </p>
-                      <p className="mt-2 text-3xl font-black text-white">
-                        {formatCurrency(selectedCurrency)}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="mt-6 grid grid-cols-3 gap-3">
                       <CurrencyBox
                         label="Gold"
                         value={selectedCurrency.gold}
