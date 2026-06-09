@@ -981,7 +981,7 @@ export default function LunariaCosmeticShopPage() {
         </section>
       </section>
 
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes float-dot {
           0% {
             opacity: 0.15;
