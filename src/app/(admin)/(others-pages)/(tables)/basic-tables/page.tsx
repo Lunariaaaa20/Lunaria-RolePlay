@@ -2,6 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import LunariaCurrencyEditor from "@/components/currency/LunariaCurrencyEditor";
+import {
+  formatCurrency,
+  normalizeCurrency,
+  type LunariaCurrency,
+} from "@/lib/lunariaCurrency";
 
 const rankOptions = ["Initiate", "Seeker", "Warden", "Arbiter", "High Council"];
 const pathwayOptions = ["Warrior", "Mystic", "Shadow", "Nature"];
@@ -63,6 +69,21 @@ function calculatePoints(player: {
     player.dangerous_quests * 60 +
     player.special_quests * 120
   );
+}
+
+function normalizePlayerCurrency(player: Player): Player {
+  const normalized = normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+
+  return {
+    ...player,
+    gold: normalized.gold,
+    silver: normalized.silver,
+    bronze: normalized.bronze,
+  };
 }
 
 function generateAccessCode(name: string) {
@@ -172,14 +193,20 @@ export default function LunariaAdminPanel() {
     if (playerResult.error) {
       showError(`Failed to fetch players: ${playerResult.error.message}`);
     } else {
-      const data = (playerResult.data || []) as Player[];
+      const data = ((playerResult.data || []) as Player[]).map(
+        normalizePlayerCurrency
+      );
+
       setPlayers(data);
 
       if (!selectedPlayerId && data.length > 0) {
         setSelectedPlayerId(data[0].id);
       }
 
-      if (selectedPlayerId && !data.some((player) => player.id === selectedPlayerId)) {
+      if (
+        selectedPlayerId &&
+        !data.some((player) => player.id === selectedPlayerId)
+      ) {
         setSelectedPlayerId(data[0]?.id || "");
       }
     }
@@ -207,12 +234,37 @@ export default function LunariaAdminPanel() {
     );
   };
 
+  const updateSelectedCurrency = (nextCurrency: LunariaCurrency) => {
+    if (!selectedPlayer) return;
+
+    const normalized = normalizeCurrency(nextCurrency);
+
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              gold: normalized.gold,
+              silver: normalized.silver,
+              bronze: normalized.bronze,
+            }
+          : player
+      )
+    );
+  };
+
   const approveRegistration = async (request: RegistrationRequest) => {
     setIsApproving(request.id);
     setErrorMessage("");
 
     const accessCode = generateAccessCode(request.character_name);
     const username = generateUsername(request.character_name);
+
+    const starterCurrency = normalizeCurrency({
+      gold: 0,
+      silver: 10,
+      bronze: 0,
+    });
 
     const { data: newPlayer, error: insertError } = await supabase
       .from("players")
@@ -230,9 +282,9 @@ export default function LunariaAdminPanel() {
         inventory_1: request.inventory_1 || "",
         inventory_2: request.inventory_2 || "",
         inventory_3: request.inventory_3 || "",
-        gold: 0,
-        silver: 10,
-        bronze: 0,
+        gold: starterCurrency.gold,
+        silver: starterCurrency.silver,
+        bronze: starterCurrency.bronze,
         common_quests: 0,
         uncommon_quests: 0,
         dangerous_quests: 0,
@@ -266,7 +318,7 @@ export default function LunariaAdminPanel() {
       access_code: accessCode,
     });
 
-    const typedNewPlayer = newPlayer as Player;
+    const typedNewPlayer = normalizePlayerCurrency(newPlayer as Player);
 
     setPlayers((prev) => [typedNewPlayer, ...prev]);
     setSelectedPlayerId(typedNewPlayer.id);
@@ -300,6 +352,12 @@ export default function LunariaAdminPanel() {
     setIsSaving(true);
     setErrorMessage("");
 
+    const normalizedCurrency = normalizeCurrency({
+      gold: selectedPlayer.gold,
+      silver: selectedPlayer.silver,
+      bronze: selectedPlayer.bronze,
+    });
+
     const { error } = await supabase
       .from("players")
       .update({
@@ -313,9 +371,9 @@ export default function LunariaAdminPanel() {
         inventory_1: selectedPlayer.inventory_1,
         inventory_2: selectedPlayer.inventory_2,
         inventory_3: selectedPlayer.inventory_3,
-        gold: selectedPlayer.gold,
-        silver: selectedPlayer.silver,
-        bronze: selectedPlayer.bronze,
+        gold: normalizedCurrency.gold,
+        silver: normalizedCurrency.silver,
+        bronze: normalizedCurrency.bronze,
         common_quests: selectedPlayer.common_quests,
         uncommon_quests: selectedPlayer.uncommon_quests,
         dangerous_quests: selectedPlayer.dangerous_quests,
@@ -332,7 +390,23 @@ export default function LunariaAdminPanel() {
       return;
     }
 
-    showNotice("Player ID Card updated in Supabase.");
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              gold: normalizedCurrency.gold,
+              silver: normalizedCurrency.silver,
+              bronze: normalizedCurrency.bronze,
+            }
+          : player
+      )
+    );
+
+    showNotice(
+      `Player ID Card updated. Currency: ${formatCurrency(normalizedCurrency)}`
+    );
+
     fetchData();
   };
 
@@ -342,7 +416,8 @@ export default function LunariaAdminPanel() {
       return;
     }
 
-    const nextStatus = selectedPlayer.status === "active" ? "inactive" : "active";
+    const nextStatus =
+      selectedPlayer.status === "active" ? "inactive" : "active";
 
     const confirmText =
       nextStatus === "inactive"
@@ -418,7 +493,10 @@ export default function LunariaAdminPanel() {
     ];
 
     for (const table of relatedTables) {
-      const { error } = await supabase.from(table).delete().eq("player_id", playerId);
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq("player_id", playerId);
 
       if (error) {
         setIsDeleting(false);
@@ -606,7 +684,8 @@ export default function LunariaAdminPanel() {
                 >
                   {players.map((player) => (
                     <option key={player.id} value={player.id}>
-                      {player.character_name} — {player.status}
+                      {player.character_name} — {player.status} —{" "}
+                      {formatCurrency(player)}
                     </option>
                   ))}
                 </select>
@@ -685,7 +764,9 @@ export default function LunariaAdminPanel() {
                   label="Guild Rank"
                   value={selectedPlayer.guild_rank}
                   options={rankOptions}
-                  onChange={(value) => updateSelectedPlayer("guild_rank", value)}
+                  onChange={(value) =>
+                    updateSelectedPlayer("guild_rank", value)
+                  }
                 />
 
                 <SelectField
@@ -765,29 +846,15 @@ export default function LunariaAdminPanel() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                <p className="mb-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
-                  Currency
-                </p>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <AdminNumberInput
-                    label="Gold"
-                    value={selectedPlayer.gold}
-                    onChange={(value) => updateSelectedPlayer("gold", value)}
-                  />
-                  <AdminNumberInput
-                    label="Silver"
-                    value={selectedPlayer.silver}
-                    onChange={(value) => updateSelectedPlayer("silver", value)}
-                  />
-                  <AdminNumberInput
-                    label="Bronze"
-                    value={selectedPlayer.bronze}
-                    onChange={(value) => updateSelectedPlayer("bronze", value)}
-                  />
-                </div>
-              </div>
+              <LunariaCurrencyEditor
+                label="Currency"
+                value={{
+                  gold: selectedPlayer.gold,
+                  silver: selectedPlayer.silver,
+                  bronze: selectedPlayer.bronze,
+                }}
+                onChange={updateSelectedCurrency}
+              />
 
               <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
                 <p className="mb-4 text-xs uppercase tracking-[0.24em] text-violet-300">
@@ -949,8 +1016,8 @@ export default function LunariaAdminPanel() {
                   <td className="px-4 py-4 text-slate-300">
                     {player.pathway}
                   </td>
-                  <td className="px-4 py-4 text-amber-300">
-                    {player.gold}G / {player.silver}S / {player.bronze}B
+                  <td className="px-4 py-4 font-black text-amber-300">
+                    {formatCurrency(player)}
                   </td>
                   <td className="px-4 py-4 text-slate-400">
                     C {player.common_quests} / U {player.uncommon_quests} / D{" "}
