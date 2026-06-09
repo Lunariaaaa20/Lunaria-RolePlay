@@ -23,7 +23,7 @@ const ADMIN_ACCESS_CODE = "Dyzen-Lucia-9955";
 // Kalau nanti punya URL background foto fantasy malam,
 // tempel di sini. Contoh:
 // const BACKGROUND_IMAGE_URL = "https://....jpg";
-const BACKGROUND_IMAGE_URL = "https://cdn.phototourl.com/free/2026-06-09-b13b591d-0018-4868-9d3a-e25a286f768b.png";
+const BACKGROUND_IMAGE_URL = "/images/lunaria-login-bg.png";
 
 export default function SignInForm() {
   const [mode, setMode] = useState<"player" | "admin">("player");
