@@ -52,6 +52,36 @@ type FortuneLog = {
   created_at: string;
 };
 
+type NumberState = {
+  id: string;
+  date_key: string;
+  number_a: string;
+  number_b: string;
+  used_count: number;
+  updated_at: string;
+};
+
+const NUMBER_STATE_ID = "daily-number-omen";
+const DAILY_NUMBER_COST = 10;
+
+const numberPool = [
+  "01",
+  "07",
+  "13",
+  "21",
+  "34",
+  "55",
+  "89",
+  "11",
+  "22",
+  "33",
+  "44",
+  "66",
+  "77",
+  "88",
+  "99",
+];
+
 const fortuneModes: FortuneMode[] = [
   {
     id: "silver-coin",
@@ -169,6 +199,19 @@ function getSession(): LunariaSession | null {
   }
 }
 
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function generateTwoNumbers() {
+  const shuffled = [...numberPool].sort(() => Math.random() - 0.5);
+
+  return {
+    numberA: shuffled[0],
+    numberB: shuffled[1] === shuffled[0] ? shuffled[2] : shuffled[1],
+  };
+}
+
 function pickOutcome(outcomes: FortuneOutcome[]) {
   const totalWeight = outcomes.reduce((sum, item) => sum + item.weight, 0);
   const roll = Math.random() * totalWeight;
@@ -186,6 +229,27 @@ function pickOutcome(outcomes: FortuneOutcome[]) {
   return outcomes[outcomes.length - 1];
 }
 
+function calculateNumberOmenResult(pickedNumber: string, activeNumbers: string[]) {
+  const winningNumber =
+    activeNumbers[Math.floor(Math.random() * activeNumbers.length)];
+
+  if (pickedNumber === winningNumber) {
+    return {
+      winningNumber,
+      result: "Number Omen Win",
+      label: `Picked ${pickedNumber}, winning number ${winningNumber}`,
+      silverChange: 20,
+    };
+  }
+
+  return {
+    winningNumber,
+    result: "Number Omen Loss",
+    label: `Picked ${pickedNumber}, winning number ${winningNumber}`,
+    silverChange: -10,
+  };
+}
+
 function formatTime(value: string) {
   if (!value) return "-";
 
@@ -201,15 +265,23 @@ export default function LunariaFortuneHall() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [logs, setLogs] = useState<FortuneLog[]>([]);
+  const [numberState, setNumberState] = useState<NumberState | null>(null);
+  const [selectedNumber, setSelectedNumber] = useState("");
   const [selectedModeId, setSelectedModeId] = useState(fortuneModes[0].id);
   const [lastResult, setLastResult] = useState<{
     mode: FortuneMode;
     outcome: FortuneOutcome;
   } | null>(null);
+  const [lastNumberResult, setLastNumberResult] = useState<{
+    result: string;
+    detail: string;
+    silverChange: number;
+  } | null>(null);
   const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRolling, setIsRolling] = useState(false);
+  const [isNumberRolling, setIsNumberRolling] = useState(false);
 
   const selectedMode = useMemo(() => {
     return (
@@ -217,6 +289,11 @@ export default function LunariaFortuneHall() {
       fortuneModes[0]
     );
   }, [selectedModeId]);
+
+  const activeNumbers = useMemo(() => {
+    if (!numberState) return [];
+    return [numberState.number_a, numberState.number_b];
+  }, [numberState]);
 
   const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
 
@@ -228,6 +305,65 @@ export default function LunariaFortuneHall() {
     return logs.filter((log) => log.silver_change < 0).length;
   }, [logs]);
 
+  const ensureNumberState = async () => {
+    const { data, error } = await supabase
+      .from("fortune_number_state")
+      .select("id, date_key, number_a, number_b, used_count, updated_at")
+      .eq("id", NUMBER_STATE_ID)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data) {
+      return data as NumberState;
+    }
+
+    const generated = generateTwoNumbers();
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("fortune_number_state")
+      .insert({
+        id: NUMBER_STATE_ID,
+        date_key: getTodayKey(),
+        number_a: generated.numberA,
+        number_b: generated.numberB,
+        used_count: 0,
+      })
+      .select("id, date_key, number_a, number_b, used_count, updated_at")
+      .single();
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    return inserted as NumberState;
+  };
+
+  const refreshNumberStateAfterUse = async () => {
+    const generated = generateTwoNumbers();
+
+    const { data, error } = await supabase
+      .from("fortune_number_state")
+      .update({
+        date_key: getTodayKey(),
+        number_a: generated.numberA,
+        number_b: generated.numberB,
+        used_count: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", NUMBER_STATE_ID)
+      .select("id, date_key, number_a, number_b, used_count, updated_at")
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data as NumberState;
+  };
+
   const loadFortuneData = async () => {
     setIsLoading(true);
     setErrorMessage("");
@@ -238,6 +374,7 @@ export default function LunariaFortuneHall() {
     if (!currentSession) {
       setPlayer(null);
       setLogs([]);
+      setNumberState(null);
       setIsLoading(false);
       setErrorMessage("Kamu belum login. Silakan masuk lewat Access Gate.");
       return;
@@ -246,6 +383,7 @@ export default function LunariaFortuneHall() {
     if (currentSession.role === "admin") {
       setPlayer(null);
       setLogs([]);
+      setNumberState(null);
       setIsLoading(false);
       setErrorMessage(
         "Admin mode hanya untuk kontrol data. Login sebagai player untuk memakai Fortune Hall."
@@ -256,6 +394,7 @@ export default function LunariaFortuneHall() {
     if (!currentSession.playerId) {
       setPlayer(null);
       setLogs([]);
+      setNumberState(null);
       setIsLoading(false);
       setErrorMessage("Session player tidak valid. Silakan logout lalu login ulang.");
       return;
@@ -293,6 +432,16 @@ export default function LunariaFortuneHall() {
       return;
     }
 
+    try {
+      const state = await ensureNumberState();
+      setNumberState(state);
+      setSelectedNumber((prev) => prev || state.number_a);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown number state error.";
+      setErrorMessage(`Gagal membaca nomor harian: ${message}`);
+    }
+
     setPlayer(playerData as PlayerProfile);
     setLogs((logData as FortuneLog[] | null) || []);
     setIsLoading(false);
@@ -306,6 +455,7 @@ export default function LunariaFortuneHall() {
     setErrorMessage("");
     setNotice("");
     setLastResult(null);
+    setLastNumberResult(null);
 
     if (!isPlayerSession || !session?.playerId) {
       setErrorMessage("Login sebagai player untuk memakai Fortune Hall.");
@@ -382,6 +532,103 @@ export default function LunariaFortuneHall() {
       setErrorMessage(`Fortune error: ${message}`);
     } finally {
       setIsRolling(false);
+    }
+  };
+
+  const handleDailyNumberOmen = async () => {
+    setErrorMessage("");
+    setNotice("");
+    setLastResult(null);
+    setLastNumberResult(null);
+
+    if (!isPlayerSession || !session?.playerId) {
+      setErrorMessage("Login sebagai player untuk memakai Daily Number Omen.");
+      return;
+    }
+
+    if (!player) {
+      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
+      return;
+    }
+
+    if (!numberState) {
+      setErrorMessage("Nomor harian belum siap. Refresh halaman dulu.");
+      return;
+    }
+
+    if (!activeNumbers.includes(selectedNumber)) {
+      setErrorMessage("Pilih salah satu nomor aktif terlebih dahulu.");
+      return;
+    }
+
+    if (player.silver < DAILY_NUMBER_COST) {
+      setErrorMessage(`Silver tidak cukup. Daily Number Omen butuh ${DAILY_NUMBER_COST}S.`);
+      return;
+    }
+
+    const numberResult = calculateNumberOmenResult(selectedNumber, activeNumbers);
+    const newSilver = player.silver + numberResult.silverChange;
+
+    if (newSilver < 0) {
+      setErrorMessage("Silver tidak cukup untuk menerima risiko nomor ini.");
+      return;
+    }
+
+    setIsNumberRolling(true);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("players")
+        .update({ silver: newSilver })
+        .eq("id", session.playerId);
+
+      if (updateError) {
+        setErrorMessage(`Gagal update silver: ${updateError.message}`);
+        return;
+      }
+
+      const { error: logError } = await supabase.from("fortune_logs").insert({
+        player_id: session.playerId,
+        mode: "Daily Number Omen",
+        detail: numberResult.label,
+        result: numberResult.result,
+        silver_change: numberResult.silverChange,
+      });
+
+      if (logError) {
+        await supabase
+          .from("players")
+          .update({ silver: player.silver })
+          .eq("id", session.playerId);
+
+        setErrorMessage(`Gagal menyimpan number log: ${logError.message}`);
+        return;
+      }
+
+      const newState = await refreshNumberStateAfterUse();
+
+      setNumberState(newState);
+      setSelectedNumber(newState.number_a);
+      setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
+      setLastNumberResult({
+        result: numberResult.result,
+        detail: numberResult.label,
+        silverChange: numberResult.silverChange,
+      });
+
+      setNotice(
+        `Daily Number Omen: ${numberResult.result} (${
+          numberResult.silverChange >= 0 ? "+" : ""
+        }${numberResult.silverChange}S). Nomor aktif sudah berganti.`
+      );
+
+      await loadFortuneData();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown daily number omen error.";
+      setErrorMessage(`Daily Number error: ${message}`);
+    } finally {
+      setIsNumberRolling(false);
     }
   };
 
@@ -550,6 +797,104 @@ export default function LunariaFortuneHall() {
         </aside>
 
         <section className="space-y-6 xl:col-span-8">
+          <div className="rounded-[34px] border border-amber-400/25 bg-gradient-to-br from-amber-950/35 via-black to-violet-950/25 p-6 shadow-[0_0_35px_rgba(245,158,11,0.08)]">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
+                  Daily Number Omen
+                </p>
+
+                <h2 className="mt-2 text-3xl font-black text-white">
+                  Pasang Nomor Harian
+                </h2>
+
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+                  Hanya ada dua nomor aktif. Nomor akan tetap sama kalau belum
+                  ada yang memakai. Setelah ada player memakai salah satu nomor,
+                  sistem otomatis mengganti dua nomor baru.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-400/25 bg-amber-500/10 px-5 py-4 text-right">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                  Cost
+                </p>
+                <p className="mt-1 text-3xl font-black text-white">
+                  {DAILY_NUMBER_COST}S
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
+                Active Numbers
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                {activeNumbers.length ? (
+                  activeNumbers.map((number) => (
+                    <button
+                      key={number}
+                      type="button"
+                      onClick={() => setSelectedNumber(number)}
+                      className={`rounded-3xl border px-6 py-6 text-4xl font-black transition ${
+                        selectedNumber === number
+                          ? "border-amber-400/45 bg-amber-500/15 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.10)]"
+                          : "border-white/10 bg-black/30 text-slate-300 hover:border-amber-400/25"
+                      }`}
+                    >
+                      {number}
+                    </button>
+                  ))
+                ) : (
+                  <p className="col-span-2 text-sm text-slate-500">
+                    Nomor harian belum siap.
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDailyNumberOmen}
+                disabled={
+                  isNumberRolling ||
+                  isLoading ||
+                  !isPlayerSession ||
+                  !selectedNumber
+                }
+                className="mt-5 w-full rounded-2xl border border-amber-400/35 bg-amber-500/15 px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+              >
+                {isNumberRolling
+                  ? "Reading Number..."
+                  : `Use Number ${selectedNumber || "-"} • ${DAILY_NUMBER_COST}S`}
+              </button>
+
+              {lastNumberResult ? (
+                <div className="mt-5 rounded-[24px] border border-white/10 bg-black/35 p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                    Last Number Result
+                  </p>
+                  <h3 className="mt-3 text-2xl font-black text-white">
+                    {lastNumberResult.result}
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-400">
+                    {lastNumberResult.detail}
+                  </p>
+                  <p
+                    className={`mt-3 text-2xl font-black ${
+                      lastNumberResult.silverChange >= 0
+                        ? "text-emerald-300"
+                        : "text-red-300"
+                    }`}
+                  >
+                    {lastNumberResult.silverChange >= 0 ? "+" : ""}
+                    {lastNumberResult.silverChange}S
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {fortuneModes.map((mode) => (
               <button
