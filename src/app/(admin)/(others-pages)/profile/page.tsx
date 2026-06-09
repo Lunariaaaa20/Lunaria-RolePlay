@@ -1,7 +1,16 @@
- "use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+
+type LunariaSession = {
+  role: "player" | "admin";
+  playerId?: string;
+  username: string;
+  characterName?: string;
+  rank?: string;
+  pathway?: string;
+};
 
 type Player = {
   id: string;
@@ -134,6 +143,24 @@ const pathwayTheme: Record<string, string> = {
   Nature: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
 };
 
+function getSession(): LunariaSession | null {
+  if (typeof window === "undefined") return null;
+
+  const sessionSession = sessionStorage.getItem("lunaria_session");
+  const localSession = localStorage.getItem("lunaria_session");
+  const raw = sessionSession || localSession;
+
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as LunariaSession;
+  } catch {
+    localStorage.removeItem("lunaria_session");
+    sessionStorage.removeItem("lunaria_session");
+    return null;
+  }
+}
+
 function calculatePoints(player: Player) {
   return (
     player.common_quests * 10 +
@@ -148,15 +175,25 @@ function getCosmeticById(id: string) {
 }
 
 export default function AdventurerIdCardPage() {
+  const [session, setSession] = useState<LunariaSession | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [equippedRows, setEquippedRows] = useState<PlayerCosmeticRow[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
+
+  const canEditPhoto = Boolean(
+    selectedPlayer &&
+      (session?.role === "admin" ||
+        (session?.role === "player" && session.playerId === selectedPlayer.id))
+  );
 
   const selectedCosmetics = useMemo(() => {
     const result: Record<CosmeticType, Cosmetic | null> = {
@@ -236,6 +273,9 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
   const fetchPlayers = async () => {
     setIsLoading(true);
     setErrorMessage("");
+
+    const currentSession = getSession();
+    setSession(currentSession);
 
     const { data: playerData, error: playerError } = await supabase
       .from("players")
@@ -334,6 +374,10 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
     };
   }, []);
 
+  useEffect(() => {
+    setPhotoUrlInput(selectedPlayer?.photo_url || "");
+  }, [selectedPlayer?.id, selectedPlayer?.photo_url]);
+
   const handleCopy = async () => {
     if (!idCardText) return;
 
@@ -343,6 +387,65 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
     setTimeout(() => {
       setCopied(false);
     }, 1800);
+  };
+
+  const handleSavePhoto = async () => {
+    setNotice("");
+    setErrorMessage("");
+
+    if (!selectedPlayer) {
+      setErrorMessage("No player selected.");
+      return;
+    }
+
+    if (!canEditPhoto) {
+      setErrorMessage("Kamu hanya bisa mengubah foto ID Card milikmu sendiri.");
+      return;
+    }
+
+    const trimmedUrl = photoUrlInput.trim();
+
+    if (
+      trimmedUrl &&
+      !trimmedUrl.startsWith("http://") &&
+      !trimmedUrl.startsWith("https://")
+    ) {
+      setErrorMessage("Photo URL harus diawali http:// atau https://");
+      return;
+    }
+
+    setIsSavingPhoto(true);
+
+    const { error } = await supabase
+      .from("players")
+      .update({
+        photo_url: trimmedUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", selectedPlayer.id);
+
+    setIsSavingPhoto(false);
+
+    if (error) {
+      setErrorMessage(`Gagal menyimpan foto: ${error.message}`);
+      return;
+    }
+
+    setNotice("Foto ID Card berhasil diperbarui.");
+
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              photo_url: trimmedUrl,
+              updated_at: new Date().toISOString(),
+            }
+          : player
+      )
+    );
+
+    setTimeout(() => setNotice(""), 2600);
   };
 
   const nameClass =
@@ -370,8 +473,8 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
               Adventurer ID Card
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              ID Card publik untuk melihat data adventurer. Cosmetic yang sudah
-              dibeli dan dipasang akan tampil otomatis di kartu ini.
+              ID Card publik untuk melihat data adventurer. Foto hanya bisa
+              diubah oleh pemilik ID Card atau admin.
             </p>
           </div>
 
@@ -394,6 +497,12 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
         </div>
       </section>
 
+      {notice ? (
+        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200">
+          <p className="text-sm font-bold">{notice}</p>
+        </section>
+      ) : null}
+
       {isLoading ? (
         <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
           <p className="text-sm font-bold">
@@ -404,9 +513,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
       {errorMessage ? (
         <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200">
-          <p className="text-sm font-bold">
-            Failed to load players: {errorMessage}
-          </p>
+          <p className="text-sm font-bold">{errorMessage}</p>
         </section>
       ) : null}
 
@@ -572,6 +679,47 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                       )}
                     </div>
                   </div>
+
+                  {canEditPhoto ? (
+                    <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-sky-300">
+                        Edit Character Photo
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Tempel link gambar karakter. Player hanya bisa edit foto
+                        ID Card sendiri. Admin bisa edit semua player.
+                      </p>
+
+                      <input
+                        value={photoUrlInput}
+                        onChange={(event) =>
+                          setPhotoUrlInput(event.target.value)
+                        }
+                        placeholder="https://example.com/character-photo.png"
+                        className="lunaria-id-input mt-4"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleSavePhoto}
+                        disabled={isSavingPhoto}
+                        className="mt-4 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSavingPhoto ? "Saving Photo..." : "Save Photo"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                        Photo Permission
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Kamu sedang melihat ID Card player lain. Foto hanya bisa
+                        diubah oleh pemilik ID Card atau admin.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -645,8 +793,8 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </p>
                   <p className="mt-3 text-sm leading-6 text-slate-400">
                     Data ini terhubung ke Supabase. Update dari Admin Panel,
-                    Cosmetic Shop, dan Fortune Hall akan tampil setelah refresh
-                    data.
+                    Cosmetic Shop, Fortune Hall, dan foto ID Card akan tampil
+                    otomatis setelah refresh data.
                   </p>
                 </div>
 
@@ -656,7 +804,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
                     ID Card boleh dilihat semua player, tapi pembelian cosmetic,
-                    fortune, dan transaksi selalu memakai akun login sendiri.
+                    fortune, transaksi, dan edit foto memakai akun login sendiri.
                     Username dan access code tidak ditampilkan di halaman publik
                     ini.
                   </p>
@@ -677,6 +825,10 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
           color: rgb(241, 245, 249);
           outline: none;
           transition: 180ms ease;
+        }
+
+        .lunaria-id-input::placeholder {
+          color: rgb(100, 116, 139);
         }
 
         .lunaria-id-input:focus {
@@ -755,4 +907,4 @@ function DataPanel({ title, items }: { title: string; items: string[] }) {
       </div>
     </div>
   );
-}
+     }
