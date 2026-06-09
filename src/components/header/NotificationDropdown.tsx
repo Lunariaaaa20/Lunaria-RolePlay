@@ -194,14 +194,16 @@ export default function NotificationDropdown() {
     fetchGuildLogs();
   }, []);
 
+  const openLog = () => {
+    setIsOpen(true);
+    fetchGuildLogs();
+  };
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => {
-          setIsOpen((prev) => !prev);
-          fetchGuildLogs();
-        }}
+        onClick={openLog}
         className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-900/80 text-slate-300 shadow-[0_0_25px_rgba(15,23,42,0.35)] transition hover:border-amber-400/30 hover:text-amber-300"
         aria-label="Guild Report Log"
       >
@@ -237,88 +239,95 @@ export default function NotificationDropdown() {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-[99999] mt-4 w-[360px] max-w-[calc(100vw-24px)] overflow-hidden rounded-[28px] border border-amber-400/20 bg-[#070812] shadow-[0_0_60px_rgba(0,0,0,0.55)]">
-          <div className="border-b border-white/10 bg-gradient-to-r from-black via-slate-950 to-violet-950/50 p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
-                  Guild Report Log
-                </p>
-                <h3 className="mt-2 text-xl font-black text-white">
-                  Player Activity
-                </h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Registration, approval, currency, cosmetic, and fortune updates.
-                </p>
-              </div>
+        <>
+          <div
+            className="fixed inset-0 z-[99998] bg-black/55 backdrop-blur-sm"
+            onClick={() => setIsOpen(false)}
+          />
 
+          <div className="fixed inset-x-3 top-[86px] z-[99999] max-h-[calc(100vh-110px)] overflow-hidden rounded-[28px] border border-amber-400/20 bg-[#070812] shadow-[0_0_70px_rgba(0,0,0,0.70)] sm:absolute sm:right-0 sm:left-auto sm:top-auto sm:mt-4 sm:w-[390px] sm:max-h-[620px]">
+            <div className="border-b border-white/10 bg-gradient-to-r from-black via-slate-950 to-violet-950/60 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
+                    Guild Report Log
+                  </p>
+                  <h3 className="mt-2 text-xl font-black text-white">
+                    Player Activity
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Registration, approval, currency, cosmetic, and fortune updates.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 transition hover:text-white"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[calc(100vh-280px)] overflow-y-auto overscroll-contain p-3 sm:max-h-[430px]">
+              {isLoading ? (
+                <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 text-sm font-bold text-sky-200">
+                  Loading guild reports...
+                </div>
+              ) : null}
+
+              {!isLoading && logs.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">
+                  Belum ada report log. Aktivitas akan muncul setelah registration,
+                  approval, currency update, atau fortune hall berjalan.
+                </div>
+              ) : null}
+
+              <div className="space-y-3">
+                {logs.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-amber-400/25 hover:bg-white/[0.06]"
+                  >
+                    <div className="flex gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${
+                          toneMap[item.tone]
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-black text-white">
+                          {item.title}
+                        </p>
+                        <p className="mt-1 break-words text-xs leading-5 text-slate-400">
+                          {item.detail}
+                        </p>
+                        <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
+                          {formatTime(item.time)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 bg-black/40 p-3">
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 transition hover:text-white"
-                aria-label="Close"
+                onClick={fetchGuildLogs}
+                className="w-full rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20"
               >
-                ×
+                Refresh Guild Log
               </button>
             </div>
           </div>
-
-          <div className="max-h-[440px] overflow-y-auto p-3">
-            {isLoading ? (
-              <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 text-sm font-bold text-sky-200">
-                Loading guild reports...
-              </div>
-            ) : null}
-
-            {!isLoading && logs.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">
-                Belum ada report log. Aktivitas akan muncul setelah registration,
-                approval, currency update, atau fortune hall berjalan.
-              </div>
-            ) : null}
-
-            <div className="space-y-3">
-              {logs.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:border-amber-400/25 hover:bg-white/[0.06]"
-                >
-                  <div className="flex gap-3">
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-sm font-black ${
-                        toneMap[item.tone]
-                      }`}
-                    >
-                      {item.icon}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-white">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-slate-400">
-                        {item.detail}
-                      </p>
-                      <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
-                        {formatTime(item.time)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-white/10 bg-black/30 p-3">
-            <button
-              type="button"
-              onClick={fetchGuildLogs}
-              className="w-full rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20"
-            >
-              Refresh Guild Log
-            </button>
-          </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
