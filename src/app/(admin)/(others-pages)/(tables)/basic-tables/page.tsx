@@ -1,19 +1,33 @@
- "use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type LunariaSession = {
-  role: "player" | "admin";
-  playerId?: string;
-  username: string;
-  characterName?: string;
-  rank?: string;
-  pathway?: string;
+const rankOptions = ["Initiate", "Seeker", "Warden", "Arbiter", "High Council"];
+const pathwayOptions = ["Warrior", "Mystic", "Shadow", "Nature"];
+const raceOptions = ["Human", "Elf", "Fairy", "Feyling", "Furry", "Dwarf"];
+const statusOptions = ["active", "inactive"];
+
+type RegistrationRequest = {
+  id: string;
+  character_name: string;
+  race: string;
+  pathway: string;
+  skill_1: string;
+  skill_2: string;
+  inventory_1: string;
+  inventory_2: string;
+  inventory_3: string;
+  notes: string;
+  status: string;
+  created_at: string;
 };
 
 type Player = {
   id: string;
+  registration_request_id: string | null;
+  username: string;
+  access_code: string;
   character_name: string;
   race: string;
   guild_rank: string;
@@ -37,64 +51,12 @@ type Player = {
   updated_at: string;
 };
 
-type PlayerCosmeticRow = {
-  id: string;
-  player_id: string;
-  cosmetic_id: string;
-  equipped: boolean;
-};
-
-type CosmeticInfo = {
-  id: string;
-  name: string;
-  type: string;
-};
-
-const cosmeticCatalog: CosmeticInfo[] = [
-  { id: "name-ember-script", name: "Ember Script", type: "Name Effect" },
-  { id: "name-royal-gold", name: "Royal Gold Name", type: "Name Effect" },
-  { id: "border-silver-oath", name: "Silver Oath Border", type: "ID Border" },
-  { id: "border-demon-throne", name: "Demon Throne Border", type: "ID Border" },
-  { id: "bg-moonlit-archive", name: "Moonlit Archive", type: "ID Background" },
-  { id: "bg-void-cathedral", name: "Void Cathedral", type: "ID Background" },
-  { id: "aura-green-sanctuary", name: "Green Sanctuary Aura", type: "Aura Effect" },
-  { id: "aura-astral-crown", name: "Astral Crown Aura", type: "Aura Effect" },
-];
-
-const rankTheme: Record<string, string> = {
-  Initiate: "border-slate-400/30 bg-slate-400/10 text-slate-200",
-  Seeker: "border-sky-400/30 bg-sky-400/10 text-sky-200",
-  Warden: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  Arbiter: "border-violet-400/30 bg-violet-400/10 text-violet-200",
-  "High Council": "border-amber-400/40 bg-amber-400/10 text-amber-200",
-};
-
-const pathwayTheme: Record<string, string> = {
-  Warrior: "border-red-400/30 bg-red-400/10 text-red-200",
-  Mystic: "border-violet-400/30 bg-violet-400/10 text-violet-200",
-  Shadow: "border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-200",
-  Nature: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-};
-
-function getSession(): LunariaSession | null {
-  if (typeof window === "undefined") return null;
-
-  const sessionSession = sessionStorage.getItem("lunaria_session");
-  const localSession = localStorage.getItem("lunaria_session");
-  const raw = sessionSession || localSession;
-
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw) as LunariaSession;
-  } catch {
-    localStorage.removeItem("lunaria_session");
-    sessionStorage.removeItem("lunaria_session");
-    return null;
-  }
-}
-
-function calculatePoints(player: Player) {
+function calculatePoints(player: {
+  common_quests: number;
+  uncommon_quests: number;
+  dangerous_quests: number;
+  special_quests: number;
+}) {
   return (
     player.common_quests * 10 +
     player.uncommon_quests * 25 +
@@ -103,543 +65,915 @@ function calculatePoints(player: Player) {
   );
 }
 
-export default function AdventurerIdCardPage() {
-  const [session, setSession] = useState<LunariaSession | null>(null);
+function generateAccessCode(name: string) {
+  const clean = name
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 4)
+    .toUpperCase();
+
+  const random = Math.floor(1000 + Math.random() * 9000);
+
+  return `${clean || "ADV"}-${random}`;
+}
+
+function generateUsername(name: string) {
+  const clean = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 14);
+
+  const random = Math.floor(100 + Math.random() * 900);
+
+  return `${clean || "adventurer"}${random}`;
+}
+
+function formatDate(value: string) {
+  if (!value) return "-";
+
+  return new Date(value).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default function LunariaAdminPanel() {
+  const [registrations, setRegistrations] = useState<RegistrationRequest[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
-  const [equippedRows, setEquippedRows] = useState<PlayerCosmeticRow[]>([]);
-  const [photoUrlInput, setPhotoUrlInput] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const [isApproving, setIsApproving] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isStatusWorking, setIsStatusWorking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
 
-  const canEditPhoto =
-    Boolean(selectedPlayer) &&
-    (session?.role === "admin" || session?.playerId === selectedPlayer?.id);
+  const leaderboard = useMemo(() => {
+    return [...players]
+      .map((player) => ({
+        ...player,
+        points: calculatePoints(player),
+      }))
+      .sort((a, b) => b.points - a.points);
+  }, [players]);
 
-  const equippedCosmetics = useMemo(() => {
-    return equippedRows
-      .filter((row) => row.player_id === selectedPlayer?.id && row.equipped)
-      .map((row) => {
-        const cosmetic = cosmeticCatalog.find(
-          (item) => item.id === row.cosmetic_id
-        );
+  const pendingRegistrations = useMemo(() => {
+    return registrations.filter((item) => item.status === "pending");
+  }, [registrations]);
 
-        return {
-          id: row.id,
-          name: cosmetic?.name || row.cosmetic_id,
-          type: cosmetic?.type || "Cosmetic",
-        };
-      });
-  }, [equippedRows, selectedPlayer?.id]);
+  const activePlayers = useMemo(() => {
+    return players.filter((player) => player.status === "active");
+  }, [players]);
 
-  const idCardText = useMemo(() => {
-    if (!selectedPlayer) return "";
-
-    return `╔══════════════════════╗
-* ADVENTURER'S GUILD LICENSE
-╚══════════════════════╝
-*Name :* ${selectedPlayer.character_name}
-*Race :* ${selectedPlayer.race}
-*Guild Rank :* ${selectedPlayer.guild_rank.toUpperCase()}
-*Pathway :* ${selectedPlayer.pathway}
-*Misi :* ${selectedPlayer.mission}
-━━━━━━━━━━━━━━━━━━
-*Primary Skills*
-1. ${selectedPlayer.skill_1 || "-"}
-2. ${selectedPlayer.skill_2 || "-"}
-━━━━━━━━━━━━━━━━━━
-*Inventory*
-1. ${selectedPlayer.inventory_1 || "-"}
-2. ${selectedPlayer.inventory_2 || "-"}
-3. ${selectedPlayer.inventory_3 || "-"}
-━━━━━━━━━━━━━━━━━━
-*Currency*
-- Gold : ${selectedPlayer.gold}
-- Silver : ${selectedPlayer.silver}
-- Bronze : ${selectedPlayer.bronze}
-━━━━━━━━━━━━━━━━━━
-*Quest Record*
-- Common : ${selectedPlayer.common_quests}
-- Uncommon : ${selectedPlayer.uncommon_quests}
-- Dangerous : ${selectedPlayer.dangerous_quests}
-- Special : ${selectedPlayer.special_quests}
-- Points : ${calculatePoints(selectedPlayer)}
-━━━━━━━━━━━━━━━━━━
-Registered Guild :
-Adventurer's Guild of Aethelgard
-
-Status :
-Active Adventurer`;
-  }, [selectedPlayer]);
+  const inactivePlayers = useMemo(() => {
+    return players.filter((player) => player.status !== "active");
+  }, [players]);
 
   const showNotice = (message: string) => {
     setNotice(message);
-    setTimeout(() => setNotice(""), 2600);
+    setTimeout(() => setNotice(""), 3000);
   };
 
   const showError = (message: string) => {
     setErrorMessage(message);
-    setTimeout(() => setErrorMessage(""), 4200);
+    setTimeout(() => setErrorMessage(""), 5000);
   };
 
-  const fetchPlayers = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     setErrorMessage("");
 
-    const currentSession = getSession();
-    setSession(currentSession);
+    const [registrationResult, playerResult] = await Promise.all([
+      supabase
+        .from("registration_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
 
-    const { data, error } = await supabase
-      .from("players")
-      .select(`
-        id,
-        character_name,
-        race,
-        guild_rank,
-        pathway,
-        mission,
-        skill_1,
-        skill_2,
-        inventory_1,
-        inventory_2,
-        inventory_3,
-        gold,
-        silver,
-        bronze,
-        common_quests,
-        uncommon_quests,
-        dangerous_quests,
-        special_quests,
-        photo_url,
-        status,
-        created_at,
-        updated_at
-      `)
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
+      supabase
+        .from("players")
+        .select("*")
+        .order("created_at", { ascending: false }),
+    ]);
 
-    if (error) {
-      setIsLoading(false);
-      showError(`Failed to load players: ${error.message}`);
-      return;
-    }
-
-    const activePlayers = (data || []) as Player[];
-    setPlayers(activePlayers);
-
-    let defaultPlayerId = "";
-
-    if (
-      currentSession?.role === "player" &&
-      currentSession.playerId &&
-      activePlayers.some((player) => player.id === currentSession.playerId)
-    ) {
-      defaultPlayerId = currentSession.playerId;
-    } else if (
-      selectedPlayerId &&
-      activePlayers.some((player) => player.id === selectedPlayerId)
-    ) {
-      defaultPlayerId = selectedPlayerId;
-    } else if (activePlayers.length > 0) {
-      defaultPlayerId = activePlayers[0].id;
-    }
-
-    setSelectedPlayerId(defaultPlayerId);
-
-    const { data: cosmeticData, error: cosmeticError } = await supabase
-      .from("player_cosmetics")
-      .select("id, player_id, cosmetic_id, equipped")
-      .eq("equipped", true);
-
-    if (cosmeticError) {
-      setEquippedRows([]);
+    if (registrationResult.error) {
+      showError(
+        `Failed to fetch registrations: ${registrationResult.error.message}`
+      );
     } else {
-      setEquippedRows((cosmeticData || []) as PlayerCosmeticRow[]);
+      setRegistrations(registrationResult.data || []);
+    }
+
+    if (playerResult.error) {
+      showError(`Failed to fetch players: ${playerResult.error.message}`);
+    } else {
+      const data = (playerResult.data || []) as Player[];
+      setPlayers(data);
+
+      if (!selectedPlayerId && data.length > 0) {
+        setSelectedPlayerId(data[0].id);
+      }
+
+      if (selectedPlayerId && !data.some((player) => player.id === selectedPlayerId)) {
+        setSelectedPlayerId(data[0]?.id || "");
+      }
     }
 
     setIsLoading(false);
   };
 
   useEffect(() => {
-    fetchPlayers();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    setPhotoUrlInput(selectedPlayer?.photo_url || "");
-  }, [selectedPlayer?.id, selectedPlayer?.photo_url]);
+  const updateSelectedPlayer = (key: keyof Player, value: string | number) => {
+    if (!selectedPlayer) return;
 
-  const handleCopy = async () => {
-    if (!idCardText) return;
-
-    await navigator.clipboard.writeText(idCardText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              [key]: value,
+            }
+          : player
+      )
+    );
   };
 
-  const handleSavePhoto = async () => {
+  const approveRegistration = async (request: RegistrationRequest) => {
+    setIsApproving(request.id);
+    setErrorMessage("");
+
+    const accessCode = generateAccessCode(request.character_name);
+    const username = generateUsername(request.character_name);
+
+    const { data: newPlayer, error: insertError } = await supabase
+      .from("players")
+      .insert({
+        registration_request_id: request.id,
+        username,
+        access_code: accessCode,
+        character_name: request.character_name,
+        race: request.race,
+        guild_rank: "Initiate",
+        pathway: request.pathway,
+        mission: "Active Guild Registration",
+        skill_1: request.skill_1,
+        skill_2: request.skill_2,
+        inventory_1: request.inventory_1 || "",
+        inventory_2: request.inventory_2 || "",
+        inventory_3: request.inventory_3 || "",
+        gold: 0,
+        silver: 10,
+        bronze: 0,
+        common_quests: 0,
+        uncommon_quests: 0,
+        dangerous_quests: 0,
+        special_quests: 0,
+        photo_url: "",
+        status: "active",
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      setIsApproving(null);
+      showError(`Approve failed: ${insertError.message}`);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("registration_requests")
+      .update({ status: "approved" })
+      .eq("id", request.id);
+
+    if (updateError) {
+      setIsApproving(null);
+      showError(`Status update failed: ${updateError.message}`);
+      return;
+    }
+
+    await supabase.from("access_logs").insert({
+      player_id: newPlayer.id,
+      action: "approved_registration",
+      access_code: accessCode,
+    });
+
+    const typedNewPlayer = newPlayer as Player;
+
+    setPlayers((prev) => [typedNewPlayer, ...prev]);
+    setSelectedPlayerId(typedNewPlayer.id);
+
+    setRegistrations((prev) =>
+      prev.map((item) =>
+        item.id === request.id ? { ...item, status: "approved" } : item
+      )
+    );
+
+    setIsApproving(null);
+    showNotice(`Approved ${request.character_name}. Access Code: ${accessCode}`);
+  };
+
+  const copyCode = async (code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    showNotice("Access code copied.");
+
+    setTimeout(() => {
+      setCopiedCode(null);
+    }, 1800);
+  };
+
+  const handleSave = async () => {
     if (!selectedPlayer) {
       showError("No player selected.");
       return;
     }
 
-    if (!canEditPhoto) {
-      showError("Kamu hanya bisa edit foto ID Card milikmu sendiri.");
-      return;
-    }
-
-    setIsSavingPhoto(true);
+    setIsSaving(true);
     setErrorMessage("");
-
-    const cleanUrl = photoUrlInput.trim();
 
     const { error } = await supabase
       .from("players")
       .update({
-        photo_url: cleanUrl,
+        character_name: selectedPlayer.character_name,
+        race: selectedPlayer.race,
+        guild_rank: selectedPlayer.guild_rank,
+        pathway: selectedPlayer.pathway,
+        mission: selectedPlayer.mission,
+        skill_1: selectedPlayer.skill_1,
+        skill_2: selectedPlayer.skill_2,
+        inventory_1: selectedPlayer.inventory_1,
+        inventory_2: selectedPlayer.inventory_2,
+        inventory_3: selectedPlayer.inventory_3,
+        gold: selectedPlayer.gold,
+        silver: selectedPlayer.silver,
+        bronze: selectedPlayer.bronze,
+        common_quests: selectedPlayer.common_quests,
+        uncommon_quests: selectedPlayer.uncommon_quests,
+        dangerous_quests: selectedPlayer.dangerous_quests,
+        special_quests: selectedPlayer.special_quests,
+        photo_url: selectedPlayer.photo_url || "",
+        status: selectedPlayer.status || "active",
       })
       .eq("id", selectedPlayer.id);
 
-    setIsSavingPhoto(false);
+    setIsSaving(false);
 
     if (error) {
-      showError(`Gagal menyimpan foto: ${error.message}`);
+      showError(`Save failed: ${error.message}`);
       return;
     }
 
-    showNotice("Foto ID Card berhasil disimpan.");
-    await fetchPlayers();
+    showNotice("Player ID Card updated in Supabase.");
+    fetchData();
+  };
+
+  const handleToggleStatus = async () => {
+    if (!selectedPlayer) {
+      showError("No player selected.");
+      return;
+    }
+
+    const nextStatus = selectedPlayer.status === "active" ? "inactive" : "active";
+
+    const confirmText =
+      nextStatus === "inactive"
+        ? `Deactivate ${selectedPlayer.character_name}? Player tidak bisa login, tapi data masih aman.`
+        : `Activate ${selectedPlayer.character_name}? Player bisa login lagi.`;
+
+    const confirmed = window.confirm(confirmText);
+    if (!confirmed) return;
+
+    setIsStatusWorking(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("players")
+      .update({ status: nextStatus })
+      .eq("id", selectedPlayer.id);
+
+    setIsStatusWorking(false);
+
+    if (error) {
+      showError(`Status update failed: ${error.message}`);
+      return;
+    }
+
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              status: nextStatus,
+            }
+          : player
+      )
+    );
+
+    showNotice(
+      nextStatus === "inactive"
+        ? `${selectedPlayer.character_name} deactivated.`
+        : `${selectedPlayer.character_name} activated.`
+    );
+  };
+
+  const handleDeletePlayer = async () => {
+    if (!selectedPlayer) {
+      showError("No player selected.");
+      return;
+    }
+
+    const firstConfirm = window.confirm(
+      `DELETE PERMANENT ${selectedPlayer.character_name}? Data ID Card akan dihapus dari players. Gunakan ini hanya untuk akun test / salah approve.`
+    );
+
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm(
+      `Yakin banget hapus ${selectedPlayer.character_name}? Ini tidak bisa dibatalkan.`
+    );
+
+    if (!secondConfirm) return;
+
+    setIsDeleting(true);
+    setErrorMessage("");
+
+    const playerId = selectedPlayer.id;
+    const playerName = selectedPlayer.character_name;
+
+    const relatedTables = [
+      "player_cosmetics",
+      "fortune_number_entries",
+      "fortune_logs",
+      "currency_logs",
+      "access_logs",
+    ];
+
+    for (const table of relatedTables) {
+      const { error } = await supabase.from(table).delete().eq("player_id", playerId);
+
+      if (error) {
+        setIsDeleting(false);
+        showError(`Delete related data failed at ${table}: ${error.message}`);
+        return;
+      }
+    }
+
+    const { error: deletePlayerError } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", playerId);
+
+    setIsDeleting(false);
+
+    if (deletePlayerError) {
+      showError(`Delete player failed: ${deletePlayerError.message}`);
+      return;
+    }
+
+    const remainingPlayers = players.filter((player) => player.id !== playerId);
+    setPlayers(remainingPlayers);
+    setSelectedPlayerId(remainingPlayers[0]?.id || "");
+
+    showNotice(`${playerName} deleted permanently.`);
   };
 
   return (
     <main className="space-y-6 text-slate-100">
       <section className="rounded-[28px] border border-amber-500/20 bg-gradient-to-br from-black via-slate-950 to-violet-950/60 p-6 shadow-[0_0_45px_rgba(245,158,11,0.10)]">
         <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-300">
-          Lunaria Guild Registry
+          Lunaria Control Center
         </p>
 
         <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h1 className="text-3xl font-black text-white md:text-4xl">
-              Adventurer ID Card
+              Admin Panel
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              ID Card publik untuk melihat data adventurer aktif. Saat player
-              login, halaman otomatis membuka ID Card miliknya sendiri.
+              Panel admin untuk approve registrasi, membuat access code, update
+              ID card, rank, skill, inventory, currency, quest record, status,
+              foto, dan penghapusan ID Card.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              onClick={fetchPlayers}
-              className="rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20"
-            >
-              Refresh Data
-            </button>
-
-            <button
-              onClick={handleCopy}
-              disabled={!selectedPlayer}
-              className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {copied ? "Copied" : "Copy ID Card"}
-            </button>
-          </div>
+          <button
+            onClick={fetchData}
+            className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-bold uppercase tracking-[0.18em] text-emerald-300"
+          >
+            Refresh Data
+          </button>
         </div>
       </section>
 
       {notice ? (
-        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200">
+        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200 shadow-[0_0_30px_rgba(52,211,153,0.08)]">
           <p className="text-sm font-bold">{notice}</p>
         </section>
       ) : null}
 
       {errorMessage ? (
-        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200">
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200 shadow-[0_0_30px_rgba(248,113,113,0.08)]">
           <p className="text-sm font-bold">{errorMessage}</p>
         </section>
       ) : null}
 
       {isLoading ? (
         <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
-          <p className="text-sm font-bold">Loading active player data...</p>
+          <p className="text-sm font-bold">Loading Supabase data...</p>
         </section>
       ) : null}
 
-      {!isLoading && players.length === 0 ? (
-        <section className="rounded-[32px] border border-white/10 bg-black/35 p-6 text-slate-400">
-          Belum ada player aktif. Player inactive, banned, atau deleted tidak
-          tampil di ID Card publik.
-        </section>
-      ) : null}
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Pending Registration"
+          value={String(pendingRegistrations.length)}
+          tone="text-amber-300"
+        />
+        <StatCard
+          label="Active Adventurers"
+          value={String(activePlayers.length)}
+          tone="text-emerald-300"
+        />
+        <StatCard
+          label="Inactive ID Cards"
+          value={String(inactivePlayers.length)}
+          tone="text-red-300"
+        />
+        <StatCard
+          label="Approved Requests"
+          value={String(
+            registrations.filter((item) => item.status === "approved").length
+          )}
+          tone="text-sky-300"
+        />
+      </section>
 
-      {selectedPlayer ? (
-        <>
-          <section className="rounded-[28px] border border-white/10 bg-black/30 p-5">
-            <label className="block">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                Select Adventurer
-              </span>
-              <select
-                value={selectedPlayerId}
-                onChange={(event) => setSelectedPlayerId(event.target.value)}
-                className="lunaria-id-input"
-              >
-                {players.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.character_name} — {player.guild_rank}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="rounded-[32px] border border-amber-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)] xl:col-span-7">
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
+              Registration Queue
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-white">
+              Pending Approval
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              Data diambil langsung dari tabel Supabase registration_requests.
+            </p>
+          </div>
 
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-            <div className="xl:col-span-5">
-              <div className="relative overflow-hidden rounded-[32px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_50px_rgba(245,158,11,0.14)]">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.18),transparent_30%)]" />
-
-                <div className="relative z-10 rounded-[26px] border border-amber-400/20 bg-black/35 p-5">
-                  <div className="mb-5 flex items-center justify-between">
+          <div className="space-y-4">
+            {pendingRegistrations.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-slate-400">
+                No pending registrations.
+              </div>
+            ) : (
+              pendingRegistrations.map((request) => (
+                <div
+                  key={request.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300">
-                        Adventurer&apos;s Guild License
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Registered Guild of Aethelgard
-                      </p>
-                    </div>
-
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10 text-xl text-amber-300">
-                      ⚜
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center text-center">
-                    <div className="relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-[32px] border border-amber-400/30 bg-gradient-to-br from-slate-900 via-black to-violet-950 shadow-[0_0_35px_rgba(245,158,11,0.14)]">
-                      {selectedPlayer.photo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={selectedPlayer.photo_url}
-                          alt={selectedPlayer.character_name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-5xl">🧙</span>
-                      )}
-
-                      <div className="absolute bottom-2 rounded-full border border-amber-400/30 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-300">
-                        Character Photo
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
+                          {request.id.slice(0, 8)}
+                        </span>
+                        <span className="rounded-full border border-slate-400/20 bg-slate-400/10 px-3 py-1 text-xs font-bold text-slate-300">
+                          {request.status}
+                        </span>
                       </div>
+
+                      <h3 className="mt-3 text-xl font-black text-white">
+                        {request.character_name}
+                      </h3>
+
+                      <p className="mt-2 text-sm text-slate-400">
+                        {request.race} • {request.pathway} • Submitted{" "}
+                        {formatDate(request.created_at)}
+                      </p>
+
+                      <p className="mt-2 text-xs text-slate-500">
+                        Skills: {request.skill_1} / {request.skill_2}
+                      </p>
                     </div>
 
-                    <h2 className="mt-5 text-3xl font-black text-white">
-                      {selectedPlayer.character_name}
-                    </h2>
+                    <button
+                      onClick={() => approveRegistration(request)}
+                      disabled={isApproving === request.id}
+                      className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isApproving === request.id ? "Approving..." : "Approve"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
-                    <p className="mt-2 text-sm text-slate-400">
-                      {selectedPlayer.race} • {selectedPlayer.pathway}
+        <div className="rounded-[32px] border border-violet-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(124,58,237,0.10)] xl:col-span-5">
+          <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
+            Edit Adventurer
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            ID Card Control
+          </h2>
+
+          {!selectedPlayer ? (
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-slate-400">
+              No active player yet. Approve a registration first.
+            </div>
+          ) : (
+            <div className="mt-6 space-y-5">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                  Select Player
+                </span>
+                <select
+                  value={selectedPlayerId}
+                  onChange={(event) => setSelectedPlayerId(event.target.value)}
+                  className="lunaria-admin-input"
+                >
+                  {players.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.character_name} — {player.status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div
+                className={`rounded-3xl border p-5 ${
+                  selectedPlayer.status === "active"
+                    ? "border-emerald-400/20 bg-emerald-400/10"
+                    : "border-red-400/20 bg-red-400/10"
+                }`}
+              >
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">
+                  Current Status
+                </p>
+                <p
+                  className={`mt-2 text-3xl font-black uppercase ${
+                    selectedPlayer.status === "active"
+                      ? "text-emerald-300"
+                      : "text-red-300"
+                  }`}
+                >
+                  {selectedPlayer.status}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Active bisa login. Inactive tidak bisa login, tapi data ID Card
+                  tetap tersimpan.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-sky-300">
+                  Login Access
+                </p>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <InfoBox label="Username" value={selectedPlayer.username} />
+                  <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                      Access Code
                     </p>
-
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
-                      <span
-                        className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
-                          rankTheme[selectedPlayer.guild_rank] ||
-                          "border-slate-400/30 bg-slate-400/10 text-slate-200"
-                        }`}
-                      >
-                        {selectedPlayer.guild_rank}
-                      </span>
-
-                      <span
-                        className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] ${
-                          pathwayTheme[selectedPlayer.pathway] ||
-                          "border-violet-400/30 bg-violet-400/10 text-violet-200"
-                        }`}
-                      >
-                        {selectedPlayer.pathway}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    <CurrencyBox
-                      label="Gold"
-                      value={selectedPlayer.gold}
-                      color="text-amber-300"
-                    />
-                    <CurrencyBox
-                      label="Silver"
-                      value={selectedPlayer.silver}
-                      color="text-slate-200"
-                    />
-                    <CurrencyBox
-                      label="Bronze"
-                      value={selectedPlayer.bronze}
-                      color="text-orange-300"
-                    />
-                  </div>
-
-                  <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
-                    <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">
-                      Active Adventurer
+                    <p className="mt-2 font-black text-white">
+                      {selectedPlayer.access_code}
                     </p>
+                    <button
+                      onClick={() => copyCode(selectedPlayer.access_code)}
+                      className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-amber-300"
+                    >
+                      {copiedCode === selectedPlayer.access_code
+                        ? "Copied"
+                        : "Copy Code"}
+                    </button>
                   </div>
-
-                  <div className="mt-5 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                    <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
-                      Equipped Cosmetics
-                    </p>
-
-                    <div className="mt-3 space-y-2">
-                      {equippedCosmetics.length ? (
-                        equippedCosmetics.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3"
-                          >
-                            <span className="text-sm font-semibold text-slate-200">
-                              ◆ {item.name}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {item.type}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-slate-500">
-                          No cosmetic equipped.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {canEditPhoto ? (
-                    <div className="mt-5 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
-                      <p className="text-xs uppercase tracking-[0.26em] text-sky-300">
-                        Edit Character Photo
-                      </p>
-
-                      <p className="mt-3 text-sm leading-6 text-slate-400">
-                        Tempel link gambar karakter. Player hanya bisa edit foto
-                        ID Card sendiri. Admin bisa edit semua player aktif.
-                      </p>
-
-                      <input
-                        value={photoUrlInput}
-                        onChange={(event) => setPhotoUrlInput(event.target.value)}
-                        placeholder="https://example.com/character-photo.png"
-                        className="lunaria-id-input mt-4"
-                      />
-
-                      <button
-                        onClick={handleSavePhoto}
-                        disabled={isSavingPhoto}
-                        className="mt-4 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isSavingPhoto ? "Saving..." : "Save Photo"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                      <p className="text-xs uppercase tracking-[0.26em] text-slate-500">
-                        Photo Permission
-                      </p>
-                      <p className="mt-3 text-sm leading-6 text-slate-400">
-                        Kamu sedang melihat ID Card player lain. Foto hanya bisa
-                        diubah oleh pemilik ID Card atau admin.
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
 
-            <div className="xl:col-span-7">
-              <div className="h-full rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <AdminInput
+                  label="Character Name"
+                  value={selectedPlayer.character_name}
+                  onChange={(value) =>
+                    updateSelectedPlayer("character_name", value)
+                  }
+                />
+
+                <SelectField
+                  label="Race"
+                  value={selectedPlayer.race}
+                  options={raceOptions}
+                  onChange={(value) => updateSelectedPlayer("race", value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <SelectField
+                  label="Guild Rank"
+                  value={selectedPlayer.guild_rank}
+                  options={rankOptions}
+                  onChange={(value) => updateSelectedPlayer("guild_rank", value)}
+                />
+
+                <SelectField
+                  label="Pathway"
+                  value={selectedPlayer.pathway}
+                  options={pathwayOptions}
+                  onChange={(value) => updateSelectedPlayer("pathway", value)}
+                />
+              </div>
+
+              <SelectField
+                label="Status"
+                value={selectedPlayer.status}
+                options={statusOptions}
+                onChange={(value) => updateSelectedPlayer("status", value)}
+              />
+
+              <AdminInput
+                label="Photo URL"
+                value={selectedPlayer.photo_url || ""}
+                onChange={(value) => updateSelectedPlayer("photo_url", value)}
+                placeholder="https://example.com/character-photo.png"
+              />
+
+              <AdminInput
+                label="Mission"
+                value={selectedPlayer.mission}
+                onChange={(value) => updateSelectedPlayer("mission", value)}
+              />
+
+              <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
+                <p className="mb-4 text-xs uppercase tracking-[0.24em] text-amber-300">
+                  Primary Skills
+                </p>
+
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <InfoBox label="Name" value={selectedPlayer.character_name} />
-                  <InfoBox label="Race" value={selectedPlayer.race} />
-                  <InfoBox label="Guild Rank" value={selectedPlayer.guild_rank} />
-                  <InfoBox label="Pathway" value={selectedPlayer.pathway} />
-                </div>
-
-                <div className="mt-4">
-                  <InfoBox label="Misi" value={selectedPlayer.mission} />
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <DataPanel
-                    title="Primary Skills"
-                    items={[selectedPlayer.skill_1, selectedPlayer.skill_2]}
+                  <AdminInput
+                    label="Skill 1"
+                    value={selectedPlayer.skill_1}
+                    onChange={(value) => updateSelectedPlayer("skill_1", value)}
                   />
-                  <DataPanel
-                    title="Inventory"
-                    items={[
-                      selectedPlayer.inventory_1 || "-",
-                      selectedPlayer.inventory_2 || "-",
-                      selectedPlayer.inventory_3 || "-",
-                    ]}
+                  <AdminInput
+                    label="Skill 2"
+                    value={selectedPlayer.skill_2}
+                    onChange={(value) => updateSelectedPlayer("skill_2", value)}
                   />
                 </div>
+              </div>
 
-                <div className="mt-6 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
-                  <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
-                    Quest Record
-                  </p>
+              <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+                <p className="mb-4 text-xs uppercase tracking-[0.24em] text-sky-300">
+                  Inventory
+                </p>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <QuestBox label="Common" value={selectedPlayer.common_quests} />
-                    <QuestBox
-                      label="Uncommon"
-                      value={selectedPlayer.uncommon_quests}
-                    />
-                    <QuestBox
-                      label="Dangerous"
-                      value={selectedPlayer.dangerous_quests}
-                    />
-                    <QuestBox label="Special" value={selectedPlayer.special_quests} />
-                    <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
-                  </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <AdminInput
+                    label="Inventory 1"
+                    value={selectedPlayer.inventory_1}
+                    onChange={(value) =>
+                      updateSelectedPlayer("inventory_1", value)
+                    }
+                  />
+                  <AdminInput
+                    label="Inventory 2"
+                    value={selectedPlayer.inventory_2}
+                    onChange={(value) =>
+                      updateSelectedPlayer("inventory_2", value)
+                    }
+                  />
+                  <AdminInput
+                    label="Inventory 3"
+                    value={selectedPlayer.inventory_3}
+                    onChange={(value) =>
+                      updateSelectedPlayer("inventory_3", value)
+                    }
+                  />
                 </div>
+              </div>
 
-                <div className="mt-6 rounded-3xl border border-amber-400/20 bg-gradient-to-r from-amber-500/10 via-black/20 to-violet-500/10 p-5">
-                  <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
-                    Registered Guild
-                  </p>
-                  <p className="mt-2 text-lg font-black text-white">
-                    Adventurer&apos;s Guild of Aethelgard
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-400">
-                    ID Card publik hanya menampilkan adventurer aktif. Player
-                    inactive, banned, atau deleted tidak muncul di dropdown.
-                  </p>
+              <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
+                <p className="mb-4 text-xs uppercase tracking-[0.24em] text-emerald-300">
+                  Currency
+                </p>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <AdminNumberInput
+                    label="Gold"
+                    value={selectedPlayer.gold}
+                    onChange={(value) => updateSelectedPlayer("gold", value)}
+                  />
+                  <AdminNumberInput
+                    label="Silver"
+                    value={selectedPlayer.silver}
+                    onChange={(value) => updateSelectedPlayer("silver", value)}
+                  />
+                  <AdminNumberInput
+                    label="Bronze"
+                    value={selectedPlayer.bronze}
+                    onChange={(value) => updateSelectedPlayer("bronze", value)}
+                  />
                 </div>
+              </div>
 
-                <div className="mt-6 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                  <p className="text-xs uppercase tracking-[0.26em] text-emerald-300">
-                    Security Notice
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Username dan access code tidak ditampilkan di ID Card.
-                    Transaksi tetap memakai playerId dari session login, bukan
-                    dari ID Card yang sedang dilihat.
-                  </p>
+              <div className="rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+                <p className="mb-4 text-xs uppercase tracking-[0.24em] text-violet-300">
+                  Quest Record
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <AdminNumberInput
+                    label="Common"
+                    value={selectedPlayer.common_quests}
+                    onChange={(value) =>
+                      updateSelectedPlayer("common_quests", value)
+                    }
+                  />
+                  <AdminNumberInput
+                    label="Uncommon"
+                    value={selectedPlayer.uncommon_quests}
+                    onChange={(value) =>
+                      updateSelectedPlayer("uncommon_quests", value)
+                    }
+                  />
+                  <AdminNumberInput
+                    label="Dangerous"
+                    value={selectedPlayer.dangerous_quests}
+                    onChange={(value) =>
+                      updateSelectedPlayer("dangerous_quests", value)
+                    }
+                  />
+                  <AdminNumberInput
+                    label="Special"
+                    value={selectedPlayer.special_quests}
+                    onChange={(value) =>
+                      updateSelectedPlayer("special_quests", value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5">
+                <p className="text-xs uppercase tracking-[0.24em] text-amber-300">
+                  Current Points
+                </p>
+                <p className="mt-2 text-4xl font-black text-amber-200">
+                  {calculatePoints(selectedPlayer)}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Common × 10, Uncommon × 25, Dangerous × 60, Special × 120.
+                </p>
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/30 via-amber-500/20 to-violet-600/20 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSaving ? "Saving..." : "Save Update"}
+              </button>
+
+              <div className="rounded-[28px] border border-red-400/25 bg-red-950/20 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.26em] text-red-300">
+                  Danger Zone
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Gunakan Deactivate untuk member keluar / banned. Gunakan Delete
+                  hanya untuk akun test, salah approve, atau data palsu.
+                </p>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <button
+                    onClick={handleToggleStatus}
+                    disabled={isStatusWorking || isDeleting}
+                    className={`rounded-2xl border px-4 py-4 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selectedPlayer.status === "active"
+                        ? "border-red-400/30 bg-red-400/10 text-red-300 hover:bg-red-400/20"
+                        : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
+                    }`}
+                  >
+                    {isStatusWorking
+                      ? "Working..."
+                      : selectedPlayer.status === "active"
+                      ? "Deactivate ID"
+                      : "Activate ID"}
+                  </button>
+
+                  <button
+                    onClick={handleDeletePlayer}
+                    disabled={isDeleting || isStatusWorking}
+                    className="rounded-2xl border border-red-500/40 bg-red-500/15 px-4 py-4 text-sm font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete ID Card"}
+                  </button>
                 </div>
               </div>
             </div>
-          </section>
-        </>
-      ) : null}
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-[32px] border border-white/10 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)]">
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.26em] text-amber-300">
+              Adventurer Registry
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-white">
+              Player Database
+            </h2>
+          </div>
+
+          <p className="text-sm text-slate-400">
+            Data diambil langsung dari tabel Supabase players.
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1200px] border-separate border-spacing-y-3">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
+                <th className="px-4 py-2">ID</th>
+                <th className="px-4 py-2">Name</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2">Rank</th>
+                <th className="px-4 py-2">Pathway</th>
+                <th className="px-4 py-2">Currency</th>
+                <th className="px-4 py-2">Quest Record</th>
+                <th className="px-4 py-2">Points</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {leaderboard.map((player) => (
+                <tr
+                  key={player.id}
+                  className="rounded-3xl border border-white/10 bg-white/[0.04] text-sm"
+                >
+                  <td className="rounded-l-2xl px-4 py-4 text-slate-400">
+                    {player.id.slice(0, 8)}
+                  </td>
+                  <td className="px-4 py-4 font-black text-white">
+                    {player.character_name}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${
+                        player.status === "active"
+                          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                          : "border-red-400/20 bg-red-400/10 text-red-300"
+                      }`}
+                    >
+                      {player.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
+                      {player.guild_rank}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-slate-300">
+                    {player.pathway}
+                  </td>
+                  <td className="px-4 py-4 text-amber-300">
+                    {player.gold}G / {player.silver}S / {player.bronze}B
+                  </td>
+                  <td className="px-4 py-4 text-slate-400">
+                    C {player.common_quests} / U {player.uncommon_quests} / D{" "}
+                    {player.dangerous_quests} / S {player.special_quests}
+                  </td>
+                  <td className="rounded-r-2xl px-4 py-4 font-black text-emerald-300">
+                    {player.points}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {players.length === 0 ? (
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 text-slate-400">
+              No approved players yet.
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <style jsx>{`
-        .lunaria-id-input {
+        .lunaria-admin-input {
           width: 100%;
           border-radius: 1rem;
           border: 1px solid rgba(245, 158, 11, 0.18);
@@ -650,12 +984,16 @@ Active Adventurer`;
           transition: 180ms ease;
         }
 
-        .lunaria-id-input:focus {
+        .lunaria-admin-input::placeholder {
+          color: rgb(100, 116, 139);
+        }
+
+        .lunaria-admin-input:focus {
           border-color: rgba(245, 158, 11, 0.45);
           box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
         }
 
-        select.lunaria-id-input option {
+        select.lunaria-admin-input option {
           background: #070812;
           color: white;
         }
@@ -664,66 +1002,114 @@ Active Adventurer`;
   );
 }
 
-function InfoBox({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
       <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
-      <p className="mt-2 text-lg font-black text-white">{value || "-"}</p>
+      <p className={`mt-3 text-4xl font-black ${tone}`}>{value}</p>
     </div>
   );
 }
 
-function CurrencyBox({
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function AdminInput({
   label,
   value,
-  color,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="lunaria-admin-input"
+      />
+    </label>
+  );
+}
+
+function AdminNumberInput({
+  label,
+  value,
+  onChange,
 }: {
   label: string;
   value: number;
-  color: string;
+  onChange: (value: number) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={`mt-1 text-2xl font-black ${color}`}>{value}</p>
-    </div>
-  );
-}
-
-function QuestBox({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 p-3 text-center">
-      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+    <label className="block">
+      <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
         {label}
-      </p>
-      <p className="mt-2 text-xl font-black text-white">{value}</p>
-    </div>
+      </span>
+      <input
+        type="number"
+        min="0"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="lunaria-admin-input"
+      />
+    </label>
   );
 }
 
-function DataPanel({ title, items }: { title: string; items: string[] }) {
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-      <p className="text-xs uppercase tracking-[0.24em] text-amber-300">
-        {title}
-      </p>
-
-      <div className="mt-4 space-y-3">
-        {items.map((item, index) => (
-          <div
-            key={`${title}-${index}`}
-            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-500/10 text-xs font-black text-amber-300">
-              {index + 1}
-            </div>
-
-            <p className="text-sm font-semibold text-slate-200">{item || "-"}</p>
-          </div>
+    <label className="block">
+      <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="lunaria-admin-input"
+      >
+        {options.map((item) => (
+          <option key={item} value={item}>
+            {item}
+          </option>
         ))}
-      </div>
-    </div>
+      </select>
+    </label>
   );
-}
+       }
