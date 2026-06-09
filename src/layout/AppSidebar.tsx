@@ -1,370 +1,571 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSidebar } from "../context/SidebarContext";
-import {
-  BoxCubeIcon,
-  CalenderIcon,
-  ChevronDownIcon,
-  GridIcon,
-  HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
-  UserCircleIcon,
-} from "../icons/index";
-import SidebarWidget from "./SidebarWidget";
+import React, { useMemo, useState } from "react";
+import { useSidebar } from "@/context/SidebarContext";
 
 type NavItem = {
   name: string;
+  href?: string;
   icon: React.ReactNode;
-  path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  adminOnly?: boolean;
+  playerOnly?: boolean;
+  children?: {
+    name: string;
+    href: string;
+  }[];
 };
 
-const navItems: NavItem[] = [
+type LunariaSession = {
+  role: "player" | "admin";
+  username: string;
+  characterName?: string;
+  rank?: string;
+  pathway?: string;
+};
+
+const guildMenu: NavItem[] = [
   {
+    name: "Guild Hall",
+    href: "/",
     icon: <GridIcon />,
-    name: "Guild Dashboard",
-    path: "/",
   },
   {
-    icon: <UserCircleIcon />,
-    name: "Adventurer ID Card",
-    path: "/profile",
+    name: "ID Card",
+    href: "/profile",
+    icon: <UserSealIcon />,
   },
   {
-    icon: <PieChartIcon />,
-    name: "Leaderboard",
-    path: "/line-chart",
+    name: "Throne Board",
+    href: "/line-chart",
+    icon: <MoonChartIcon />,
   },
   {
-    icon: <BoxCubeIcon />,
-    name: "Cosmetic Shop",
-    path: "/buttons",
+    name: "Cosmetic Vault",
+    href: "/buttons",
+    icon: <CrystalBoxIcon />,
   },
   {
-    icon: <CalenderIcon />,
     name: "Fortune Hall",
-    path: "/calendar",
+    href: "/calendar",
+    icon: <MoonCalendarIcon />,
   },
   {
-    icon: <ListIcon />,
-    name: "Registration",
-    path: "/form-elements",
+    name: "Registry",
+    href: "/form-elements",
+    icon: <ScrollIcon />,
   },
   {
-    icon: <TableIcon />,
-    name: "Admin Panel",
-    path: "/basic-tables",
+    name: "Admin Control",
+    href: "/basic-tables",
+    icon: <CommandIcon />,
+    adminOnly: true,
   },
 ];
 
-const othersItems: NavItem[] = [
+const archiveMenu: NavItem[] = [
   {
-    icon: <PageIcon />,
-    name: "Guild Archives",
-    subItems: [
-      { name: "Guild Notice Board", path: "/blank", pro: false },
-      { name: "Archive Error", path: "/error-404", pro: false },
+    name: "Archives",
+    icon: <ArchiveIcon />,
+    children: [
+      {
+        name: "Guild Notice Board",
+        href: "/blank",
+      },
+      {
+        name: "Archive Error",
+        href: "/error-404",
+      },
     ],
   },
   {
-    icon: <PlugInIcon />,
     name: "Access Gate",
-    subItems: [
-      { name: "Login Code", path: "/signin", pro: false },
-      { name: "New Adventurer", path: "/signup", pro: false },
+    icon: <GateIcon />,
+    children: [
+      {
+        name: "Login Code",
+        href: "/signin",
+      },
+      {
+        name: "New Adventurer",
+        href: "/form-elements",
+      },
     ],
   },
 ];
 
-const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+function getSession(): LunariaSession | null {
+  if (typeof window === "undefined") return null;
+
+  const raw =
+    sessionStorage.getItem("lunaria_session") ||
+    localStorage.getItem("lunaria_session");
+
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as LunariaSession;
+  } catch {
+    return null;
+  }
+}
+
+export default function AppSidebar() {
   const pathname = usePathname();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const [openGroup, setOpenGroup] = useState<string | null>("");
 
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "others";
-    index: number;
-  } | null>(null);
+  const session = useMemo(() => getSession(), []);
+  const expanded = isExpanded || isHovered || isMobileOpen;
 
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
-    {}
-  );
+  const visibleGuildMenu = guildMenu.filter((item) => {
+    if (item.adminOnly && session?.role !== "admin") return false;
+    if (item.playerOnly && session?.role !== "player") return false;
+    return true;
+  });
 
-  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const isActive = useCallback((path: string) => path === pathname, [pathname]);
-
-  useEffect(() => {
-    let submenuMatched = false;
-
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
-
-      items.forEach((nav, index) => {
-        if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
-              submenuMatched = true;
-            }
-          });
-        }
-      });
-    });
-
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [pathname, isActive]);
-
-  useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.type}-${openSubmenu.index}`;
-
-      if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
-          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
-        }));
-      }
-    }
-  }, [openSubmenu]);
-
-  const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
-    setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
-        return null;
-      }
-
-      return { type: menuType, index };
-    });
+  const isActive = (href?: string) => {
+    if (!href) return false;
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
   };
 
-  const renderMenuItems = (
-    items: NavItem[],
-    menuType: "main" | "others"
-  ) => (
-    <ul className="flex flex-col gap-3">
-      {items.map((nav, index) => (
-        <li key={nav.name}>
-          {nav.subItems ? (
-            <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
-              className={`group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 ${
-                openSubmenu?.type === menuType && openSubmenu?.index === index
-                  ? "border border-amber-400/40 bg-amber-500/10 text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.12)]"
-                  : "text-slate-300 hover:border hover:border-amber-500/20 hover:bg-white/[0.04] hover:text-amber-200"
-              } ${
-                !isExpanded && !isHovered
-                  ? "lg:justify-center"
-                  : "lg:justify-start"
-              } cursor-pointer`}
-            >
-              <span
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 ${
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? "bg-amber-400/15 text-amber-300"
-                    : "bg-white/[0.03] text-slate-400 group-hover:bg-amber-400/10 group-hover:text-amber-300"
-                }`}
-              >
-                {nav.icon}
-              </span>
+  const isGroupActive = (item: NavItem) => {
+    return item.children?.some((child) => isActive(child.href)) || false;
+  };
 
-              {(isExpanded || isHovered || isMobileOpen) && (
-                <span className="tracking-wide">{nav.name}</span>
-              )}
-
-              {(isExpanded || isHovered || isMobileOpen) && (
-                <ChevronDownIcon
-                  className={`ml-auto h-5 w-5 transition-transform duration-300 ${
-                    openSubmenu?.type === menuType &&
-                    openSubmenu?.index === index
-                      ? "rotate-180 text-amber-300"
-                      : "text-slate-500"
-                  }`}
-                />
-              )}
-            </button>
-          ) : (
-            nav.path && (
-              <Link
-                href={nav.path}
-                className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 ${
-                  isActive(nav.path)
-                    ? "border border-amber-400/40 bg-amber-500/10 text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.12)]"
-                    : "text-slate-300 hover:border hover:border-amber-500/20 hover:bg-white/[0.04] hover:text-amber-200"
-                } ${!isExpanded && !isHovered ? "lg:justify-center" : ""}`}
-              >
-                <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 ${
-                    isActive(nav.path)
-                      ? "bg-amber-400/15 text-amber-300"
-                      : "bg-white/[0.03] text-slate-400 group-hover:bg-amber-400/10 group-hover:text-amber-300"
-                  }`}
-                >
-                  {nav.icon}
-                </span>
-
-                {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className="tracking-wide">{nav.name}</span>
-                )}
-              </Link>
-            )
-          )}
-
-          {nav.subItems && (isExpanded || isHovered || isMobileOpen) && (
-            <div
-              ref={(el) => {
-                subMenuRefs.current[`${menuType}-${index}`] = el;
-              }}
-              className="overflow-hidden transition-all duration-300"
-              style={{
-                height:
-                  openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? `${subMenuHeight[`${menuType}-${index}`]}px`
-                    : "0px",
-              }}
-            >
-              <ul className="ml-12 mt-2 space-y-1 border-l border-amber-500/10 pl-4">
-                {nav.subItems.map((subItem) => (
-                  <li key={subItem.name}>
-                    <Link
-                      href={subItem.path}
-                      className={`flex items-center rounded-xl px-3 py-2 text-xs font-medium tracking-wide transition-all duration-300 ${
-                        isActive(subItem.path)
-                          ? "bg-amber-500/10 text-amber-300"
-                          : "text-slate-400 hover:bg-white/[0.04] hover:text-amber-200"
-                      }`}
-                    >
-                      {subItem.name}
-
-                      <span className="ml-auto flex items-center gap-1">
-                        {subItem.new && (
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] uppercase text-emerald-300">
-                            new
-                          </span>
-                        )}
-
-                        {subItem.pro && (
-                          <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase text-amber-300">
-                            pro
-                          </span>
-                        )}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
+  const handleGroup = (name: string) => {
+    setOpenGroup((prev) => (prev === name ? null : name));
+  };
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-50 mt-16 flex h-screen flex-col border-r border-amber-500/20 bg-[#070812] px-5 text-slate-100 shadow-[0_0_35px_rgba(245,158,11,0.08)] transition-all duration-300 ease-in-out lg:mt-0 ${
-        isExpanded || isMobileOpen
-          ? "w-[290px]"
-          : isHovered
-          ? "w-[290px]"
-          : "w-[90px]"
-      } ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
-      onMouseEnter={() => !isExpanded && setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className={`fixed left-0 top-0 z-[9999] flex h-screen flex-col border-r border-amber-400/10 bg-[#05050d]/96 text-slate-300 shadow-[18px_0_70px_rgba(0,0,0,0.45)] backdrop-blur-2xl transition-all duration-300 ease-in-out ${
+        expanded ? "w-[248px]" : "w-[82px]"
+      } ${
+        isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}
+      onMouseEnter={() => setIsHovered?.(true)}
+      onMouseLeave={() => setIsHovered?.(false)}
     >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.14),transparent_40%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:linear-gradient(rgba(255,255,255,0.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:42px_42px]" />
+
       <div
-        className={`flex py-8 ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+        className={`relative z-10 flex h-[88px] items-center border-b border-white/[0.06] px-4 ${
+          expanded ? "justify-start" : "justify-center"
         }`}
       >
         <Link href="/" className="flex items-center gap-3">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <div className="flex flex-col">
-              <span className="text-xl font-black tracking-[0.22em] text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.35)]">
-                LUNARIA
-              </span>
-              <span className="mt-1 text-[10px] uppercase tracking-[0.32em] text-slate-400">
-                RolePlay Guild
-              </span>
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] border border-amber-400/25 bg-gradient-to-br from-amber-500/15 via-black/30 to-violet-500/15 shadow-[0_0_28px_rgba(245,158,11,0.12)]">
+            <MoonCrownIcon />
+            <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.9)]" />
+          </div>
+
+          {expanded ? (
+            <div>
+              <p className="text-[15px] font-black uppercase tracking-[0.28em] text-amber-300">
+                Lunaria
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                Moonlit Guild
+              </p>
             </div>
-          ) : (
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-400/50 bg-amber-500/10 text-lg font-black text-amber-400 shadow-[0_0_18px_rgba(245,158,11,0.18)]">
-              L
-            </div>
-          )}
+          ) : null}
         </Link>
       </div>
 
-      <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-        <nav className="mb-6">
-          <div className="flex flex-col gap-6">
-            <div>
-              <h2
-                className={`mb-4 flex text-xs uppercase leading-[20px] tracking-[0.24em] text-amber-500/70 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Guild System"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
+      <div className="relative z-10 flex-1 overflow-y-auto px-3 py-5 no-scrollbar">
+        <SidebarSectionTitle expanded={expanded}>Guild System</SidebarSectionTitle>
 
-              {renderMenuItems(navItems, "main")}
-            </div>
-
-            <div>
-              <h2
-                className={`mb-4 flex text-xs uppercase leading-[20px] tracking-[0.24em] text-amber-500/70 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Archives"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-
-              {renderMenuItems(othersItems, "others")}
-            </div>
-          </div>
+        <nav className="space-y-2">
+          {visibleGuildMenu.map((item) => (
+            <SidebarLink
+              key={item.name}
+              item={item}
+              active={isActive(item.href)}
+              expanded={expanded}
+            />
+          ))}
         </nav>
 
-        {isExpanded || isHovered || isMobileOpen ? (
-          <div className="mb-8 rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-white/[0.03] to-violet-500/10 p-4 shadow-[0_0_28px_rgba(245,158,11,0.08)]">
-            <div className="mb-2 text-xs uppercase tracking-[0.24em] text-amber-300">
-              Guild Notice
+        <div className="mt-7">
+          <SidebarSectionTitle expanded={expanded}>Archives</SidebarSectionTitle>
+
+          <nav className="space-y-2">
+            {archiveMenu.map((item) => {
+              const active = isGroupActive(item);
+              const open = openGroup === item.name;
+
+              return (
+                <div key={item.name}>
+                  <button
+                    onClick={() => handleGroup(item.name)}
+                    className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-[20px] border px-3 py-3 text-left transition ${
+                      active || open
+                        ? "border-amber-400/30 bg-amber-500/10 text-amber-200 shadow-[0_0_26px_rgba(245,158,11,0.08)]"
+                        : "border-transparent bg-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-slate-200"
+                    } ${expanded ? "justify-start" : "justify-center"}`}
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border transition ${
+                        active || open
+                          ? "border-amber-400/25 bg-amber-500/15 text-amber-300"
+                          : "border-white/[0.06] bg-white/[0.035] text-slate-400 group-hover:text-slate-200"
+                      }`}
+                    >
+                      {item.icon}
+                    </span>
+
+                    {expanded ? (
+                      <>
+                        <span className="flex-1 text-[13px] font-bold">
+                          {item.name}
+                        </span>
+
+                        <span
+                          className={`transition ${
+                            open ? "rotate-180 text-amber-300" : "text-slate-500"
+                          }`}
+                        >
+                          <ChevronDownIcon />
+                        </span>
+                      </>
+                    ) : null}
+                  </button>
+
+                  {expanded && open ? (
+                    <div className="ml-[31px] mt-2 space-y-1 border-l border-white/10 pl-4">
+                      {item.children?.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={`block rounded-xl px-3 py-2 text-[12px] font-semibold transition ${
+                            isActive(child.href)
+                              ? "bg-amber-500/10 text-amber-300"
+                              : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+                          }`}
+                        >
+                          {child.name}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      <div className="relative z-10 border-t border-white/[0.06] p-3">
+        {expanded ? (
+          <div className="rounded-[24px] border border-amber-400/15 bg-gradient-to-br from-amber-500/10 via-black/25 to-violet-500/10 p-4">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-amber-400/25 bg-amber-500/10 text-amber-300">
+                <MoonSparkIcon />
+              </div>
+
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
+                  Guild Notice
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Lunaria System
+                </p>
+              </div>
             </div>
+
             <p className="text-xs leading-5 text-slate-400">
-              Welcome to the Lunaria Guild System. Adventurer records,
-              cosmetics, leaderboard, and guild games will be managed here.
+              Di bawah cahaya bulan Lunaria, ID Card, leaderboard, cosmetic,
+              dan ekonomi guild bergerak dalam satu registry.
             </p>
           </div>
-        ) : null}
+        ) : (
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-[18px] border border-amber-400/20 bg-amber-500/10 text-amber-300">
+            <MoonSparkIcon />
+          </div>
+        )}
       </div>
     </aside>
   );
-};
+}
 
-export default AppSidebar;
+function SidebarSectionTitle({
+  children,
+  expanded,
+}: {
+  children: React.ReactNode;
+  expanded: boolean;
+}) {
+  if (!expanded) {
+    return <div className="mb-3 h-px w-full bg-white/[0.06]" />;
+  }
+
+  return (
+    <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-[0.32em] text-amber-400/70">
+      {children}
+    </p>
+  );
+}
+
+function SidebarLink({
+  item,
+  active,
+  expanded,
+}: {
+  item: NavItem;
+  active: boolean;
+  expanded: boolean;
+}) {
+  return (
+    <Link
+      href={item.href || "#"}
+      className={`group relative flex items-center gap-3 overflow-hidden rounded-[20px] border px-3 py-3 transition ${
+        active
+          ? "border-amber-400/35 bg-gradient-to-r from-amber-500/16 via-amber-500/8 to-violet-500/10 text-amber-200 shadow-[0_0_28px_rgba(245,158,11,0.09)]"
+          : "border-transparent bg-transparent text-slate-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-slate-200"
+      } ${expanded ? "justify-start" : "justify-center"}`}
+    >
+      {active ? (
+        <span className="absolute left-0 top-1/2 h-8 w-[3px] -translate-y-1/2 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.8)]" />
+      ) : null}
+
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border transition ${
+          active
+            ? "border-amber-400/30 bg-amber-500/15 text-amber-300"
+            : "border-white/[0.06] bg-white/[0.035] text-slate-400 group-hover:text-slate-200"
+        }`}
+      >
+        {item.icon}
+      </span>
+
+      {expanded ? (
+        <span className="text-[13px] font-bold tracking-[-0.01em]">
+          {item.name}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M5 5h5v5H5V5ZM14 5h5v5h-5V5ZM5 14h5v5H5v-5ZM14 14h5v5h-5v-5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UserSealIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M12 13.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M4.8 20c.95-3.25 3.4-5 7.2-5s6.25 1.75 7.2 5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 2.8 13.15 5 15.6 5.3l-1.75 1.7.42 2.42L12 8.28 9.73 9.42 10.15 7 8.4 5.3 10.85 5 12 2.8Z"
+        fill="currentColor"
+        opacity=".35"
+      />
+    </svg>
+  );
+}
+
+function MoonChartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M5 19V9M12 19V5M19 19v-7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20.2 6.8A4.6 4.6 0 0 1 13.8.4 4.8 4.8 0 1 0 20.2 6.8Z"
+        fill="currentColor"
+        opacity=".35"
+      />
+    </svg>
+  );
+}
+
+function CrystalBoxIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="m12 3 7 4v10l-7 4-7-4V7l7-4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m5.3 7.2 6.7 4 6.7-4M12 11.2V21"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MoonCalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M7 3v3M17 3v3M4.5 9h15M6 5h12a2 2 0 0 1 2 2v11.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.8 16.2a3.8 3.8 0 0 1-5.2-5.2 4 4 0 1 0 5.2 5.2Z"
+        fill="currentColor"
+        opacity=".4"
+      />
+    </svg>
+  );
+}
+
+function ScrollIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14H8a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M8 9h8M8 13h6M8 17h5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CommandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M12 3.5 19 7.5v9L12 20.5 5 16.5v-9l7-4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 8v8M8 12h8"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M5 6.5h14M7 6.5v13h10v-13M9 10h6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 3.5h8l1 3H7l1-3Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function GateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M6 20V8a6 6 0 0 1 12 0v12M9 20V8a3 3 0 0 1 6 0v12"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 20h16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+      <path
+        d="m7 9 5 5 5-5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function MoonCrownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6 text-amber-300" fill="none">
+      <path
+        d="M4.5 17.5h15M6.2 16.8 5 8.2l4.4 3.1L12 6l2.6 5.3L19 8.2l-1.2 8.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.8 4.8A4.2 4.2 0 0 1 13 0.8a4.4 4.4 0 1 0 5.8 4Z"
+        fill="currentColor"
+        opacity=".35"
+      />
+    </svg>
+  );
+}
+
+function MoonSparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+      <path
+        d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.8 7.8 0 1 0 9.5 9.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6 4v4M4 6h4M17 3v3M15.5 4.5h3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
