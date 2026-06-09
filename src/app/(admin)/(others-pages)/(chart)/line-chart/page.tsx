@@ -1,8 +1,14 @@
- "use client";
+"use client";
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  bronzeToCurrency,
+  currencyToBronze,
+  formatCurrency,
+  normalizeCurrency,
+} from "@/lib/lunariaCurrency";
 
 type Player = {
   id: string;
@@ -10,7 +16,9 @@ type Player = {
   race: string;
   guild_rank: string;
   pathway: string;
+  gold: number;
   silver: number;
+  bronze: number;
   common_quests: number;
   uncommon_quests: number;
   dangerous_quests: number;
@@ -78,12 +86,31 @@ function calculatePoints(player: {
   );
 }
 
+function getPlayerCurrency(player: Pick<Player, "gold" | "silver" | "bronze">) {
+  return normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+}
+
+function normalizePlayerCurrency(player: Player): Player {
+  const normalized = getPlayerCurrency(player);
+
+  return {
+    ...player,
+    gold: normalized.gold,
+    silver: normalized.silver,
+    bronze: normalized.bronze,
+  };
+}
+
 function getStandingScore(player: Player) {
   const points = calculatePoints(player);
 
   if (points > 0) return points;
 
-  return Number(player.silver || 0);
+  return currencyToBronze(getPlayerCurrency(player));
 }
 
 function getTopTheme(rank: number) {
@@ -167,7 +194,9 @@ export default function LunariaLeaderboardPage() {
         race,
         guild_rank,
         pathway,
+        gold,
         silver,
+        bronze,
         common_quests,
         uncommon_quests,
         dangerous_quests,
@@ -187,7 +216,7 @@ export default function LunariaLeaderboardPage() {
       return;
     }
 
-    setPlayers((data || []) as Player[]);
+    setPlayers(((data || []) as Player[]).map(normalizePlayerCurrency));
     setNotice("Ranking berhasil disinkronkan dengan Guild Registry.");
     setTimeout(() => setNotice(""), 2600);
   };
@@ -218,11 +247,16 @@ export default function LunariaLeaderboardPage() {
     0
   );
 
-  const totalPoints = rankedPlayers.reduce((sum, player) => sum + player.points, 0);
-
-  const totalSilver = rankedPlayers.reduce(
-    (sum, player) => sum + Number(player.silver || 0),
+  const totalPoints = rankedPlayers.reduce(
+    (sum, player) => sum + player.points,
     0
+  );
+
+  const totalBalance = bronzeToCurrency(
+    rankedPlayers.reduce(
+      (sum, player) => sum + currencyToBronze(getPlayerCurrency(player)),
+      0
+    )
   );
 
   return (
@@ -323,8 +357,8 @@ export default function LunariaLeaderboardPage() {
           icon={<StarIcon />}
         />
         <SummaryCard
-          label="Guild Silverflow"
-          value={`${formatNumber(totalSilver)}S`}
+          label="Guild Balance"
+          value={formatCurrency(totalBalance)}
           desc="Active economy pool"
           tone="text-amber-300"
           icon={<MoonIcon />}
@@ -405,8 +439,8 @@ export default function LunariaLeaderboardPage() {
               />
               <BenefitItem
                 icon={<MoonIcon />}
-                title="Silverflow Economy"
-                text="Silver, quest, fortune, dan cosmetic terhubung sebagai ekonomi RP yang hidup."
+                title="Balanced Economy"
+                text="Gold, Silver, Bronze, quest, fortune, dan cosmetic terhubung sebagai ekonomi RP yang hidup."
               />
               <BenefitItem
                 icon={<KeyIcon />}
@@ -430,8 +464,8 @@ export default function LunariaLeaderboardPage() {
 
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 Ranking utama memakai quest points. Kalau point masih 0, sistem
-                memakai silver sebagai fallback agar player baru tetap bisa
-                terlihat di board.
+                memakai total balance sebagai fallback agar player baru tetap
+                bisa terlihat di board.
               </p>
 
               <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
@@ -474,7 +508,7 @@ export default function LunariaLeaderboardPage() {
                 <th className="px-4 py-2">Guild Rank</th>
                 <th className="px-4 py-2">Pathway</th>
                 <th className="px-4 py-2">Quest Record</th>
-                <th className="px-4 py-2">Silver</th>
+                <th className="px-4 py-2">Currency</th>
                 <th className="px-4 py-2">Prestige</th>
               </tr>
             </thead>
@@ -509,7 +543,9 @@ export default function LunariaLeaderboardPage() {
                       >
                         {player.character_name}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">{player.race}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {player.race}
+                      </p>
                     </td>
 
                     <td className="px-4 py-4 text-slate-300">
@@ -528,13 +564,15 @@ export default function LunariaLeaderboardPage() {
                     </td>
 
                     <td className="px-4 py-4 font-black text-amber-300">
-                      {player.silver || 0}S
+                      {formatCurrency(getPlayerCurrency(player))}
                     </td>
 
                     <td className="rounded-r-2xl px-4 py-4 font-black text-emerald-300">
                       {player.points > 0
                         ? `${formatNumber(player.points)} pts`
-                        : `${formatNumber(player.standingScore)} standing`}
+                        : `${formatCurrency(
+                            getPlayerCurrency(player)
+                          )} standing`}
                     </td>
                   </tr>
                 );
@@ -616,6 +654,7 @@ function TopPlayerCard({
   rank: number;
 }) {
   const theme = getTopTheme(rank);
+  const currency = getPlayerCurrency(player);
 
   return (
     <article
@@ -662,7 +701,9 @@ function TopPlayerCard({
               {player.guild_rank} • {player.pathway} • {player.race}
             </p>
 
-            <p className={`mt-2 text-xs font-black uppercase tracking-[0.18em] ${theme.accent}`}>
+            <p
+              className={`mt-2 text-xs font-black uppercase tracking-[0.18em] ${theme.accent}`}
+            >
               {theme.badge}
             </p>
           </div>
@@ -672,11 +713,11 @@ function TopPlayerCard({
           <p className={`text-5xl font-black md:text-6xl ${theme.numberClass}`}>
             {player.points > 0
               ? formatNumber(player.points)
-              : formatNumber(player.standingScore)}
+              : formatCurrency(currency)}
           </p>
 
           <p className="mt-1 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-            {player.points > 0 ? "Quest Points" : "Silver Standing"}
+            {player.points > 0 ? "Quest Points" : "Balance Standing"}
           </p>
         </div>
       </div>
@@ -686,7 +727,7 @@ function TopPlayerCard({
         <MiniQuest label="Uncommon" value={player.uncommon_quests || 0} />
         <MiniQuest label="Dangerous" value={player.dangerous_quests || 0} />
         <MiniQuest label="Special" value={player.special_quests || 0} />
-        <MiniQuest label="Silver" value={`${player.silver || 0}S`} />
+        <MiniQuest label="Balance" value={formatCurrency(currency)} />
       </div>
     </article>
   );
