@@ -3,15 +3,6 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import {
-  addCurrency,
-  canAfford,
-  formatCurrency,
-  normalizeCurrency,
-  silverToCurrency,
-  subtractCurrency,
-  type LunariaCurrency,
-} from "@/lib/lunariaCurrency";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -28,9 +19,7 @@ type PlayerProfile = {
   race: string;
   pathway: string;
   guild_rank: string;
-  gold: number;
   silver: number;
-  bronze: number;
   status: string;
 };
 
@@ -71,6 +60,8 @@ type SpinOption = {
   label: string;
   count: number;
   cost: number;
+  sigil: string;
+  subtitle: string;
 };
 
 type SpinResult = {
@@ -103,24 +94,29 @@ const NUMBER_POOL = [
 ];
 
 const BET_OPTIONS = [5, 10, 20, 30];
-
 const MAX_ENTRIES_PER_ROUND = 5;
 
 const spinOptions: SpinOption[] = [
   {
-    label: "1x Spin",
+    label: "Veil Spin I",
     count: 1,
     cost: 5,
+    sigil: "I",
+    subtitle: "Single whisper cast",
   },
   {
-    label: "5x Spin",
+    label: "Veil Spin V",
     count: 5,
     cost: 25,
+    sigil: "V",
+    subtitle: "Five-fold omen draw",
   },
   {
-    label: "10x Spin",
+    label: "Veil Spin X",
     count: 10,
     cost: 50,
+    sigil: "X",
+    subtitle: "Grand ritual cascade",
   },
 ];
 
@@ -140,25 +136,6 @@ function getSession(): LunariaSession | null {
     sessionStorage.removeItem("lunaria_session");
     return null;
   }
-}
-
-function getPlayerCurrency(player: PlayerProfile): LunariaCurrency {
-  return normalizeCurrency({
-    gold: player.gold,
-    silver: player.silver,
-    bronze: player.bronze,
-  });
-}
-
-function normalizePlayer(player: PlayerProfile): PlayerProfile {
-  const currency = getPlayerCurrency(player);
-
-  return {
-    ...player,
-    gold: currency.gold,
-    silver: currency.silver,
-    bronze: currency.bronze,
-  };
 }
 
 function generateTenNumbers() {
@@ -205,18 +182,12 @@ function formatTime(value: string) {
   });
 }
 
-function formatSilverChange(value: number) {
-  const currency = silverToCurrency(Math.abs(value));
-  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return `${sign}${formatCurrency(currency)}`;
-}
-
 function getSpinResult(): SpinResult {
   const roll = Math.random();
 
   if (roll < 0.45) {
     return {
-      label: "Empty Omen",
+      label: "Silent Ash",
       reward: 0,
       tone: "lose",
     };
@@ -224,7 +195,7 @@ function getSpinResult(): SpinResult {
 
   if (roll < 0.7) {
     return {
-      label: "Ash Return",
+      label: "Faint Return",
       reward: 2,
       tone: "neutral",
     };
@@ -232,7 +203,7 @@ function getSpinResult(): SpinResult {
 
   if (roll < 0.85) {
     return {
-      label: "Break Even",
+      label: "Equal Omen",
       reward: 5,
       tone: "neutral",
     };
@@ -240,7 +211,7 @@ function getSpinResult(): SpinResult {
 
   if (roll < 0.95) {
     return {
-      label: "Small Blessing",
+      label: "Blessed Ember",
       reward: 8,
       tone: "win",
     };
@@ -248,20 +219,20 @@ function getSpinResult(): SpinResult {
 
   if (roll < 0.99) {
     return {
-      label: "Rare Blessing",
+      label: "Seraphic Veil",
       reward: 15,
       tone: "win",
     };
   }
 
   return {
-    label: "Crown Omen",
+    label: "Crown of Temptation",
     reward: 35,
     tone: "win",
   };
 }
 
-export default function Calendar() {
+export default function FortuneHallPage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
   const [activeRound, setActiveRound] = useState<NumberRound | null>(null);
@@ -280,10 +251,7 @@ export default function Calendar() {
   const [lastSpinText, setLastSpinText] = useState("");
 
   const isAdminSession = session?.role === "admin";
-  const isPlayerSession =
-    session?.role === "player" && Boolean(session.playerId);
-
-  const playerBalance = player ? getPlayerCurrency(player) : null;
+  const isPlayerSession = session?.role === "player" && Boolean(session.playerId);
 
   const activeNumbers = useMemo(() => {
     if (activeRound?.numbers?.length) return activeRound.numbers;
@@ -322,48 +290,6 @@ export default function Calendar() {
     };
   }, [activeRound?.ends_at]);
 
-  const updatePlayerCurrency = async (
-    playerId: string,
-    nextCurrency: LunariaCurrency
-  ) => {
-    const normalized = normalizeCurrency(nextCurrency);
-
-    const { error } = await supabase
-      .from("players")
-      .update({
-        gold: normalized.gold,
-        silver: normalized.silver,
-        bronze: normalized.bronze,
-      })
-      .eq("id", playerId);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return normalized;
-  };
-
-  const readPlayerCurrency = async (playerId: string) => {
-    const { data, error } = await supabase
-      .from("players")
-      .select("id, gold, silver, bronze")
-      .eq("id", playerId)
-      .maybeSingle();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (!data) return null;
-
-    return normalizeCurrency({
-      gold: Number(data.gold || 0),
-      silver: Number(data.silver || 0),
-      bronze: Number(data.bronze || 0),
-    });
-  };
-
   const settleOneRound = async (round: NumberRound) => {
     const winningNumber = pickWinningNumber(round.numbers);
 
@@ -385,15 +311,23 @@ export default function Calendar() {
       const reward = isWin ? getRewardAmount(entry.bet_amount) : 0;
 
       if (isWin) {
-        const currentCurrency = await readPlayerCurrency(entry.player_id);
+        const { data: targetPlayer, error: readPlayerError } = await supabase
+          .from("players")
+          .select("id, silver")
+          .eq("id", entry.player_id)
+          .maybeSingle();
 
-        if (currentCurrency) {
-          const nextCurrency = addCurrency(
-            currentCurrency,
-            silverToCurrency(reward)
-          );
+        if (readPlayerError) {
+          throw new Error(readPlayerError.message);
+        }
 
-          await updatePlayerCurrency(entry.player_id, nextCurrency);
+        if (targetPlayer) {
+          await supabase
+            .from("players")
+            .update({
+              silver: Number(targetPlayer.silver) + reward,
+            })
+            .eq("id", entry.player_id);
         }
       }
 
@@ -407,12 +341,10 @@ export default function Calendar() {
 
       await supabase.from("fortune_logs").insert({
         player_id: entry.player_id,
-        mode: "Daily Number Omen",
-        detail: `Picked ${entry.picked_number} • Winning ${winningNumber} • Bet ${formatCurrency(
-          silverToCurrency(entry.bet_amount)
-        )}`,
-        result: isWin ? "Number Omen Win" : "Number Omen Loss",
-        silver_change: reward,
+        mode: "Veiled Number Rite",
+        detail: `Marked ${entry.picked_number} • Sealed result ${winningNumber} • Tribute ${entry.bet_amount}S`,
+        result: isWin ? "Veil Favored You" : "The Veil Stayed Silent",
+        silver_change: isWin ? reward : 0,
       });
     }
 
@@ -490,7 +422,7 @@ export default function Calendar() {
 
     return entries.map((entry) => ({
       ...entry,
-      player_name: playerMap.get(entry.player_id) || "Unknown Player",
+      player_name: playerMap.get(entry.player_id) || "Unknown Vessel",
     }));
   };
 
@@ -507,7 +439,7 @@ export default function Calendar() {
       setRoundEntries([]);
       setLogs([]);
       setIsLoading(false);
-      setErrorMessage("Kamu belum login. Silakan masuk lewat Access Gate.");
+      setErrorMessage("Akses belum ditemukan. Masuk dulu melalui gerbang guild.");
       return;
     }
 
@@ -516,7 +448,7 @@ export default function Calendar() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown settlement error.";
-      setErrorMessage(`Gagal memproses ronde selesai: ${message}`);
+      setErrorMessage(`Ritual settlement gagal: ${message}`);
     }
 
     let currentPlayer: PlayerProfile | null = null;
@@ -528,17 +460,13 @@ export default function Calendar() {
         setRoundEntries([]);
         setLogs([]);
         setIsLoading(false);
-        setErrorMessage(
-          "Session player tidak valid. Silakan logout lalu login ulang."
-        );
+        setErrorMessage("Session player tidak valid. Logout lalu login ulang.");
         return;
       }
 
       const { data: playerData, error: playerError } = await supabase
         .from("players")
-        .select(
-          "id, character_name, race, pathway, guild_rank, gold, silver, bronze, status"
-        )
+        .select("id, character_name, race, pathway, guild_rank, silver, status")
         .eq("id", currentSession.playerId)
         .eq("status", "active")
         .maybeSingle();
@@ -555,7 +483,7 @@ export default function Calendar() {
         return;
       }
 
-      currentPlayer = normalizePlayer(playerData as unknown as PlayerProfile);
+      currentPlayer = playerData as unknown as PlayerProfile;
     }
 
     const { data: roundData, error: roundError } = await supabase
@@ -570,7 +498,7 @@ export default function Calendar() {
 
     if (roundError) {
       setIsLoading(false);
-      setErrorMessage(`Gagal membaca ronde aktif: ${roundError.message}`);
+      setErrorMessage(`Gagal membaca ritual aktif: ${roundError.message}`);
       return;
     }
 
@@ -584,7 +512,7 @@ export default function Calendar() {
         const message =
           error instanceof Error ? error.message : "Unknown entries error.";
         setIsLoading(false);
-        setErrorMessage(`Gagal membaca peserta ronde: ${message}`);
+        setErrorMessage(`Gagal membaca peserta ritual: ${message}`);
         return;
       }
     }
@@ -603,7 +531,7 @@ export default function Calendar() {
 
     if (logError) {
       setIsLoading(false);
-      setErrorMessage(`Gagal membaca fortune log: ${logError.message}`);
+      setErrorMessage(`Gagal membaca catatan takdir: ${logError.message}`);
       return;
     }
 
@@ -629,7 +557,6 @@ export default function Calendar() {
 
   useEffect(() => {
     loadFortuneData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleJoinNumberRound = async () => {
@@ -637,45 +564,37 @@ export default function Calendar() {
     setNotice("");
 
     if (!isPlayerSession || !session?.playerId) {
-      setErrorMessage("Login sebagai player untuk ikut Daily Number Omen.");
+      setErrorMessage("Masuk sebagai player untuk mengikuti ritual angka.");
       return;
     }
 
-    if (!player || !playerBalance) {
-      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
+    if (!player) {
+      setErrorMessage("Data player belum terbaca. Refresh dulu.");
       return;
     }
 
     if (!BET_OPTIONS.includes(selectedBet)) {
-      setErrorMessage("Bet tidak valid. Pilih 5S, 10S, 20S, atau 30S.");
+      setErrorMessage("Nominal persembahan tidak valid.");
       return;
     }
 
     if (!activeNumbers.includes(selectedNumber)) {
-      setErrorMessage("Pilih salah satu nomor aktif terlebih dahulu.");
+      setErrorMessage("Pilih salah satu sigil angka aktif.");
       return;
     }
 
-    const betCost = silverToCurrency(selectedBet);
-
-    if (!canAfford(playerBalance, betCost)) {
-      setErrorMessage(
-        `Uang tidak cukup. Butuh ${formatCurrency(
-          betCost
-        )}. Balance kamu ${formatCurrency(playerBalance)}.`
-      );
+    if (player.silver < selectedBet) {
+      setErrorMessage(`Silver tidak cukup. Kamu butuh ${selectedBet}S.`);
       return;
     }
 
     if (currentPlayerEntry) {
-      setErrorMessage(
-        "Kamu sudah ikut ronde ini. Satu player hanya boleh pasang satu angka."
-      );
+      setErrorMessage("Tandamu sudah terkunci pada ritual aktif ini.");
       return;
     }
 
     if (roundEntries.length >= MAX_ENTRIES_PER_ROUND) {
-      setErrorMessage("Ronde ini sudah penuh. Maksimal 5 player.");
+      setErrorMessage("Lingkaran sudah penuh. Maksimal 5 jiwa per ritual.");
       return;
     }
 
@@ -706,21 +625,22 @@ export default function Calendar() {
           .single();
 
         if (createRoundError) {
-          setErrorMessage(`Gagal membuat ronde: ${createRoundError.message}`);
+          setErrorMessage(`Gagal membuka ritual: ${createRoundError.message}`);
           return;
         }
 
         round = newRound as unknown as NumberRound;
       }
 
-      const nextBalance = subtractCurrency(playerBalance, betCost);
+      const newSilver = player.silver - selectedBet;
 
-      try {
-        await updatePlayerCurrency(session.playerId, nextBalance);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown balance error.";
-        setErrorMessage(`Gagal mengurangi balance: ${message}`);
+      const { error: updatePlayerError } = await supabase
+        .from("players")
+        .update({ silver: newSilver })
+        .eq("id", session.playerId);
+
+      if (updatePlayerError) {
+        setErrorMessage(`Gagal mengurangi silver: ${updatePlayerError.message}`);
         return;
       }
 
@@ -736,35 +656,32 @@ export default function Calendar() {
         });
 
       if (insertEntryError) {
-        await updatePlayerCurrency(session.playerId, playerBalance);
+        await supabase
+          .from("players")
+          .update({ silver: player.silver })
+          .eq("id", session.playerId);
 
-        setErrorMessage(
-          `Gagal menyimpan pilihan nomor: ${insertEntryError.message}`
-        );
+        setErrorMessage(`Gagal mengunci angka: ${insertEntryError.message}`);
         return;
       }
 
       await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
-        mode: "Daily Number Omen",
-        detail: `Locked number ${selectedNumber} • Bet ${formatCurrency(
-          betCost
-        )}`,
-        result: "Entry Locked",
+        mode: "Veiled Number Rite",
+        detail: `Marked sigil ${selectedNumber} • Tribute ${selectedBet}S`,
+        result: "Seal Accepted",
         silver_change: -selectedBet,
       });
 
       setNotice(
-        `Nomor ${selectedNumber} berhasil dikunci dengan bet ${formatCurrency(
-          betCost
-        )}. Sisa balance: ${formatCurrency(nextBalance)}.`
+        `Sigil ${selectedNumber} telah diterima. Persembahan ${selectedBet}S masuk ke lingkaran.`
       );
 
       await loadFortuneData();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unknown Daily Number error.";
-      setErrorMessage(`Daily Number error: ${message}`);
+        error instanceof Error ? error.message : "Unknown ritual error.";
+      setErrorMessage(`Ritual error: ${message}`);
     } finally {
       setIsJoining(false);
     }
@@ -776,23 +693,17 @@ export default function Calendar() {
     setLastSpinText("");
 
     if (!isPlayerSession || !session?.playerId) {
-      setErrorMessage("Login sebagai player untuk memakai Fortune Spin.");
+      setErrorMessage("Masuk sebagai player untuk menyentuh Veil Spin.");
       return;
     }
 
-    if (!player || !playerBalance) {
-      setErrorMessage("Data player belum terbaca. Refresh halaman dulu.");
+    if (!player) {
+      setErrorMessage("Data player belum terbaca. Refresh dulu.");
       return;
     }
 
-    const spinCost = silverToCurrency(option.cost);
-
-    if (!canAfford(playerBalance, spinCost)) {
-      setErrorMessage(
-        `Uang tidak cukup. Butuh ${formatCurrency(
-          spinCost
-        )}. Balance kamu ${formatCurrency(playerBalance)}.`
-      );
+    if (player.silver < option.cost) {
+      setErrorMessage(`Silver tidak cukup. Kamu butuh ${option.cost}S.`);
       return;
     }
 
@@ -808,69 +719,59 @@ export default function Calendar() {
         results.push(result.label);
       }
 
-      const rewardCurrency = silverToCurrency(totalReward);
-      const afterCost = subtractCurrency(playerBalance, spinCost);
-      const nextBalance = addCurrency(afterCost, rewardCurrency);
       const net = totalReward - option.cost;
+      const newSilver = player.silver + net;
 
-      try {
-        await updatePlayerCurrency(session.playerId, nextBalance);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown balance error.";
-        setErrorMessage(`Gagal update balance: ${message}`);
+      if (newSilver < 0) {
+        setErrorMessage("Silver tidak cukup untuk menerima hasil ritual.");
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from("players")
+        .update({ silver: newSilver })
+        .eq("id", session.playerId);
+
+      if (updateError) {
+        setErrorMessage(`Gagal update silver: ${updateError.message}`);
         return;
       }
 
       const { error: logError } = await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
-        mode: "Fortune Spin",
+        mode: "Veil Spin",
         detail: `${option.label} • ${results.join(", ")}`,
         result:
-          net > 0 ? "Spin Profit" : net < 0 ? "Spin Loss" : "Spin Break Even",
+          net > 0 ? "The Veil Smiled" : net < 0 ? "The Veil Took Its Due" : "Balance Preserved",
         silver_change: net,
       });
 
       if (logError) {
-        await updatePlayerCurrency(session.playerId, playerBalance);
+        await supabase
+          .from("players")
+          .update({ silver: player.silver })
+          .eq("id", session.playerId);
 
-        setErrorMessage(`Gagal menyimpan spin log: ${logError.message}`);
+        setErrorMessage(`Gagal menyimpan ritual log: ${logError.message}`);
         return;
       }
 
-      setPlayer((prev) =>
-        prev
-          ? {
-              ...prev,
-              gold: nextBalance.gold,
-              silver: nextBalance.silver,
-              bronze: nextBalance.bronze,
-            }
-          : prev
-      );
-
+      setPlayer((prev) => (prev ? { ...prev, silver: newSilver } : prev));
       setLastSpinText(
-        `${option.label}: ${results.join(", ")} • ${formatSilverChange(net)}`
+        `${option.label}: ${results.join(", ")} • ${net >= 0 ? "+" : ""}${net}S`
       );
-
       setNotice(
         net > 0
-          ? `${option.label} selesai. Profit ${formatSilverChange(
-              net
-            )}. Sisa balance: ${formatCurrency(nextBalance)}.`
+          ? `${option.label} berakhir manis. Veil memberimu +${net}S.`
           : net < 0
-          ? `${option.label} selesai. Loss ${formatSilverChange(
-              net
-            )}. Sisa balance: ${formatCurrency(nextBalance)}.`
-          : `${option.label} selesai. Break even. Balance: ${formatCurrency(
-              nextBalance
-            )}.`
+          ? `${option.label} menuntut harga. Veil mengambil ${Math.abs(net)}S.`
+          : `${option.label} selesai. Takdir tetap seimbang.`
       );
 
       await loadFortuneData();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unknown Fortune Spin error.";
+        error instanceof Error ? error.message : "Unknown spin error.";
       setErrorMessage(`Spin error: ${message}`);
     } finally {
       setIsSpinning(false);
@@ -882,12 +783,12 @@ export default function Calendar() {
     setNotice("");
 
     if (!isAdminSession) {
-      setErrorMessage("Hanya admin yang bisa memakai Force Settle.");
+      setErrorMessage("Hanya admin yang bisa menutup ritual secara paksa.");
       return;
     }
 
     if (!activeRound) {
-      setErrorMessage("Tidak ada ronde aktif untuk diselesaikan.");
+      setErrorMessage("Tidak ada ritual aktif untuk diselesaikan.");
       return;
     }
 
@@ -895,7 +796,7 @@ export default function Calendar() {
 
     try {
       const winningNumber = await settleOneRound(activeRound);
-      setNotice(`Admin Force Settle berhasil. Winning number: ${winningNumber}.`);
+      setNotice(`Ritual ditutup. Sigil terpilih: ${winningNumber}.`);
       await loadFortuneData();
     } catch (error) {
       const message =
@@ -911,12 +812,12 @@ export default function Calendar() {
     setNotice("");
 
     if (!isAdminSession) {
-      setErrorMessage("Hanya admin yang bisa reset ronde.");
+      setErrorMessage("Hanya admin yang bisa mereset ritual.");
       return;
     }
 
     if (!activeRound) {
-      setErrorMessage("Tidak ada ronde aktif untuk direset.");
+      setErrorMessage("Tidak ada ritual aktif untuk direset.");
       return;
     }
 
@@ -929,9 +830,7 @@ export default function Calendar() {
         .eq("round_id", activeRound.id);
 
       if (deleteEntriesError) {
-        setErrorMessage(
-          `Gagal hapus entry ronde: ${deleteEntriesError.message}`
-        );
+        setErrorMessage(`Gagal hapus entry ritual: ${deleteEntriesError.message}`);
         return;
       }
 
@@ -941,16 +840,16 @@ export default function Calendar() {
         .eq("id", activeRound.id);
 
       if (deleteRoundError) {
-        setErrorMessage(`Gagal reset ronde: ${deleteRoundError.message}`);
+        setErrorMessage(`Gagal reset ritual: ${deleteRoundError.message}`);
         return;
       }
 
-      setNotice("Admin Reset berhasil. Ronde aktif sudah dihapus.");
+      setNotice("Ritual aktif berhasil dihapus.");
       await loadFortuneData();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown reset error.";
-      setErrorMessage(`Reset ronde gagal: ${message}`);
+      setErrorMessage(`Reset ritual gagal: ${message}`);
     } finally {
       setIsAdminWorking(false);
     }
@@ -958,46 +857,53 @@ export default function Calendar() {
 
   return (
     <main className="space-y-6 text-slate-100">
-      <section className="overflow-hidden rounded-[32px] border border-amber-500/20 bg-gradient-to-br from-black via-slate-950 to-violet-950/60 p-6 shadow-[0_0_55px_rgba(245,158,11,0.10)]">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.32em] text-amber-300">
-              Lunaria Fortune Hall
-            </p>
+      <section className="fortune-shell relative overflow-hidden rounded-[34px] border border-amber-400/20 bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.14),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.18),transparent_30%),linear-gradient(135deg,rgba(4,7,21,0.96),rgba(8,12,32,0.98),rgba(40,11,24,0.84))] p-6 shadow-[0_0_70px_rgba(245,158,11,0.08)] md:p-8">
+        <InfernalHalo />
+        <FloatingVeilParticles />
 
-            <h1 className="mt-3 text-3xl font-black text-white md:text-4xl">
+        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-4xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-4 py-2">
+              <HaloMaskIcon />
+              <span className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">
+                Sanctum of Veiled Fortune
+              </span>
+            </div>
+
+            <h1 className="mt-5 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
               Fortune Hall
             </h1>
 
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-              Mini-game currency RP Lunaria. Semua transaksi memakai konversi
-              resmi: 1 Gold = 1000 Silver dan 1 Silver = 100 Bronze.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
+              Aula mewah yang tampak suci di permukaan, namun menyembunyikan
+              lingkaran takdir di balik cahaya. Setiap angka, spin, dan ritual
+              mengalir menggunakan silver karakter login sendiri.
             </p>
           </div>
 
-          <div className="rounded-3xl border border-amber-400/25 bg-amber-500/10 px-6 py-4 text-right">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
-              Current Balance
-            </p>
-            <p className="mt-1 text-4xl font-black text-white">
-              {playerBalance
-                ? formatCurrency(playerBalance)
-                : isAdminSession
-                ? "ADMIN"
-                : "-"}
-            </p>
+          <div className="grid grid-cols-2 gap-3 md:min-w-[320px]">
+            <TopHeroStat
+              label="Silver Vessel"
+              value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+              tone="text-amber-300"
+            />
+            <TopHeroStat
+              label="Veiled Timer"
+              value={activeRound ? countdown : "Dormant"}
+              tone="text-violet-300"
+            />
           </div>
         </div>
       </section>
 
       {notice ? (
-        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200">
+        <section className="rounded-[24px] border border-emerald-400/25 bg-emerald-400/10 p-5 text-emerald-200 shadow-[0_0_26px_rgba(52,211,153,0.08)]">
           <p className="text-sm font-bold">{notice}</p>
         </section>
       ) : null}
 
       {errorMessage ? (
-        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200">
+        <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200 shadow-[0_0_26px_rgba(248,113,113,0.08)]">
           <p className="text-sm font-bold">{errorMessage}</p>
 
           {!session ? (
@@ -1013,26 +919,28 @@ export default function Calendar() {
 
       {isLoading ? (
         <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
-          <p className="text-sm font-bold">Loading Fortune Hall...</p>
+          <p className="text-sm font-bold">Unsealing Fortune Hall...</p>
         </section>
       ) : null}
 
       {isAdminSession ? (
-        <section className="rounded-[34px] border border-red-400/25 bg-gradient-to-br from-red-950/35 via-black to-amber-950/25 p-6 shadow-[0_0_45px_rgba(248,113,113,0.08)]">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div>
+        <section className="relative overflow-hidden rounded-[34px] border border-red-400/20 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.10),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(239,68,68,0.12),transparent_28%),linear-gradient(135deg,rgba(26,8,8,0.92),rgba(11,11,20,0.98),rgba(43,16,24,0.90))] p-6 shadow-[0_0_45px_rgba(248,113,113,0.06)]">
+          <FloatingVeilParticles />
+
+          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl">
               <p className="text-xs font-black uppercase tracking-[0.32em] text-red-300">
-                Admin Fortune Control
+                Ritual Overseer Panel
               </p>
 
               <h2 className="mt-3 text-3xl font-black text-white">
-                Round Master Panel
+                Admin Fortune Control
               </h2>
 
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-                Panel ini khusus admin untuk testing. Force Settle langsung
-                mengeluarkan hasil ronde aktif. Reset Active Round menghapus
-                ronde aktif tanpa mengembalikan currency test.
+              <p className="mt-3 text-sm leading-7 text-slate-400">
+                Panel khusus admin untuk testing dan kontrol sistem. Penutupan
+                paksa akan langsung mengungkap sigil terpilih. Reset aktif akan
+                menghapus ritual tanpa rollback silver testing.
               </p>
             </div>
 
@@ -1052,24 +960,20 @@ export default function Calendar() {
                 disabled={isAdminWorking || !activeRound}
                 className="rounded-2xl border border-red-400/30 bg-red-500/10 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
               >
-                Reset Active Round
+                Reset Ritual
               </button>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="relative z-10 mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
             <StatCard
-              label="Round Status"
-              value={activeRound ? "ACTIVE" : "NONE"}
+              label="Ritual State"
+              value={activeRound ? "ACTIVE" : "DORMANT"}
               tone={activeRound ? "text-emerald-300" : "text-slate-400"}
             />
+            <StatCard label="Vessels" value={participantSlots} tone="text-amber-300" />
             <StatCard
-              label="Slots"
-              value={participantSlots}
-              tone="text-amber-300"
-            />
-            <StatCard
-              label="Timer"
+              label="Clock"
               value={activeRound ? countdown : "-"}
               tone="text-violet-300"
             />
@@ -1079,179 +983,165 @@ export default function Calendar() {
               tone="text-sky-300"
             />
           </div>
-
-          <div className="mt-6 rounded-[28px] border border-white/10 bg-black/35 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
-              Active Entries
-            </p>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {roundEntries.length ? (
-                roundEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                  >
-                    <p className="text-sm font-black text-white">
-                      {entry.player_name || "Unknown Player"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Number {entry.picked_number} • Bet{" "}
-                      {formatCurrency(silverToCurrency(entry.bet_amount))} •{" "}
-                      {entry.result}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-500">
-                  Belum ada entry aktif.
-                </p>
-              )}
-            </div>
-          </div>
         </section>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard
-          label="Current Balance"
-          value={
-            playerBalance
-              ? formatCurrency(playerBalance)
-              : isAdminSession
-              ? "ADMIN"
-              : "-"
-          }
+        <SummaryCard
+          label="Silver Balance"
+          value={player ? `${player.silver}S` : isAdminSession ? "ADMIN" : "-"}
+          desc="Current vessel reserve"
           tone="text-amber-300"
+          icon={<HaloMaskIcon className="h-5 w-5" />}
         />
-        <StatCard
-          label="Win Logs"
+        <SummaryCard
+          label="Favorable Echoes"
           value={String(totalWins)}
+          desc="Positive ritual records"
           tone="text-emerald-300"
+          icon={<RadiantStarIcon className="h-5 w-5" />}
         />
-        <StatCard
-          label="Loss Logs"
+        <SummaryCard
+          label="Devoured Offers"
           value={String(totalLosses)}
+          desc="Silver taken by the veil"
           tone="text-red-300"
+          icon={<InfernalMarkIcon className="h-5 w-5" />}
         />
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <aside className="space-y-6 xl:col-span-4">
-          <div className="rounded-[32px] border border-amber-400/20 bg-black/35 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
-              Player Session
-            </p>
+          <section className="relative overflow-hidden rounded-[34px] border border-amber-400/18 bg-[linear-gradient(135deg,rgba(255,255,255,0.035),rgba(255,255,255,0.02)),radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_26%),linear-gradient(160deg,rgba(7,8,20,0.96),rgba(12,15,35,0.96),rgba(25,8,18,0.90))] p-6 shadow-[0_0_45px_rgba(15,23,42,0.40)]">
+            <FloatingVeilParticles />
 
-            <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-3xl">
-                  🔮
+            <div className="relative z-10">
+              <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
+                Bound Vessel
+              </p>
+
+              <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+                <div className="flex items-center gap-4">
+                  <div className="ritual-orb flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-3xl">
+                    <span className="ritual-orb-inner">☽</span>
+                  </div>
+
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-black text-white">
+                      {player?.character_name ||
+                        (isAdminSession ? "Guild Admin" : "No Player Session")}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {player
+                        ? `${player.guild_rank} • ${player.pathway}`
+                        : isAdminSession
+                        ? "Ritual Overseer"
+                        : "Login required"}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <h2 className="truncate text-xl font-black text-white">
-                    {player?.character_name ||
-                      (isAdminSession ? "Guild Admin" : "No Player Session")}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    {player
-                      ? `${player.guild_rank} • ${player.pathway}`
-                      : isAdminSession
-                      ? "Fortune Control"
-                      : "Login required"}
+                <div className="mt-5 rounded-2xl border border-amber-400/15 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Veil Lock
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Seluruh transaksi ritual terkunci pada{" "}
+                    <span className="font-black text-amber-300">
+                      playerId session login
+                    </span>
+                    . Tidak ada pemilihan ID player lain.
                   </p>
                 </div>
               </div>
-
-              <div className="mt-5 rounded-2xl border border-amber-400/15 bg-black/30 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  Security Rule
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Fortune Hall selalu memakai{" "}
-                  <span className="font-black text-amber-300">
-                    playerId dari session login
-                  </span>
-                  . Tidak ada pilihan ID player lain untuk transaksi.
-                </p>
-              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-[32px] border border-violet-400/20 bg-black/35 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
-              Recent Fortune Logs
-            </p>
+          <section className="relative overflow-hidden rounded-[34px] border border-violet-400/18 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.12),transparent_26%),linear-gradient(160deg,rgba(8,9,24,0.96),rgba(12,16,39,0.96),rgba(15,8,25,0.92))] p-6 shadow-[0_0_45px_rgba(15,23,42,0.40)]">
+            <FloatingVeilParticles />
 
-            <div className="mt-4 space-y-3">
-              {logs.length ? (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black text-white">
-                          {log.mode}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {log.detail}
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">
-                          {log.result}
-                        </p>
+            <div className="relative z-10">
+              <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
+                Chronicle of Echoes
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black text-white">
+                Recent Fortune Logs
+              </h2>
+
+              <div className="mt-4 space-y-3">
+                {logs.length ? (
+                  logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 transition hover:bg-white/[0.06]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-white">
+                            {log.mode}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-slate-400">
+                            {log.detail}
+                          </p>
+                          <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                            {log.result}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-black ${
+                            log.silver_change >= 0
+                              ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+                              : "border-red-400/25 bg-red-400/10 text-red-300"
+                          }`}
+                        >
+                          {log.silver_change >= 0 ? "+" : ""}
+                          {log.silver_change}S
+                        </span>
                       </div>
 
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-black ${
-                          log.silver_change >= 0
-                            ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                            : "border-red-400/25 bg-red-400/10 text-red-300"
-                        }`}
-                      >
-                        {formatSilverChange(log.silver_change)}
-                      </span>
+                      <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
+                        {formatTime(log.created_at)}
+                      </p>
                     </div>
-
-                    <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
-                      {formatTime(log.created_at)}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-500">
-                  Belum ada fortune log.
-                </p>
-              )}
+                  ))
+                ) : (
+                  <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-500">
+                    Belum ada catatan takdir.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
         </aside>
 
         <section className="space-y-6 xl:col-span-8">
-          <div className="rounded-[34px] border border-amber-400/25 bg-gradient-to-br from-amber-950/35 via-black to-violet-950/25 p-6 shadow-[0_0_35px_rgba(245,158,11,0.08)]">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+          <section className="relative overflow-hidden rounded-[36px] border border-amber-400/18 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.10),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.10),transparent_30%),linear-gradient(135deg,rgba(11,14,32,0.97),rgba(10,18,40,0.97),rgba(34,10,28,0.92))] p-6 shadow-[0_0_40px_rgba(245,158,11,0.08)]">
+            <InfernalHalo />
+            <FloatingVeilParticles />
+
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
                 <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
-                  Daily Number Omen
+                  Veiled Number Rite
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black text-white">
-                  Pasang Nomor Harian
+                  Ritual of Marked Sigils
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-                  Ada 10 nomor aktif. Maksimal 5 player ikut dalam satu ronde.
-                  Satu player hanya boleh memilih satu angka. Countdown 24 jam
-                  dimulai dari player pertama yang memasang angka.
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  Sepuluh sigil dibuka pada setiap putaran. Maksimal lima jiwa
+                  dapat masuk ke satu ritual. Setelah segel pertama ditempatkan,
+                  jam takdir mulai bergerak selama 24 jam.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-right">
                 <div className="rounded-2xl border border-amber-400/25 bg-amber-500/10 px-5 py-4">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-                    Slots
+                    Vessels
                   </p>
                   <p className="mt-1 text-3xl font-black text-white">
                     {participantSlots}
@@ -1260,33 +1150,31 @@ export default function Calendar() {
 
                 <div className="rounded-2xl border border-violet-400/25 bg-violet-500/10 px-5 py-4">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-300">
-                    Timer
+                    Veiled Clock
                   </p>
                   <p className="mt-1 text-2xl font-black text-white">
-                    {activeRound ? countdown : "Not Started"}
+                    {activeRound ? countdown : "Dormant"}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="relative z-10 mt-6 rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
-                    Active Numbers
+                    Open Sigils
                   </p>
                   <p className="mt-2 text-sm text-slate-400">
-                    Nomor tidak berubah sampai ronde selesai. Kalau belum ada
-                    player yang join, ronde belum dimulai.
+                    Susunan angka tetap sampai ritual berakhir. Jika belum ada
+                    yang masuk, ritual masih tertidur.
                   </p>
                 </div>
 
                 {currentPlayerEntry ? (
                   <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-300">
-                    Your Pick: {currentPlayerEntry.picked_number} •{" "}
-                    {formatCurrency(
-                      silverToCurrency(currentPlayerEntry.bet_amount)
-                    )}
+                    Your Mark: {currentPlayerEntry.picked_number} •{" "}
+                    {currentPlayerEntry.bet_amount}S
                   </div>
                 ) : null}
               </div>
@@ -1298,10 +1186,10 @@ export default function Calendar() {
                     type="button"
                     onClick={() => setSelectedNumber(number)}
                     disabled={Boolean(currentPlayerEntry) || isAdminSession}
-                    className={`rounded-3xl border px-4 py-5 text-3xl font-black transition disabled:cursor-not-allowed ${
+                    className={`ritual-number rounded-[26px] border px-4 py-5 text-3xl font-black transition duration-200 disabled:cursor-not-allowed ${
                       selectedNumber === number
-                        ? "border-amber-400/45 bg-amber-500/15 text-amber-200 shadow-[0_0_30px_rgba(245,158,11,0.10)]"
-                        : "border-white/10 bg-black/30 text-slate-300 hover:border-amber-400/25"
+                        ? "border-amber-400/45 bg-[linear-gradient(135deg,rgba(245,158,11,0.18),rgba(124,58,237,0.12))] text-amber-200 shadow-[0_0_26px_rgba(245,158,11,0.10)]"
+                        : "border-white/10 bg-black/30 text-slate-300 hover:border-amber-400/25 hover:bg-white/[0.05]"
                     }`}
                   >
                     {number}
@@ -1311,7 +1199,7 @@ export default function Calendar() {
 
               <div className="mt-6">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-slate-500">
-                  Bet Amount
+                  Offered Tribute
                 </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1323,11 +1211,11 @@ export default function Calendar() {
                       disabled={Boolean(currentPlayerEntry) || isAdminSession}
                       className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed ${
                         selectedBet === bet
-                          ? "border-violet-400/35 bg-violet-500/15 text-violet-200"
+                          ? "border-violet-400/35 bg-violet-500/15 text-violet-200 shadow-[0_0_22px_rgba(168,85,247,0.10)]"
                           : "border-white/10 bg-black/30 text-slate-400 hover:border-violet-400/25"
                       }`}
                     >
-                      {formatCurrency(silverToCurrency(bet))}
+                      {bet}S
                     </button>
                   ))}
                 </div>
@@ -1335,11 +1223,12 @@ export default function Calendar() {
 
               <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
-                  Reward
+                  Covenant Return
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Jika nomor kamu benar, reward: 5S → 30S, 10S → 60S, 20S →
-                  120S, 30S → 180S. Jika kalah, bet yang sudah dikunci hilang.
+                  Jika sigilmu dipanggil, Veil membalas persembahanmu dengan
+                  hasil lebih besar. Jika tidak, tribute tetap tenggelam ke
+                  dalam lingkaran.
                 </p>
               </div>
 
@@ -1353,92 +1242,230 @@ export default function Calendar() {
                   Boolean(currentPlayerEntry) ||
                   roundEntries.length >= MAX_ENTRIES_PER_ROUND
                 }
-                className="mt-5 w-full rounded-2xl border border-amber-400/35 bg-amber-500/15 px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+                className="ritual-button mt-5 w-full rounded-2xl border border-amber-400/35 bg-[linear-gradient(135deg,rgba(245,158,11,0.16),rgba(124,58,237,0.14))] px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-100 transition hover:border-amber-300/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.10)] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
               >
                 {isAdminSession
-                  ? "Admin Cannot Join Player Round"
+                  ? "Admin Cannot Enter Ritual"
                   : currentPlayerEntry
-                  ? "Number Already Locked"
+                  ? "Mark Already Sealed"
                   : isJoining
-                  ? "Locking..."
-                  : `Lock Number ${selectedNumber || "-"} • ${formatCurrency(
-                      silverToCurrency(selectedBet)
-                    )}`}
+                  ? "Sealing..."
+                  : `Seal Sigil ${selectedNumber || "-"} • ${selectedBet}S`}
               </button>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-[34px] border border-violet-400/20 bg-gradient-to-br from-violet-950/35 via-black to-amber-950/20 p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+          <section className="relative overflow-hidden rounded-[36px] border border-violet-400/18 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.05),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.14),transparent_28%),linear-gradient(135deg,rgba(11,11,27,0.98),rgba(9,18,43,0.98),rgba(30,10,30,0.92))] p-6 shadow-[0_0_40px_rgba(124,58,237,0.06)]">
+            <InfernalHalo />
+            <FloatingVeilParticles />
+
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
                 <p className="text-xs font-black uppercase tracking-[0.26em] text-violet-300">
-                  Fortune Spin
+                  Veil Spin Chamber
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black text-white">
-                  Harder Spin
+                  Angel’s Mask, Devil’s Wheel
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-                  Spin cepat untuk hiburan RP. Peluang profit dibuat rendah agar
-                  ekonomi guild tidak terlalu mudah naik.
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  Sebuah roda yang tampil indah, tenang, dan memikat. Namun di
+                  balik kilaunya, hasil tetap dirahasiakan oleh Veil. Tidak ada
+                  angka peluang yang ditampilkan. Hanya mereka yang berani
+                  menyentuhnya yang akan mengetahui harga sesungguhnya.
                 </p>
               </div>
             </div>
 
             {lastSpinText ? (
-              <div className="mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
+              <div className="relative z-10 mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
                 {lastSpinText}
               </div>
             ) : null}
 
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="relative z-10 mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
               {spinOptions.map((option) => (
                 <div
                   key={option.label}
-                  className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+                  className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-violet-400/20 hover:bg-white/[0.055]"
                 >
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                  <div className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-lg font-black text-violet-200 transition group-hover:scale-105">
+                    {option.sigil}
+                  </div>
+
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
                     {option.label}
                   </p>
 
-                  <p className="mt-3 text-3xl font-black text-amber-300">
-                    {formatCurrency(silverToCurrency(option.cost))}
+                  <p className="mt-4 text-4xl font-black text-amber-300">
+                    {option.cost}S
                   </p>
 
-                  <p className="mt-2 text-sm text-slate-400">
-                    {option.count} roll chance
-                  </p>
+                  <p className="mt-2 text-sm text-slate-400">{option.subtitle}</p>
 
                   <button
                     type="button"
                     onClick={() => handleSpin(option)}
                     disabled={isSpinning || isLoading || !isPlayerSession}
-                    className="mt-5 w-full rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+                    className="mt-6 w-full rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-violet-300 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
                   >
                     {isAdminSession
                       ? "Admin Disabled"
                       : isSpinning
-                      ? "Spinning..."
-                      : "Spin"}
+                      ? "Invoking..."
+                      : "Touch the Veil"}
                   </button>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 rounded-3xl border border-red-400/20 bg-red-400/10 p-5">
-              <p className="text-xs uppercase tracking-[0.22em] text-red-300">
-                Spin Chance
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Empty Omen 45%, Ash Return 25%, Break Even 15%, Small Blessing
-                10%, Rare Blessing 4%, Crown Omen 1%.
-              </p>
+            <div className="relative z-10 mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="rounded-[28px] border border-red-400/20 bg-red-400/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-red-300">
+                  Outcome Veil
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Frekuensi hasil tidak diumumkan. Sebagian hasil muncul lebih
+                  sering, sebagian lain nyaris tak pernah menampakkan diri.
+                  Semakin cerah namanya, semakin tipis jejaknya.
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border border-amber-400/20 bg-amber-500/10 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+                  Hidden Doctrine
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Veil Spin dirancang untuk menggoda, bukan menjelaskan. Setiap
+                  sentuhan adalah kontrak singkat antara rasa penasaran dan
+                  risiko.
+                </p>
+              </div>
             </div>
-          </div>
+          </section>
         </section>
       </section>
+
+      <style jsx>{`
+        @keyframes veil-float {
+          0%,
+          100% {
+            transform: translateY(0px) scale(1);
+          }
+          50% {
+            transform: translateY(-10px) scale(1.04);
+          }
+        }
+
+        @keyframes halo-spin {
+          0% {
+            transform: translate(-50%, -50%) rotate(0deg);
+          }
+          100% {
+            transform: translate(-50%, -50%) rotate(360deg);
+          }
+        }
+
+        @keyframes pulse-soft {
+          0%,
+          100% {
+            opacity: 0.22;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.55;
+            transform: scale(1.08);
+          }
+        }
+
+        @keyframes shimmer-pass {
+          0% {
+            transform: translateX(-140%);
+          }
+          100% {
+            transform: translateX(140%);
+          }
+        }
+
+        .fortune-shell::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.04),
+            transparent
+          );
+          transform: translateX(-140%);
+          animation: shimmer-pass 8s linear infinite;
+          pointer-events: none;
+        }
+
+        .ritual-orb {
+          animation: veil-float 5s ease-in-out infinite;
+        }
+
+        .ritual-orb-inner {
+          filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.35));
+        }
+
+        .ritual-number {
+          backdrop-filter: blur(8px);
+        }
+
+        .ritual-button {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ritual-button::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.10),
+            transparent
+          );
+          transform: translateX(-140%);
+          transition: transform 0.7s ease;
+        }
+
+        .ritual-button:hover::after {
+          transform: translateX(140%);
+        }
+
+        .halo-ring {
+          animation: halo-spin 16s linear infinite;
+        }
+
+        .veil-pulse {
+          animation: pulse-soft 4s ease-in-out infinite;
+        }
+      `}</style>
     </main>
+  );
+}
+
+function TopHeroStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-2 truncate text-2xl font-black ${tone}`}>{value}</p>
+    </div>
   );
 }
 
@@ -1458,5 +1485,112 @@ function StatCard({
       </p>
       <p className={`mt-3 text-4xl font-black ${tone}`}>{value}</p>
     </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  desc,
+  tone,
+  icon,
+}: {
+  label: string;
+  value: string;
+  desc: string;
+  tone: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-5 transition hover:border-amber-400/20 hover:bg-white/[0.055]">
+      <div className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-slate-300 transition group-hover:scale-105">
+        {icon}
+      </div>
+
+      <p className="text-[11px] font-black uppercase tracking-[0.26em] text-slate-500">
+        {label}
+      </p>
+
+      <p className={`mt-5 text-4xl font-black ${tone}`}>{value}</p>
+
+      <p className="mt-2 text-sm text-slate-500">{desc}</p>
+    </div>
+  );
+}
+
+function FloatingVeilParticles() {
+  return (
+    <>
+      <span className="veil-pulse pointer-events-none absolute left-[10%] top-[18%] h-2 w-2 rounded-full bg-amber-300/50 blur-[1px]" />
+      <span className="veil-pulse pointer-events-none absolute right-[12%] top-[22%] h-2.5 w-2.5 rounded-full bg-violet-300/40 blur-[1px]" />
+      <span className="veil-pulse pointer-events-none absolute bottom-[18%] left-[46%] h-2 w-2 rounded-full bg-rose-300/35 blur-[1px]" />
+      <span className="veil-pulse pointer-events-none absolute bottom-[28%] right-[30%] h-1.5 w-1.5 rounded-full bg-sky-300/40 blur-[1px]" />
+    </>
+  );
+}
+
+function InfernalHalo() {
+  return (
+    <>
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/8 opacity-60 blur-sm" />
+      <div className="halo-ring pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] rounded-full border border-amber-300/10 opacity-45" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[260px] w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/5 blur-3xl" />
+    </>
+  );
+}
+
+function HaloMaskIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M12 4.2c4.2 0 7.6 3.2 7.6 7.2 0 4.9-4.1 8.4-7.6 8.4-3.5 0-7.6-3.5-7.6-8.4 0-4 3.4-7.2 7.6-7.2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M8.6 10.8c.6-.4 1.1-.6 1.7-.6m3.1.6c.5-.4 1.1-.6 1.7-.6M8.7 14.5c.9.8 1.9 1.1 3.3 1.1 1.4 0 2.4-.3 3.3-1.1"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M8.2 3.1c1-1 2.3-1.5 3.8-1.5 1.5 0 2.8.5 3.8 1.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function RadiantStarIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 10.9 10.1 9 12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function InfernalMarkIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M12 4.2c1.8 2.2 4.7 3.9 7 4.3-.4 5.8-2.7 9.1-7 11.3-4.3-2.2-6.6-5.5-7-11.3 2.3-.4 5.2-2.1 7-4.3Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.8 10.4 12 12l2.2-1.6M10.5 15.2h3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
