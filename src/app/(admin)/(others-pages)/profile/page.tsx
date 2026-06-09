@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -6,6 +6,11 @@ import CosmeticProfileRenderer, {
   CosmeticNameText,
   EquippedCosmeticList,
 } from "@/components/cosmetics/CosmeticProfileRenderer";
+import {
+  formatCurrency,
+  normalizeCurrency,
+  type LunariaCurrency,
+} from "@/lib/lunariaCurrency";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -100,6 +105,29 @@ function getDisplayStatus(player: Player) {
   return "Awakened Adventurer";
 }
 
+function normalizePlayerCurrency(player: Player): Player {
+  const normalized = normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+
+  return {
+    ...player,
+    gold: normalized.gold,
+    silver: normalized.silver,
+    bronze: normalized.bronze,
+  };
+}
+
+function getPlayerCurrency(player: Player): LunariaCurrency {
+  return normalizeCurrency({
+    gold: player.gold,
+    silver: player.silver,
+    bronze: player.bronze,
+  });
+}
+
 export default function AdventurerIdCardPage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -113,6 +141,14 @@ export default function AdventurerIdCardPage() {
 
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
+
+  const selectedCurrency = selectedPlayer
+    ? getPlayerCurrency(selectedPlayer)
+    : {
+        gold: 0,
+        silver: 0,
+        bronze: 0,
+      };
 
   const isAdmin = session?.role === "admin";
   const isOwner =
@@ -132,6 +168,8 @@ export default function AdventurerIdCardPage() {
 
   const idCardText = useMemo(() => {
     if (!selectedPlayer) return "";
+
+    const normalizedCurrency = getPlayerCurrency(selectedPlayer);
 
     return `╔══════════════════════╗
 * LUNARIA ADVENTURER LICENSE
@@ -155,9 +193,11 @@ export default function AdventurerIdCardPage() {
 
 ━━━━━━━━━━━━━━━━━━
 *Currency*
-- Gold : ${selectedPlayer.gold}
-- Silver : ${selectedPlayer.silver}
-- Bronze : ${selectedPlayer.bronze}
+${formatCurrency(normalizedCurrency)}
+
+- Gold : ${normalizedCurrency.gold}
+- Silver : ${normalizedCurrency.silver}
+- Bronze : ${normalizedCurrency.bronze}
 
 ━━━━━━━━━━━━━━━━━━
 *Quest Record*
@@ -239,7 +279,7 @@ ${getDisplayStatus(selectedPlayer)}`;
       return;
     }
 
-    const playerData = (data || []) as Player[];
+    const playerData = ((data || []) as Player[]).map(normalizePlayerCurrency);
     setPlayers(playerData);
 
     if (playerData.length === 0) {
@@ -351,9 +391,8 @@ ${getDisplayStatus(selectedPlayer)}`;
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400">
-              Lisensi resmi adventurer Lunaria. Player otomatis membuka kartu
-              miliknya sendiri, namun tetap bisa melihat ID Card adventurer aktif
-              lain sebagai arsip publik guild.
+              Lisensi resmi adventurer Lunaria. Currency sudah memakai konversi
+              resmi: 1 Gold = 1000 Silver dan 1 Silver = 100 Bronze.
             </p>
           </div>
 
@@ -435,7 +474,7 @@ ${getDisplayStatus(selectedPlayer)}`;
                     <option key={player.id} value={player.id}>
                       {player.id === session?.playerId ? "★ " : ""}
                       {player.character_name} — {player.guild_rank} —{" "}
-                      {player.pathway}
+                      {player.pathway} — {formatCurrency(player)}
                     </option>
                   ))}
                 </select>
@@ -531,20 +570,29 @@ ${getDisplayStatus(selectedPlayer)}`;
                       </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-3 gap-3">
+                    <div className="mt-6 rounded-[24px] border border-amber-400/20 bg-amber-500/10 p-4 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
+                        Total Balance
+                      </p>
+                      <p className="mt-2 text-3xl font-black text-white">
+                        {formatCurrency(selectedCurrency)}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-3">
                       <CurrencyBox
                         label="Gold"
-                        value={selectedPlayer.gold}
+                        value={selectedCurrency.gold}
                         color="text-amber-300"
                       />
                       <CurrencyBox
                         label="Silver"
-                        value={selectedPlayer.silver}
+                        value={selectedCurrency.silver}
                         color="text-slate-100"
                       />
                       <CurrencyBox
                         label="Bronze"
-                        value={selectedPlayer.bronze}
+                        value={selectedCurrency.bronze}
                         color="text-orange-300"
                       />
                     </div>
