@@ -1,7 +1,11 @@
- "use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import CosmeticProfileRenderer, {
+  CosmeticNameText,
+  EquippedCosmeticList,
+} from "@/components/cosmetics/CosmeticProfileRenderer";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -35,18 +39,6 @@ type Player = {
   status: string;
   created_at: string;
   updated_at: string;
-};
-
-type EquippedCosmetic = {
-  id: string;
-  cosmetic_id: string;
-  player_id: string;
-  equipped: boolean;
-  cosmetics?: {
-    name?: string;
-    type?: string;
-    rarity?: string;
-  } | null;
 };
 
 const rankTheme: Record<string, string> = {
@@ -113,9 +105,6 @@ export default function AdventurerIdCardPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
   const [photoInput, setPhotoInput] = useState("");
-  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetic[]>(
-    []
-  );
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -196,33 +185,6 @@ ${getDisplayStatus(selectedPlayer)}`;
     setTimeout(() => setErrorMessage(""), 4200);
   };
 
-  const fetchEquippedCosmetics = async (playerId: string) => {
-    const { data, error } = await supabase
-      .from("player_cosmetics")
-      .select(
-        `
-        id,
-        cosmetic_id,
-        player_id,
-        equipped,
-        cosmetics (
-          name,
-          type,
-          rarity
-        )
-      `
-      )
-      .eq("player_id", playerId)
-      .eq("equipped", true);
-
-    if (error) {
-      setEquippedCosmetics([]);
-      return;
-    }
-
-    setEquippedCosmetics((data as unknown as EquippedCosmetic[]) || []);
-  };
-
   const fetchPlayers = async () => {
     setIsLoading(true);
     setErrorMessage("");
@@ -235,7 +197,6 @@ ${getDisplayStatus(selectedPlayer)}`;
       setPlayers([]);
       setSelectedPlayerId("");
       setPhotoInput("");
-      setEquippedCosmetics([]);
       showError("Session tidak ditemukan. Login ulang dulu.");
       return;
     }
@@ -284,7 +245,6 @@ ${getDisplayStatus(selectedPlayer)}`;
     if (playerData.length === 0) {
       setSelectedPlayerId("");
       setPhotoInput("");
-      setEquippedCosmetics([]);
       return;
     }
 
@@ -306,7 +266,6 @@ ${getDisplayStatus(selectedPlayer)}`;
 
     setSelectedPlayerId(currentPlayer.id);
     setPhotoInput(currentPlayer.photo_url || "");
-    fetchEquippedCosmetics(currentPlayer.id);
   };
 
   useEffect(() => {
@@ -319,10 +278,6 @@ ${getDisplayStatus(selectedPlayer)}`;
 
     const nextPlayer = players.find((player) => player.id === playerId);
     setPhotoInput(nextPlayer?.photo_url || "");
-
-    if (nextPlayer) {
-      fetchEquippedCosmetics(nextPlayer.id);
-    }
   };
 
   const handleCopy = async () => {
@@ -426,7 +381,11 @@ ${getDisplayStatus(selectedPlayer)}`;
 
             <MiniHeroStat
               label="Viewer"
-              value={session?.role === "admin" ? "Admin" : session?.characterName || "-"}
+              value={
+                session?.role === "admin"
+                  ? "Admin"
+                  : session?.characterName || "-"
+              }
               tone="text-amber-300"
             />
           </div>
@@ -500,7 +459,10 @@ ${getDisplayStatus(selectedPlayer)}`;
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <div className="xl:col-span-4">
               <div className="sticky top-24">
-                <div className="relative overflow-hidden rounded-[34px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_70px_rgba(245,158,11,0.12)]">
+                <CosmeticProfileRenderer
+                  playerId={selectedPlayer.id}
+                  className="bg-[#070812] p-5 shadow-[0_0_70px_rgba(245,158,11,0.12)]"
+                >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.24),transparent_30%)]" />
                   <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
 
@@ -539,7 +501,9 @@ ${getDisplayStatus(selectedPlayer)}`;
                       </div>
 
                       <h2 className="mt-5 text-3xl font-black leading-tight text-white">
-                        {selectedPlayer.character_name}
+                        <CosmeticNameText playerId={selectedPlayer.id}>
+                          {selectedPlayer.character_name}
+                        </CosmeticNameText>
                       </h2>
 
                       <p className="mt-2 text-sm text-slate-400">
@@ -596,27 +560,8 @@ ${getDisplayStatus(selectedPlayer)}`;
                         Equipped Cosmetics
                       </p>
 
-                      <div className="mt-3 space-y-3">
-                        {equippedCosmetics.length ? (
-                          equippedCosmetics.map((item) => (
-                            <div
-                              key={item.id}
-                              className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
-                            >
-                              <p className="text-sm font-bold text-white">
-                                ◆ {item.cosmetics?.name || "Unknown Cosmetic"}
-                              </p>
-
-                              <p className="text-xs text-slate-500">
-                                {item.cosmetics?.type || "Cosmetic"}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-slate-400">
-                            No cosmetic equipped.
-                          </p>
-                        )}
+                      <div className="mt-3">
+                        <EquippedCosmeticList playerId={selectedPlayer.id} />
                       </div>
                     </div>
 
@@ -633,7 +578,9 @@ ${getDisplayStatus(selectedPlayer)}`;
 
                         <input
                           value={photoInput}
-                          onChange={(event) => setPhotoInput(event.target.value)}
+                          onChange={(event) =>
+                            setPhotoInput(event.target.value)
+                          }
                           placeholder="https://example.com/photo.png"
                           className="lunaria-id-input mt-4"
                         />
@@ -659,7 +606,7 @@ ${getDisplayStatus(selectedPlayer)}`;
                       </div>
                     )}
                   </div>
-                </div>
+                </CosmeticProfileRenderer>
               </div>
             </div>
 
@@ -708,7 +655,10 @@ ${getDisplayStatus(selectedPlayer)}`;
                 </p>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                  <QuestBox label="Common" value={selectedPlayer.common_quests} />
+                  <QuestBox
+                    label="Common"
+                    value={selectedPlayer.common_quests}
+                  />
                   <QuestBox
                     label="Uncommon"
                     value={selectedPlayer.uncommon_quests}
@@ -717,8 +667,14 @@ ${getDisplayStatus(selectedPlayer)}`;
                     label="Dangerous"
                     value={selectedPlayer.dangerous_quests}
                   />
-                  <QuestBox label="Special" value={selectedPlayer.special_quests} />
-                  <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
+                  <QuestBox
+                    label="Special"
+                    value={selectedPlayer.special_quests}
+                  />
+                  <QuestBox
+                    label="Points"
+                    value={calculatePoints(selectedPlayer)}
+                  />
                 </div>
               </section>
 
@@ -882,7 +838,9 @@ function DataPanel({ title, items }: { title: string; items: string[] }) {
               {index + 1}
             </div>
 
-            <p className="text-sm font-semibold text-slate-200">{item || "-"}</p>
+            <p className="text-sm font-semibold text-slate-200">
+              {item || "-"}
+            </p>
           </div>
         ))}
       </div>
