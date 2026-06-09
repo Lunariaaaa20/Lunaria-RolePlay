@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -37,23 +37,6 @@ type Player = {
   updated_at: string;
 };
 
-type CosmeticType =
-  | "Name Effect"
-  | "ID Border"
-  | "ID Background"
-  | "Aura Effect";
-
-type Cosmetic = {
-  id: string;
-  name: string;
-  type: CosmeticType;
-  icon: string;
-  nameClass?: string;
-  borderClass?: string;
-  backgroundClass?: string;
-  auraClass?: string;
-};
-
 type PlayerCosmeticRow = {
   id: string;
   player_id: string;
@@ -61,71 +44,21 @@ type PlayerCosmeticRow = {
   equipped: boolean;
 };
 
-const cosmetics: Cosmetic[] = [
-  {
-    id: "name-ember-script",
-    name: "Ember Script",
-    type: "Name Effect",
-    icon: "✦",
-    nameClass:
-      "text-amber-200 drop-shadow-[0_0_16px_rgba(245,158,11,0.45)]",
-  },
-  {
-    id: "name-royal-gold",
-    name: "Royal Gold Name",
-    type: "Name Effect",
-    icon: "♛",
-    nameClass:
-      "bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-500 bg-clip-text text-transparent drop-shadow-[0_0_22px_rgba(245,158,11,0.55)]",
-  },
-  {
-    id: "border-silver-oath",
-    name: "Silver Oath Border",
-    type: "ID Border",
-    icon: "◆",
-    borderClass:
-      "border-sky-200/55 shadow-[0_0_55px_rgba(125,211,252,0.18)]",
-  },
-  {
-    id: "border-demon-throne",
-    name: "Demon Throne Border",
-    type: "ID Border",
-    icon: "♜",
-    borderClass:
-      "border-red-400/60 shadow-[0_0_70px_rgba(248,113,113,0.22)]",
-  },
-  {
-    id: "bg-moonlit-archive",
-    name: "Moonlit Archive",
-    type: "ID Background",
-    icon: "☾",
-    backgroundClass:
-      "bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.22),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(30,64,175,0.28),transparent_34%),linear-gradient(135deg,#020617,#030712_45%,#0f172a)]",
-  },
-  {
-    id: "bg-void-cathedral",
-    name: "Void Cathedral",
-    type: "ID Background",
-    icon: "✧",
-    backgroundClass:
-      "bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.25),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.20),transparent_34%),linear-gradient(135deg,#020617,#05000d_45%,#12051f)]",
-  },
-  {
-    id: "aura-green-sanctuary",
-    name: "Green Sanctuary Aura",
-    type: "Aura Effect",
-    icon: "❧",
-    auraClass:
-      "bg-emerald-400/20 shadow-[0_0_75px_rgba(52,211,153,0.28)]",
-  },
-  {
-    id: "aura-astral-crown",
-    name: "Astral Crown Aura",
-    type: "Aura Effect",
-    icon: "✺",
-    auraClass:
-      "bg-violet-400/20 shadow-[0_0_90px_rgba(168,85,247,0.34)]",
-  },
+type CosmeticInfo = {
+  id: string;
+  name: string;
+  type: string;
+};
+
+const cosmeticCatalog: CosmeticInfo[] = [
+  { id: "name-ember-script", name: "Ember Script", type: "Name Effect" },
+  { id: "name-royal-gold", name: "Royal Gold Name", type: "Name Effect" },
+  { id: "border-silver-oath", name: "Silver Oath Border", type: "ID Border" },
+  { id: "border-demon-throne", name: "Demon Throne Border", type: "ID Border" },
+  { id: "bg-moonlit-archive", name: "Moonlit Archive", type: "ID Background" },
+  { id: "bg-void-cathedral", name: "Void Cathedral", type: "ID Background" },
+  { id: "aura-green-sanctuary", name: "Green Sanctuary Aura", type: "Aura Effect" },
+  { id: "aura-astral-crown", name: "Astral Crown Aura", type: "Aura Effect" },
 ];
 
 const rankTheme: Record<string, string> = {
@@ -170,15 +103,11 @@ function calculatePoints(player: Player) {
   );
 }
 
-function getCosmeticById(id: string) {
-  return cosmetics.find((item) => item.id === id) || null;
-}
-
 export default function AdventurerIdCardPage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [equippedRows, setEquippedRows] = useState<PlayerCosmeticRow[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [equippedRows, setEquippedRows] = useState<PlayerCosmeticRow[]>([]);
   const [photoUrlInput, setPhotoUrlInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
@@ -189,46 +118,28 @@ export default function AdventurerIdCardPage() {
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
 
-  const canEditPhoto = Boolean(
-    selectedPlayer &&
-      (session?.role === "admin" ||
-        (session?.role === "player" && session.playerId === selectedPlayer.id))
-  );
+  const canEditPhoto =
+    Boolean(selectedPlayer) &&
+    (session?.role === "admin" || session?.playerId === selectedPlayer?.id);
 
-  const selectedCosmetics = useMemo(() => {
-    const result: Record<CosmeticType, Cosmetic | null> = {
-      "Name Effect": null,
-      "ID Border": null,
-      "ID Background": null,
-      "Aura Effect": null,
-    };
+  const equippedCosmetics = useMemo(() => {
+    return equippedRows
+      .filter((row) => row.player_id === selectedPlayer?.id && row.equipped)
+      .map((row) => {
+        const cosmetic = cosmeticCatalog.find(
+          (item) => item.id === row.cosmetic_id
+        );
 
-    if (!selectedPlayer) return result;
-
-    equippedRows
-      .filter((row) => row.player_id === selectedPlayer.id && row.equipped)
-      .forEach((row) => {
-        const cosmetic = getCosmeticById(row.cosmetic_id);
-        if (!cosmetic) return;
-
-        result[cosmetic.type] = cosmetic;
+        return {
+          id: row.id,
+          name: cosmetic?.name || row.cosmetic_id,
+          type: cosmetic?.type || "Cosmetic",
+        };
       });
-
-    return result;
-  }, [equippedRows, selectedPlayer]);
-
-  const equippedList = useMemo(() => {
-    return Object.values(selectedCosmetics).filter(Boolean) as Cosmetic[];
-  }, [selectedCosmetics]);
+  }, [equippedRows, selectedPlayer?.id]);
 
   const idCardText = useMemo(() => {
-    if (!selectedPlayer) {
-      return "";
-    }
-
-    const cosmeticText = equippedList.length
-      ? equippedList.map((item) => `- ${item.type}: ${item.name}`).join("\n")
-      : "- No cosmetic equipped";
+    if (!selectedPlayer) return "";
 
     return `╔══════════════════════╗
 * ADVENTURER'S GUILD LICENSE
@@ -260,15 +171,22 @@ export default function AdventurerIdCardPage() {
 - Special : ${selectedPlayer.special_quests}
 - Points : ${calculatePoints(selectedPlayer)}
 ━━━━━━━━━━━━━━━━━━
-*Equipped Cosmetic*
-${cosmeticText}
-━━━━━━━━━━━━━━━━━━
 Registered Guild :
 Adventurer's Guild of Aethelgard
 
 Status :
-${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.status}`;
-  }, [selectedPlayer, equippedList]);
+Active Adventurer`;
+  }, [selectedPlayer]);
+
+  const showNotice = (message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice(""), 2600);
+  };
+
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(""), 4200);
+  };
 
   const fetchPlayers = async () => {
     setIsLoading(true);
@@ -277,7 +195,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
     const currentSession = getSession();
     setSession(currentSession);
 
-    const { data: playerData, error: playerError } = await supabase
+    const { data, error } = await supabase
       .from("players")
       .select(`
         id,
@@ -303,75 +221,54 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
         created_at,
         updated_at
       `)
+      .eq("status", "active")
       .order("created_at", { ascending: false });
 
-    if (playerError) {
+    if (error) {
       setIsLoading(false);
-      setErrorMessage(playerError.message);
+      showError(`Failed to load players: ${error.message}`);
       return;
     }
+
+    const activePlayers = (data || []) as Player[];
+    setPlayers(activePlayers);
+
+    let defaultPlayerId = "";
+
+    if (
+      currentSession?.role === "player" &&
+      currentSession.playerId &&
+      activePlayers.some((player) => player.id === currentSession.playerId)
+    ) {
+      defaultPlayerId = currentSession.playerId;
+    } else if (
+      selectedPlayerId &&
+      activePlayers.some((player) => player.id === selectedPlayerId)
+    ) {
+      defaultPlayerId = selectedPlayerId;
+    } else if (activePlayers.length > 0) {
+      defaultPlayerId = activePlayers[0].id;
+    }
+
+    setSelectedPlayerId(defaultPlayerId);
 
     const { data: cosmeticData, error: cosmeticError } = await supabase
       .from("player_cosmetics")
       .select("id, player_id, cosmetic_id, equipped")
       .eq("equipped", true);
 
-    setIsLoading(false);
-
     if (cosmeticError) {
-      setErrorMessage(`Failed to load cosmetics: ${cosmeticError.message}`);
-      setPlayers((playerData as Player[] | null) || []);
-      return;
+      setEquippedRows([]);
+    } else {
+      setEquippedRows((cosmeticData || []) as PlayerCosmeticRow[]);
     }
 
-    const playerRows = (playerData as Player[] | null) || [];
-    const cosmeticRows = (cosmeticData as PlayerCosmeticRow[] | null) || [];
-
-    setPlayers(playerRows);
-    setEquippedRows(cosmeticRows);
-
-    if (playerRows.length > 0 && !selectedPlayerId) {
-      setSelectedPlayerId(playerRows[0].id);
-    }
+    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchPlayers();
-
-    const playersChannel = supabase
-      .channel("lunaria-id-card-players")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "players",
-        },
-        () => {
-          fetchPlayers();
-        }
-      )
-      .subscribe();
-
-    const cosmeticsChannel = supabase
-      .channel("lunaria-id-card-cosmetics")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "player_cosmetics",
-        },
-        () => {
-          fetchPlayers();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(playersChannel);
-      supabase.removeChannel(cosmeticsChannel);
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -383,82 +280,42 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
     await navigator.clipboard.writeText(idCardText);
     setCopied(true);
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 1800);
+    setTimeout(() => setCopied(false), 1800);
   };
 
   const handleSavePhoto = async () => {
-    setNotice("");
-    setErrorMessage("");
-
     if (!selectedPlayer) {
-      setErrorMessage("No player selected.");
+      showError("No player selected.");
       return;
     }
 
     if (!canEditPhoto) {
-      setErrorMessage("Kamu hanya bisa mengubah foto ID Card milikmu sendiri.");
-      return;
-    }
-
-    const trimmedUrl = photoUrlInput.trim();
-
-    if (
-      trimmedUrl &&
-      !trimmedUrl.startsWith("http://") &&
-      !trimmedUrl.startsWith("https://")
-    ) {
-      setErrorMessage("Photo URL harus diawali http:// atau https://");
+      showError("Kamu hanya bisa edit foto ID Card milikmu sendiri.");
       return;
     }
 
     setIsSavingPhoto(true);
+    setErrorMessage("");
+
+    const cleanUrl = photoUrlInput.trim();
 
     const { error } = await supabase
       .from("players")
       .update({
-        photo_url: trimmedUrl,
-        updated_at: new Date().toISOString(),
+        photo_url: cleanUrl,
       })
       .eq("id", selectedPlayer.id);
 
     setIsSavingPhoto(false);
 
     if (error) {
-      setErrorMessage(`Gagal menyimpan foto: ${error.message}`);
+      showError(`Gagal menyimpan foto: ${error.message}`);
       return;
     }
 
-    setNotice("Foto ID Card berhasil diperbarui.");
-
-    setPlayers((prev) =>
-      prev.map((player) =>
-        player.id === selectedPlayer.id
-          ? {
-              ...player,
-              photo_url: trimmedUrl,
-              updated_at: new Date().toISOString(),
-            }
-          : player
-      )
-    );
-
-    setTimeout(() => setNotice(""), 2600);
+    showNotice("Foto ID Card berhasil disimpan.");
+    await fetchPlayers();
   };
-
-  const nameClass =
-    selectedCosmetics["Name Effect"]?.nameClass || "text-white";
-
-  const borderClass =
-    selectedCosmetics["ID Border"]?.borderClass ||
-    "border-amber-400/30 shadow-[0_0_50px_rgba(245,158,11,0.14)]";
-
-  const backgroundClass =
-    selectedCosmetics["ID Background"]?.backgroundClass || "bg-[#070812]";
-
-  const auraClass = selectedCosmetics["Aura Effect"]?.auraClass || "";
 
   return (
     <main className="space-y-6 text-slate-100">
@@ -473,8 +330,8 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
               Adventurer ID Card
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              ID Card publik untuk melihat data adventurer. Foto hanya bisa
-              diubah oleh pemilik ID Card atau admin.
+              ID Card publik untuk melihat data adventurer aktif. Saat player
+              login, halaman otomatis membuka ID Card miliknya sendiri.
             </p>
           </div>
 
@@ -503,23 +360,22 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
         </section>
       ) : null}
 
-      {isLoading ? (
-        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
-          <p className="text-sm font-bold">
-            Loading player data from Supabase...
-          </p>
-        </section>
-      ) : null}
-
       {errorMessage ? (
         <section className="rounded-[24px] border border-red-400/25 bg-red-400/10 p-5 text-red-200">
           <p className="text-sm font-bold">{errorMessage}</p>
         </section>
       ) : null}
 
+      {isLoading ? (
+        <section className="rounded-[24px] border border-sky-400/25 bg-sky-400/10 p-5 text-sky-200">
+          <p className="text-sm font-bold">Loading active player data...</p>
+        </section>
+      ) : null}
+
       {!isLoading && players.length === 0 ? (
         <section className="rounded-[32px] border border-white/10 bg-black/35 p-6 text-slate-400">
-          Belum ada player aktif. Approve registration dari Admin Panel dulu.
+          Belum ada player aktif. Player inactive, banned, atau deleted tidak
+          tampil di ID Card publik.
         </section>
       ) : null}
 
@@ -546,24 +402,10 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
             <div className="xl:col-span-5">
-              <div
-                className={`relative overflow-hidden rounded-[32px] border p-5 ${backgroundClass} ${borderClass}`}
-              >
-                {auraClass ? (
-                  <>
-                    <div
-                      className={`pointer-events-none absolute -left-12 top-20 h-40 w-40 rounded-full blur-3xl ${auraClass}`}
-                    />
-                    <div
-                      className={`pointer-events-none absolute -right-12 bottom-16 h-44 w-44 rounded-full blur-3xl ${auraClass}`}
-                    />
-                  </>
-                ) : null}
+              <div className="relative overflow-hidden rounded-[32px] border border-amber-400/30 bg-[#070812] p-5 shadow-[0_0_50px_rgba(245,158,11,0.14)]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.18),transparent_30%)]" />
 
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.12),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.16),transparent_30%)]" />
-                <div className="pointer-events-none absolute inset-0 opacity-[0.05] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:36px_36px]" />
-
-                <div className="relative z-10 rounded-[26px] border border-amber-400/20 bg-black/35 p-5 backdrop-blur-sm">
+                <div className="relative z-10 rounded-[26px] border border-amber-400/20 bg-black/35 p-5">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300">
@@ -597,7 +439,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                       </div>
                     </div>
 
-                    <h2 className={`mt-5 text-3xl font-black ${nameClass}`}>
+                    <h2 className="mt-5 text-3xl font-black text-white">
                       {selectedPlayer.character_name}
                     </h2>
 
@@ -646,26 +488,24 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
 
                   <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-center">
                     <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">
-                      {selectedPlayer.status === "active"
-                        ? "Active Adventurer"
-                        : selectedPlayer.status}
+                      Active Adventurer
                     </p>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-violet-300">
+                  <div className="mt-5 rounded-3xl border border-violet-400/20 bg-violet-400/10 p-5">
+                    <p className="text-xs uppercase tracking-[0.26em] text-violet-300">
                       Equipped Cosmetics
                     </p>
 
                     <div className="mt-3 space-y-2">
-                      {equippedList.length ? (
-                        equippedList.map((item) => (
+                      {equippedCosmetics.length ? (
+                        equippedCosmetics.map((item) => (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm"
+                            className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3"
                           >
-                            <span className="text-slate-200">
-                              {item.icon} {item.name}
+                            <span className="text-sm font-semibold text-slate-200">
+                              ◆ {item.name}
                             </span>
                             <span className="text-xs text-slate-500">
                               {item.type}
@@ -681,40 +521,37 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </div>
 
                   {canEditPhoto ? (
-                    <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-sky-300">
+                    <div className="mt-5 rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+                      <p className="text-xs uppercase tracking-[0.26em] text-sky-300">
                         Edit Character Photo
                       </p>
 
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                      <p className="mt-3 text-sm leading-6 text-slate-400">
                         Tempel link gambar karakter. Player hanya bisa edit foto
-                        ID Card sendiri. Admin bisa edit semua player.
+                        ID Card sendiri. Admin bisa edit semua player aktif.
                       </p>
 
                       <input
                         value={photoUrlInput}
-                        onChange={(event) =>
-                          setPhotoUrlInput(event.target.value)
-                        }
+                        onChange={(event) => setPhotoUrlInput(event.target.value)}
                         placeholder="https://example.com/character-photo.png"
                         className="lunaria-id-input mt-4"
                       />
 
                       <button
-                        type="button"
                         onClick={handleSavePhoto}
                         disabled={isSavingPhoto}
                         className="mt-4 w-full rounded-2xl border border-sky-400/30 bg-sky-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isSavingPhoto ? "Saving Photo..." : "Save Photo"}
+                        {isSavingPhoto ? "Saving..." : "Save Photo"}
                       </button>
                     </div>
                   ) : (
-                    <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                    <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                      <p className="text-xs uppercase tracking-[0.26em] text-slate-500">
                         Photo Permission
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                      <p className="mt-3 text-sm leading-6 text-slate-400">
                         Kamu sedang melihat ID Card player lain. Foto hanya bisa
                         diubah oleh pemilik ID Card atau admin.
                       </p>
@@ -729,10 +566,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <InfoBox label="Name" value={selectedPlayer.character_name} />
                   <InfoBox label="Race" value={selectedPlayer.race} />
-                  <InfoBox
-                    label="Guild Rank"
-                    value={selectedPlayer.guild_rank}
-                  />
+                  <InfoBox label="Guild Rank" value={selectedPlayer.guild_rank} />
                   <InfoBox label="Pathway" value={selectedPlayer.pathway} />
                 </div>
 
@@ -761,10 +595,7 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                   </p>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
-                    <QuestBox
-                      label="Common"
-                      value={selectedPlayer.common_quests}
-                    />
+                    <QuestBox label="Common" value={selectedPlayer.common_quests} />
                     <QuestBox
                       label="Uncommon"
                       value={selectedPlayer.uncommon_quests}
@@ -773,14 +604,8 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                       label="Dangerous"
                       value={selectedPlayer.dangerous_quests}
                     />
-                    <QuestBox
-                      label="Special"
-                      value={selectedPlayer.special_quests}
-                    />
-                    <QuestBox
-                      label="Points"
-                      value={calculatePoints(selectedPlayer)}
-                    />
+                    <QuestBox label="Special" value={selectedPlayer.special_quests} />
+                    <QuestBox label="Points" value={calculatePoints(selectedPlayer)} />
                   </div>
                 </div>
 
@@ -792,9 +617,8 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                     Adventurer&apos;s Guild of Aethelgard
                   </p>
                   <p className="mt-3 text-sm leading-6 text-slate-400">
-                    Data ini terhubung ke Supabase. Update dari Admin Panel,
-                    Cosmetic Shop, Fortune Hall, dan foto ID Card akan tampil
-                    otomatis setelah refresh data.
+                    ID Card publik hanya menampilkan adventurer aktif. Player
+                    inactive, banned, atau deleted tidak muncul di dropdown.
                   </p>
                 </div>
 
@@ -803,10 +627,9 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
                     Security Notice
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    ID Card boleh dilihat semua player, tapi pembelian cosmetic,
-                    fortune, transaksi, dan edit foto memakai akun login sendiri.
-                    Username dan access code tidak ditampilkan di halaman publik
-                    ini.
+                    Username dan access code tidak ditampilkan di ID Card.
+                    Transaksi tetap memakai playerId dari session login, bukan
+                    dari ID Card yang sedang dilihat.
                   </p>
                 </div>
               </div>
@@ -825,10 +648,6 @@ ${selectedPlayer.status === "active" ? "Active Adventurer" : selectedPlayer.stat
           color: rgb(241, 245, 249);
           outline: none;
           transition: 180ms ease;
-        }
-
-        .lunaria-id-input::placeholder {
-          color: rgb(100, 116, 139);
         }
 
         .lunaria-id-input:focus {
@@ -907,4 +726,4 @@ function DataPanel({ title, items }: { title: string; items: string[] }) {
       </div>
     </div>
   );
-     }
+}
