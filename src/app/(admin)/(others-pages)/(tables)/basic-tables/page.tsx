@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 const rankOptions = ["Initiate", "Seeker", "Warden", "Arbiter", "High Council"];
 const pathwayOptions = ["Warrior", "Mystic", "Shadow", "Nature"];
 const raceOptions = ["Human", "Elf", "Fairy", "Feyling", "Furry", "Dwarf"];
+const statusOptions = ["active", "inactive"];
 
 type RegistrationRequest = {
   id: string;
@@ -107,6 +108,8 @@ export default function LunariaAdminPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isStatusWorking, setIsStatusWorking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
@@ -124,14 +127,22 @@ export default function LunariaAdminPanel() {
     return registrations.filter((item) => item.status === "pending");
   }, [registrations]);
 
+  const activePlayers = useMemo(() => {
+    return players.filter((player) => player.status === "active");
+  }, [players]);
+
+  const inactivePlayers = useMemo(() => {
+    return players.filter((player) => player.status !== "active");
+  }, [players]);
+
   const showNotice = (message: string) => {
     setNotice(message);
-    setTimeout(() => setNotice(""), 2600);
+    setTimeout(() => setNotice(""), 3000);
   };
 
   const showError = (message: string) => {
     setErrorMessage(message);
-    setTimeout(() => setErrorMessage(""), 4000);
+    setTimeout(() => setErrorMessage(""), 5000);
   };
 
   const fetchData = async () => {
@@ -151,7 +162,9 @@ export default function LunariaAdminPanel() {
     ]);
 
     if (registrationResult.error) {
-      showError(`Failed to fetch registrations: ${registrationResult.error.message}`);
+      showError(
+        `Failed to fetch registrations: ${registrationResult.error.message}`
+      );
     } else {
       setRegistrations(registrationResult.data || []);
     }
@@ -159,11 +172,15 @@ export default function LunariaAdminPanel() {
     if (playerResult.error) {
       showError(`Failed to fetch players: ${playerResult.error.message}`);
     } else {
-      const data = playerResult.data || [];
+      const data = (playerResult.data || []) as Player[];
       setPlayers(data);
 
       if (!selectedPlayerId && data.length > 0) {
         setSelectedPlayerId(data[0].id);
+      }
+
+      if (selectedPlayerId && !data.some((player) => player.id === selectedPlayerId)) {
+        setSelectedPlayerId(data[0]?.id || "");
       }
     }
 
@@ -172,6 +189,7 @@ export default function LunariaAdminPanel() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateSelectedPlayer = (key: keyof Player, value: string | number) => {
@@ -248,8 +266,10 @@ export default function LunariaAdminPanel() {
       access_code: accessCode,
     });
 
-    setPlayers((prev) => [newPlayer, ...prev]);
-    setSelectedPlayerId(newPlayer.id);
+    const typedNewPlayer = newPlayer as Player;
+
+    setPlayers((prev) => [typedNewPlayer, ...prev]);
+    setSelectedPlayerId(typedNewPlayer.id);
 
     setRegistrations((prev) =>
       prev.map((item) =>
@@ -300,6 +320,8 @@ export default function LunariaAdminPanel() {
         uncommon_quests: selectedPlayer.uncommon_quests,
         dangerous_quests: selectedPlayer.dangerous_quests,
         special_quests: selectedPlayer.special_quests,
+        photo_url: selectedPlayer.photo_url || "",
+        status: selectedPlayer.status || "active",
       })
       .eq("id", selectedPlayer.id);
 
@@ -312,6 +334,116 @@ export default function LunariaAdminPanel() {
 
     showNotice("Player ID Card updated in Supabase.");
     fetchData();
+  };
+
+  const handleToggleStatus = async () => {
+    if (!selectedPlayer) {
+      showError("No player selected.");
+      return;
+    }
+
+    const nextStatus = selectedPlayer.status === "active" ? "inactive" : "active";
+
+    const confirmText =
+      nextStatus === "inactive"
+        ? `Deactivate ${selectedPlayer.character_name}? Player tidak bisa login, tapi data masih aman.`
+        : `Activate ${selectedPlayer.character_name}? Player bisa login lagi.`;
+
+    const confirmed = window.confirm(confirmText);
+    if (!confirmed) return;
+
+    setIsStatusWorking(true);
+    setErrorMessage("");
+
+    const { error } = await supabase
+      .from("players")
+      .update({ status: nextStatus })
+      .eq("id", selectedPlayer.id);
+
+    setIsStatusWorking(false);
+
+    if (error) {
+      showError(`Status update failed: ${error.message}`);
+      return;
+    }
+
+    setPlayers((prev) =>
+      prev.map((player) =>
+        player.id === selectedPlayer.id
+          ? {
+              ...player,
+              status: nextStatus,
+            }
+          : player
+      )
+    );
+
+    showNotice(
+      nextStatus === "inactive"
+        ? `${selectedPlayer.character_name} deactivated.`
+        : `${selectedPlayer.character_name} activated.`
+    );
+  };
+
+  const handleDeletePlayer = async () => {
+    if (!selectedPlayer) {
+      showError("No player selected.");
+      return;
+    }
+
+    const firstConfirm = window.confirm(
+      `DELETE PERMANENT ${selectedPlayer.character_name}? Data ID Card akan dihapus dari players. Gunakan ini hanya untuk akun test / salah approve.`
+    );
+
+    if (!firstConfirm) return;
+
+    const secondConfirm = window.confirm(
+      `Yakin banget hapus ${selectedPlayer.character_name}? Ini tidak bisa dibatalkan.`
+    );
+
+    if (!secondConfirm) return;
+
+    setIsDeleting(true);
+    setErrorMessage("");
+
+    const playerId = selectedPlayer.id;
+    const playerName = selectedPlayer.character_name;
+
+    const relatedTables = [
+      "player_cosmetics",
+      "fortune_number_entries",
+      "fortune_logs",
+      "currency_logs",
+      "access_logs",
+    ];
+
+    for (const table of relatedTables) {
+      const { error } = await supabase.from(table).delete().eq("player_id", playerId);
+
+      if (error) {
+        setIsDeleting(false);
+        showError(`Delete related data failed at ${table}: ${error.message}`);
+        return;
+      }
+    }
+
+    const { error: deletePlayerError } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", playerId);
+
+    setIsDeleting(false);
+
+    if (deletePlayerError) {
+      showError(`Delete player failed: ${deletePlayerError.message}`);
+      return;
+    }
+
+    const remainingPlayers = players.filter((player) => player.id !== playerId);
+    setPlayers(remainingPlayers);
+    setSelectedPlayerId(remainingPlayers[0]?.id || "");
+
+    showNotice(`${playerName} deleted permanently.`);
   };
 
   return (
@@ -328,7 +460,8 @@ export default function LunariaAdminPanel() {
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
               Panel admin untuk approve registrasi, membuat access code, update
-              ID card, rank, skill, inventory, currency, dan quest record.
+              ID card, rank, skill, inventory, currency, quest record, status,
+              foto, dan penghapusan ID Card.
             </p>
           </div>
 
@@ -367,8 +500,13 @@ export default function LunariaAdminPanel() {
         />
         <StatCard
           label="Active Adventurers"
-          value={String(players.length)}
+          value={String(activePlayers.length)}
           tone="text-emerald-300"
+        />
+        <StatCard
+          label="Inactive ID Cards"
+          value={String(inactivePlayers.length)}
+          tone="text-red-300"
         />
         <StatCard
           label="Approved Requests"
@@ -377,7 +515,6 @@ export default function LunariaAdminPanel() {
           )}
           tone="text-sky-300"
         />
-        <StatCard label="Currency Logs" value="Live Soon" tone="text-violet-300" />
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
@@ -469,11 +606,36 @@ export default function LunariaAdminPanel() {
                 >
                   {players.map((player) => (
                     <option key={player.id} value={player.id}>
-                      {player.character_name}
+                      {player.character_name} — {player.status}
                     </option>
                   ))}
                 </select>
               </label>
+
+              <div
+                className={`rounded-3xl border p-5 ${
+                  selectedPlayer.status === "active"
+                    ? "border-emerald-400/20 bg-emerald-400/10"
+                    : "border-red-400/20 bg-red-400/10"
+                }`}
+              >
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">
+                  Current Status
+                </p>
+                <p
+                  className={`mt-2 text-3xl font-black uppercase ${
+                    selectedPlayer.status === "active"
+                      ? "text-emerald-300"
+                      : "text-red-300"
+                  }`}
+                >
+                  {selectedPlayer.status}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Active bisa login. Inactive tidak bisa login, tapi data ID Card
+                  tetap tersimpan.
+                </p>
+              </div>
 
               <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
                 <p className="text-xs uppercase tracking-[0.24em] text-sky-300">
@@ -533,6 +695,20 @@ export default function LunariaAdminPanel() {
                   onChange={(value) => updateSelectedPlayer("pathway", value)}
                 />
               </div>
+
+              <SelectField
+                label="Status"
+                value={selectedPlayer.status}
+                options={statusOptions}
+                onChange={(value) => updateSelectedPlayer("status", value)}
+              />
+
+              <AdminInput
+                label="Photo URL"
+                value={selectedPlayer.photo_url || ""}
+                onChange={(value) => updateSelectedPlayer("photo_url", value)}
+                placeholder="https://example.com/character-photo.png"
+              />
 
               <AdminInput
                 label="Mission"
@@ -669,6 +845,43 @@ export default function LunariaAdminPanel() {
               >
                 {isSaving ? "Saving..." : "Save Update"}
               </button>
+
+              <div className="rounded-[28px] border border-red-400/25 bg-red-950/20 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.26em] text-red-300">
+                  Danger Zone
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Gunakan Deactivate untuk member keluar / banned. Gunakan Delete
+                  hanya untuk akun test, salah approve, atau data palsu.
+                </p>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <button
+                    onClick={handleToggleStatus}
+                    disabled={isStatusWorking || isDeleting}
+                    className={`rounded-2xl border px-4 py-4 text-sm font-black uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selectedPlayer.status === "active"
+                        ? "border-red-400/30 bg-red-400/10 text-red-300 hover:bg-red-400/20"
+                        : "border-emerald-400/30 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20"
+                    }`}
+                  >
+                    {isStatusWorking
+                      ? "Working..."
+                      : selectedPlayer.status === "active"
+                      ? "Deactivate ID"
+                      : "Activate ID"}
+                  </button>
+
+                  <button
+                    onClick={handleDeletePlayer}
+                    disabled={isDeleting || isStatusWorking}
+                    className="rounded-2xl border border-red-500/40 bg-red-500/15 px-4 py-4 text-sm font-black uppercase tracking-[0.16em] text-red-200 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete ID Card"}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -691,11 +904,12 @@ export default function LunariaAdminPanel() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-separate border-spacing-y-3">
+          <table className="w-full min-w-[1200px] border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
                 <th className="px-4 py-2">ID</th>
                 <th className="px-4 py-2">Name</th>
+                <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2">Rank</th>
                 <th className="px-4 py-2">Pathway</th>
                 <th className="px-4 py-2">Currency</th>
@@ -715,6 +929,17 @@ export default function LunariaAdminPanel() {
                   </td>
                   <td className="px-4 py-4 font-black text-white">
                     {player.character_name}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${
+                        player.status === "active"
+                          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                          : "border-red-400/20 bg-red-400/10 text-red-300"
+                      }`}
+                    >
+                      {player.status}
+                    </span>
                   </td>
                   <td className="px-4 py-4">
                     <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300">
@@ -811,10 +1036,12 @@ function AdminInput({
   label,
   value,
   onChange,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  placeholder?: string;
 }) {
   return (
     <label className="block">
@@ -823,6 +1050,7 @@ function AdminInput({
       </span>
       <input
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         className="lunaria-admin-input"
       />
