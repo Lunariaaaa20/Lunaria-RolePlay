@@ -16,9 +16,10 @@ type LunariaSession = {
 function getStoredSession(): LunariaSession | null {
   if (typeof window === "undefined") return null;
 
-  const localSession = localStorage.getItem("lunaria_session");
   const sessionSession = sessionStorage.getItem("lunaria_session");
-  const rawSession = localSession || sessionSession;
+  const localSession = localStorage.getItem("lunaria_session");
+
+  const rawSession = sessionSession || localSession;
 
   if (!rawSession) return null;
 
@@ -36,8 +37,24 @@ export default function UserDropdown() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  const refreshSession = () => {
     setSession(getStoredSession());
+  };
+
+  useEffect(() => {
+    refreshSession();
+
+    const handleStorage = () => {
+      refreshSession();
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", handleStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -82,10 +99,20 @@ export default function UserDropdown() {
   }, [session]);
 
   const handleLogout = () => {
-    localStorage.removeItem("lunaria_session");
-    sessionStorage.removeItem("lunaria_session");
+    try {
+      localStorage.removeItem("lunaria_session");
+      sessionStorage.removeItem("lunaria_session");
+
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      // ignore storage error
+    }
+
+    setSession(null);
     setIsOpen(false);
-    window.location.href = "/signin";
+
+    window.location.replace("/logout");
   };
 
   const accountLink = session?.role === "admin" ? "/basic-tables" : "/profile";
@@ -96,6 +123,7 @@ export default function UserDropdown() {
         type="button"
         onClick={(event) => {
           event.stopPropagation();
+          refreshSession();
           setIsOpen((prev) => !prev);
         }}
         className="flex items-center gap-3 rounded-2xl border border-amber-400/20 bg-white/[0.04] px-3 py-2 text-slate-200 shadow-[0_0_28px_rgba(245,158,11,0.08)] transition hover:border-amber-400/35 hover:bg-amber-500/10"
@@ -212,6 +240,13 @@ export default function UserDropdown() {
                 </span>
                 Logout
               </button>
+
+              <Link
+                href="/logout"
+                className="flex w-full items-center gap-3 rounded-2xl border border-red-400/20 bg-black/25 px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-red-300 transition hover:border-red-300/40 hover:bg-red-400/10"
+              >
+                Force Logout
+              </Link>
             </div>
           </div>
 
