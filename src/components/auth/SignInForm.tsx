@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type PlayerSession = {
@@ -18,28 +18,12 @@ type AdminSession = {
   username: string;
 };
 
-type Particle = {
-  left: string;
-  top: string;
-  size: number;
-  delay: string;
-  duration: string;
-};
+const ADMIN_ACCESS_CODE = "Dyzen-Lucia-9955";
 
-const ADMIN_CODE = "Dyzen-Lucia-9955";
-
-const particles: Particle[] = [
-  { left: "8%", top: "16%", size: 5, delay: "0s", duration: "8s" },
-  { left: "14%", top: "72%", size: 4, delay: "1.2s", duration: "9s" },
-  { left: "21%", top: "36%", size: 6, delay: "2s", duration: "7.8s" },
-  { left: "30%", top: "12%", size: 4, delay: "0.7s", duration: "8.6s" },
-  { left: "42%", top: "68%", size: 5, delay: "1.7s", duration: "9.4s" },
-  { left: "52%", top: "24%", size: 7, delay: "0.4s", duration: "8.4s" },
-  { left: "63%", top: "74%", size: 4, delay: "2.4s", duration: "9.2s" },
-  { left: "72%", top: "30%", size: 6, delay: "1.1s", duration: "7.6s" },
-  { left: "82%", top: "18%", size: 5, delay: "2.1s", duration: "8.8s" },
-  { left: "90%", top: "62%", size: 4, delay: "1.5s", duration: "9.8s" },
-];
+// Kalau nanti punya URL background foto fantasy malam,
+// tempel di sini. Contoh:
+// const BACKGROUND_IMAGE_URL = "https://....jpg";
+const BACKGROUND_IMAGE_URL = "https://cdn.phototourl.com/free/2026-06-09-b13b591d-0018-4868-9d3a-e25a286f768b.png";
 
 export default function SignInForm() {
   const [mode, setMode] = useState<"player" | "admin">("player");
@@ -51,6 +35,22 @@ export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  const welcomeText = useMemo(() => {
+    if (mode === "player") {
+      return {
+        title: "Welcome, Adventurer",
+        text: "Masukkan nama yang telah disumpah dan kode akses dari Guild Registry. Hanya ID Card aktif yang dapat melewati gerbang ini.",
+        badge: "Player Gate",
+      };
+    }
+
+    return {
+      title: "Welcome, Guild Master",
+      text: "Masukkan kode admin untuk membuka ruang kontrol Lunaria: approval, ID Card, ekonomi, dan sistem guild.",
+      badge: "Admin Gate",
+    };
+  }, [mode]);
 
   const saveSession = (session: PlayerSession | AdminSession) => {
     const payload = {
@@ -102,6 +102,7 @@ export default function SignInForm() {
       )
       .eq("username", cleanUsername)
       .eq("access_code", cleanCode)
+      .eq("status", "active")
       .maybeSingle();
 
     setIsLoading(false);
@@ -112,12 +113,7 @@ export default function SignInForm() {
     }
 
     if (!data) {
-      setErrorMessage("Username atau access code salah.");
-      return;
-    }
-
-    if (data.status !== "active") {
-      setErrorMessage("ID Card ini inactive. Hubungi admin Lunaria.");
+      setErrorMessage("Username atau access code salah, atau akun belum aktif.");
       return;
     }
 
@@ -130,11 +126,11 @@ export default function SignInForm() {
       pathway: data.pathway,
     });
 
-    setNotice(`Welcome back, ${data.character_name}. Membuka ID Card...`);
+    setNotice(`Welcome, ${data.character_name}. Redirecting to ID Card...`);
 
     setTimeout(() => {
       window.location.href = "/profile";
-    }, 850);
+    }, 800);
   };
 
   const handleAdminLogin = (event: React.FormEvent<HTMLFormElement>) => {
@@ -143,12 +139,7 @@ export default function SignInForm() {
 
     const cleanAdminCode = adminCode.trim();
 
-    if (!cleanAdminCode) {
-      setErrorMessage("Admin code wajib diisi.");
-      return;
-    }
-
-    if (cleanAdminCode !== ADMIN_CODE) {
+    if (cleanAdminCode !== ADMIN_ACCESS_CODE) {
       setErrorMessage("Admin code salah.");
       return;
     }
@@ -158,94 +149,87 @@ export default function SignInForm() {
       username: "Guild Admin",
     });
 
-    setNotice("Admin access granted. Membuka Admin Panel...");
+    setNotice("Admin access granted. Redirecting to Admin Panel...");
 
     setTimeout(() => {
       window.location.href = "/basic-tables";
-    }, 850);
+    }, 800);
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#03040b] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.22),transparent_34%),radial-gradient(circle_at_center,rgba(14,165,233,0.08),transparent_44%)]" />
-
-      <div className="pointer-events-none fixed inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:42px_42px]" />
-
-      <div className="lunaria-mist lunaria-mist-left" />
-      <div className="lunaria-mist lunaria-mist-right" />
-      <div className="lunaria-orb lunaria-orb-gold" />
-      <div className="lunaria-orb lunaria-orb-violet" />
-
-      {particles.map((particle, index) => (
-        <span
-          key={index}
-          className="lunaria-particle"
-          style={{
-            left: particle.left,
-            top: particle.top,
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            animationDelay: particle.delay,
-            animationDuration: particle.duration,
-          }}
+    <div className="relative min-h-dvh overflow-hidden bg-[#03040b] text-slate-100">
+      {BACKGROUND_IMAGE_URL ? (
+        <div
+          className="pointer-events-none fixed inset-0 bg-cover bg-center opacity-45"
+          style={{ backgroundImage: `url(${BACKGROUND_IMAGE_URL})` }}
         />
-      ))}
+      ) : null}
 
-      <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-7 sm:px-6 lg:px-8">
-        <section className="grid w-full max-w-7xl grid-cols-1 overflow-hidden rounded-[34px] border border-amber-400/20 bg-black/45 shadow-[0_0_90px_rgba(245,158,11,0.12)] backdrop-blur-xl lg:grid-cols-12">
-          <aside className="relative hidden min-h-[720px] overflow-hidden border-r border-amber-400/15 bg-gradient-to-br from-black via-slate-950 to-violet-950/60 p-9 lg:col-span-5 lg:block">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.10),transparent_32%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(245,158,11,0.20),transparent_28%),radial-gradient(circle_at_88%_22%,rgba(124,58,237,0.22),transparent_32%),radial-gradient(circle_at_50%_100%,rgba(14,165,233,0.12),transparent_35%),linear-gradient(135deg,#050611,#070812_45%,#02030a)]" />
+
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:58px_58px] opacity-70" />
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <span className="gate-particle left-[8%] top-[18%] animation-delay-0" />
+        <span className="gate-particle left-[18%] top-[74%] animation-delay-700" />
+        <span className="gate-particle left-[42%] top-[12%] animation-delay-1000" />
+        <span className="gate-particle left-[64%] top-[82%] animation-delay-300" />
+        <span className="gate-particle left-[82%] top-[28%] animation-delay-1500" />
+        <span className="gate-particle left-[92%] top-[66%] animation-delay-500" />
+      </div>
+
+      <main className="relative z-10 flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+        <section className="grid w-full max-w-7xl grid-cols-1 overflow-hidden rounded-[34px] border border-amber-400/20 bg-black/50 shadow-[0_0_90px_rgba(245,158,11,0.12)] backdrop-blur-xl lg:grid-cols-12">
+          <aside className="relative hidden min-h-[720px] overflow-hidden border-r border-amber-400/15 bg-gradient-to-br from-black via-slate-950 to-violet-950/70 p-8 xl:col-span-5 xl:block">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.20),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.26),transparent_34%)]" />
 
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.42em] text-amber-300">
+                <p className="text-xs font-black uppercase tracking-[0.45em] text-amber-300">
                   Lunaria
                 </p>
 
-                <h1 className="mt-5 max-w-md text-5xl font-black leading-[1.08] text-white xl:text-6xl">
-                  Roleplay Guild Access Gate
+                <h1 className="mt-5 text-5xl font-black leading-[1.05] text-white">
+                  Roleplay
+                  <br />
+                  Guild Access
+                  <br />
+                  Gate
                 </h1>
 
-                <p className="mt-6 max-w-md text-sm leading-7 text-slate-300">
-                  Gerbang resmi untuk adventurer dan admin Lunaria. Hanya ID yang
-                  sudah disetujui Guild Registry yang dapat masuk ke sistem.
+                <p className="mt-6 max-w-md text-sm leading-7 text-slate-400">
+                  Gerbang resmi untuk adventurer dan admin Lunaria. Hanya ID
+                  yang sudah disetujui Guild Registry yang dapat masuk ke sistem.
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div className="rounded-[28px] border border-amber-400/20 bg-amber-500/10 p-5">
-                  <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
                     Gatekeeper Message
                   </p>
-                  <p className="mt-3 text-sm leading-7 text-slate-200">
-                    “Masukkan nama yang telah disumpah oleh guild. Jika lentera
-                    arsip menyala, gerbang Lunaria akan terbuka.”
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    “Masukkan nama yang telah disumpah di bawah cahaya guild,
+                    lalu biarkan gerbang mengenali jejakmu.”
                   </p>
                 </div>
 
-                <InfoPanel
-                  title="Player Access"
-                  text="Player memakai username dan access code dari Admin Panel setelah registrasi di-approve."
-                  icon="⚜"
-                />
-
-                <InfoPanel
-                  title="Admin Control"
-                  text="Admin memakai kode khusus untuk approval, edit ID Card, status, foto, currency, dan quest record."
-                  icon="♛"
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <MiniLoreCard label="Registry" value="Active" />
+                  <MiniLoreCard label="Access" value="Sealed" />
+                </div>
               </div>
             </div>
           </aside>
 
-          <section className="relative lg:col-span-7">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(124,58,237,0.14),transparent_34%)]" />
+          <section className="relative xl:col-span-7">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.10),transparent_34%)]" />
 
             <div className="relative z-10 p-5 sm:p-8 lg:p-10">
-              <div className="mb-8 flex items-center justify-between gap-4">
+              <div className="mb-7 flex items-center justify-between gap-4">
                 <Link
                   href="/"
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-300 transition hover:border-amber-400/30 hover:text-amber-300"
+                  className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-300 transition hover:border-amber-400/30 hover:text-amber-300"
                 >
                   Back
                 </Link>
@@ -255,29 +239,36 @@ export default function SignInForm() {
                 </div>
               </div>
 
-              <div className="mb-7 rounded-[28px] border border-white/10 bg-white/[0.035] p-5 lg:hidden">
-                <p className="text-xs font-black uppercase tracking-[0.30em] text-amber-300">
+              <div className="mb-7 rounded-[28px] border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
                   Welcome to Lunaria
                 </p>
-                <h1 className="mt-3 text-3xl font-black text-white">
-                  Guild Access Gate
-                </h1>
-                <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Portal khusus adventurer dan admin. Masuk memakai credential
-                  yang diberikan setelah registrasi di-approve.
+
+                <h2 className="mt-3 text-2xl font-black text-white sm:text-3xl">
+                  {welcomeText.title}
+                </h2>
+
+                <p className="mt-3 text-sm leading-7 text-slate-400">
+                  {welcomeText.text}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
-                  Access Verification
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.28em] text-amber-300">
+                    Access Verification
+                  </p>
 
-                <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
+                  <span className="rounded-full border border-violet-400/25 bg-violet-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">
+                    {welcomeText.badge}
+                  </span>
+                </div>
+
+                <h3 className="mt-3 text-3xl font-black text-white sm:text-4xl">
                   Sign In
-                </h2>
+                </h3>
 
-                <p className="mt-3 text-sm leading-7 text-slate-400">
+                <p className="mt-3 text-sm leading-6 text-slate-400">
                   Pilih mode login. Player memakai credential dari Admin Panel.
                   Admin memakai kode khusus.
                 </p>
@@ -291,10 +282,10 @@ export default function SignInForm() {
                     resetMessages();
                     setShowCode(false);
                   }}
-                  className={`rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-[0.18em] transition ${
+                  className={`rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-[0.16em] transition ${
                     mode === "player"
-                      ? "border border-amber-400/35 bg-gradient-to-r from-amber-600/35 via-amber-500/20 to-violet-600/15 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.12)]"
-                      : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+                      ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-violet-500/20 text-amber-200 shadow-[0_0_24px_rgba(245,158,11,0.10)]"
+                      : "text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   Player
@@ -307,10 +298,10 @@ export default function SignInForm() {
                     resetMessages();
                     setShowCode(false);
                   }}
-                  className={`rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-[0.18em] transition ${
+                  className={`rounded-2xl px-4 py-4 text-sm font-black uppercase tracking-[0.16em] transition ${
                     mode === "admin"
-                      ? "border border-violet-400/35 bg-gradient-to-r from-violet-600/35 via-violet-500/20 to-amber-600/15 text-violet-200 shadow-[0_0_24px_rgba(124,58,237,0.12)]"
-                      : "text-slate-500 hover:bg-white/[0.04] hover:text-slate-300"
+                      ? "border border-violet-400/30 bg-gradient-to-r from-violet-500/20 to-amber-500/20 text-violet-200 shadow-[0_0_24px_rgba(124,58,237,0.10)]"
+                      : "text-slate-500 hover:text-slate-300"
                   }`}
                 >
                   Admin
@@ -337,7 +328,8 @@ export default function SignInForm() {
                       onChange={(event) => setUsername(event.target.value)}
                       placeholder="Example: dyzen384"
                       className="lunaria-gate-input"
-                      autoComplete="username"
+                      autoComplete="off"
+                      name="lunaria-player-username"
                     />
                   </Field>
 
@@ -349,13 +341,14 @@ export default function SignInForm() {
                         type={showCode ? "text" : "password"}
                         placeholder="Example: DYZE-1899"
                         className="lunaria-gate-input pr-28"
-                        autoComplete="current-password"
+                        autoComplete="new-password"
+                        name="lunaria-player-access-code"
                       />
 
                       <button
                         type="button"
                         onClick={() => setShowCode((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400 transition hover:border-amber-400/25 hover:text-amber-300"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400"
                       >
                         {showCode ? "Hide" : "Show"}
                       </button>
@@ -375,7 +368,7 @@ export default function SignInForm() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-700/40 via-amber-500/25 to-violet-700/30 px-5 py-5 text-sm font-black uppercase tracking-[0.24em] text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.10)] transition hover:border-amber-300/50 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-600/35 via-amber-500/20 to-violet-600/25 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-amber-100 shadow-[0_0_28px_rgba(245,158,11,0.12)] transition hover:border-amber-300/50 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isLoading ? "Checking..." : "Enter Guild System"}
                   </button>
@@ -390,12 +383,14 @@ export default function SignInForm() {
                         type={showCode ? "text" : "password"}
                         placeholder="Enter admin code"
                         className="lunaria-gate-input pr-28"
+                        autoComplete="new-password"
+                        name="lunaria-admin-gate-code"
                       />
 
                       <button
                         type="button"
                         onClick={() => setShowCode((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400 transition hover:border-violet-400/25 hover:text-violet-300"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400"
                       >
                         {showCode ? "Hide" : "Show"}
                       </button>
@@ -414,21 +409,10 @@ export default function SignInForm() {
 
                   <button
                     type="submit"
-                    className="w-full rounded-2xl border border-violet-400/30 bg-gradient-to-r from-violet-700/40 via-violet-500/25 to-amber-700/25 px-5 py-5 text-sm font-black uppercase tracking-[0.24em] text-violet-100 shadow-[0_0_30px_rgba(124,58,237,0.10)] transition hover:border-violet-300/50 hover:brightness-110"
+                    className="w-full rounded-2xl border border-violet-400/30 bg-gradient-to-r from-violet-600/35 via-violet-500/20 to-amber-600/25 px-5 py-4 text-sm font-black uppercase tracking-[0.22em] text-violet-100 shadow-[0_0_28px_rgba(124,58,237,0.12)] transition hover:border-violet-300/50 hover:bg-violet-500/20"
                   >
                     Enter Admin Panel
                   </button>
-
-                  <div className="rounded-3xl border border-red-400/20 bg-red-400/10 p-5">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-red-300">
-                      Admin Route
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-300">
-                      Untuk MVP, admin code masih disimpan di frontend. Nanti
-                      tahap final bisa dipindahkan ke server/API agar lebih aman.
-                    </p>
-                  </div>
                 </form>
               )}
 
@@ -437,7 +421,7 @@ export default function SignInForm() {
                   Registration
                 </p>
 
-                <p className="mt-2 text-sm leading-7 text-slate-300">
+                <p className="mt-2 text-sm leading-6 text-slate-300">
                   Belum punya access code? Daftar dulu lewat Registration,
                   tunggu admin approve, lalu admin akan mengirim username dan
                   access code.
@@ -445,7 +429,7 @@ export default function SignInForm() {
 
                 <Link
                   href="/form-elements"
-                  className="mt-4 inline-flex rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-sky-300 transition hover:bg-sky-500/20"
+                  className="mt-4 inline-flex rounded-2xl border border-sky-400/25 bg-sky-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-sky-300"
                 >
                   Open Registration
                 </Link>
@@ -458,14 +442,13 @@ export default function SignInForm() {
       <style jsx>{`
         .lunaria-gate-input {
           width: 100%;
-          border-radius: 1.15rem;
+          border-radius: 1rem;
           border: 1px solid rgba(245, 158, 11, 0.18);
-          background: rgba(2, 6, 23, 0.74);
-          padding: 1rem 1rem;
+          background: rgba(0, 0, 0, 0.36);
+          padding: 0.95rem 1rem;
           color: rgb(241, 245, 249);
           outline: none;
           transition: 180ms ease;
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
         }
 
         .lunaria-gate-input::placeholder {
@@ -473,100 +456,59 @@ export default function SignInForm() {
         }
 
         .lunaria-gate-input:focus {
-          border-color: rgba(245, 158, 11, 0.48);
-          box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+          border-color: rgba(245, 158, 11, 0.52);
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
         }
 
-        .lunaria-particle {
-          position: fixed;
-          z-index: 1;
+        .gate-particle {
+          position: absolute;
+          width: 6px;
+          height: 6px;
           border-radius: 9999px;
-          background: radial-gradient(
-            circle,
-            rgba(250, 204, 21, 0.95) 0%,
-            rgba(250, 204, 21, 0.35) 42%,
-            rgba(250, 204, 21, 0) 78%
-          );
-          pointer-events: none;
-          animation-name: lunaria-float;
-          animation-timing-function: ease-in-out;
-          animation-iteration-count: infinite;
+          background: rgba(245, 158, 11, 0.8);
+          box-shadow: 0 0 22px rgba(245, 158, 11, 0.7);
+          animation: floatGate 7s ease-in-out infinite;
         }
 
-        .lunaria-mist {
-          position: fixed;
-          border-radius: 9999px;
-          filter: blur(70px);
-          opacity: 0.22;
-          pointer-events: none;
-          animation: lunaria-drift 18s ease-in-out infinite;
+        .animation-delay-0 {
+          animation-delay: 0ms;
         }
 
-        .lunaria-mist-left {
-          left: -120px;
-          top: 80px;
-          width: 360px;
-          height: 360px;
-          background: rgba(245, 158, 11, 0.22);
+        .animation-delay-300 {
+          animation-delay: 300ms;
         }
 
-        .lunaria-mist-right {
-          right: -140px;
-          bottom: 60px;
-          width: 430px;
-          height: 430px;
-          background: rgba(124, 58, 237, 0.22);
-          animation-duration: 22s;
+        .animation-delay-500 {
+          animation-delay: 500ms;
         }
 
-        .lunaria-orb {
-          position: fixed;
-          border-radius: 9999px;
-          filter: blur(95px);
-          pointer-events: none;
-          opacity: 0.16;
+        .animation-delay-700 {
+          animation-delay: 700ms;
         }
 
-        .lunaria-orb-gold {
-          left: 18%;
-          bottom: -80px;
-          width: 260px;
-          height: 260px;
-          background: rgba(245, 158, 11, 0.24);
+        .animation-delay-1000 {
+          animation-delay: 1000ms;
         }
 
-        .lunaria-orb-violet {
-          right: 18%;
-          top: -80px;
-          width: 280px;
-          height: 280px;
-          background: rgba(99, 102, 241, 0.24);
+        .animation-delay-1500 {
+          animation-delay: 1500ms;
         }
 
-        @keyframes lunaria-float {
+        @keyframes floatGate {
           0% {
-            transform: translateY(0px) scale(1);
-            opacity: 0.28;
+            transform: translateY(0) scale(0.8);
+            opacity: 0.2;
+          }
+          35% {
+            opacity: 1;
           }
           50% {
-            transform: translateY(-14px) scale(1.18);
-            opacity: 0.9;
+            transform: translateY(-42px) scale(1.15);
+            opacity: 0.85;
           }
           100% {
-            transform: translateY(0px) scale(1);
-            opacity: 0.28;
-          }
-        }
-
-        @keyframes lunaria-drift {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          50% {
-            transform: translate3d(28px, -18px, 0);
-          }
-          100% {
-            transform: translate3d(0, 0, 0);
+            transform: translateY(-84px) scale(0.8);
+            opacity: 0;
           }
         }
       `}</style>
@@ -591,27 +533,13 @@ function Field({
   );
 }
 
-function InfoPanel({
-  title,
-  text,
-  icon,
-}: {
-  title: string;
-  text: string;
-  icon: string;
-}) {
+function MiniLoreCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-sm">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-400/25 bg-amber-500/10 text-xl">
-          {icon}
-        </div>
-
-        <div>
-          <p className="font-black text-white">{title}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
-        </div>
-      </div>
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black text-white">{value}</p>
     </div>
   );
-}
+    }
