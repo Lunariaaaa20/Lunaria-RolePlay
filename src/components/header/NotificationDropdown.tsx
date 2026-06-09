@@ -245,7 +245,7 @@ export default function NotificationDropdown() {
             onClick={() => setIsOpen(false)}
           />
 
-          <div className="fixed inset-x-3 top-[86px] z-[99999] max-h-[calc(100vh-110px)] overflow-hidden rounded-[28px] border border-amber-400/20 bg-[#070812] shadow-[0_0_70px_rgba(0,0,0,0.70)] sm:absolute sm:right-0 sm:left-auto sm:top-auto sm:mt-4 sm:w-[390px] sm:max-h-[620px]">
+          <div className="fixed inset-x-3 top-[86px] z-[99999] max-h-[calc(100vh-110px)] overflow-hidden rounded-[28px] border border-amber-400/20 bg-[#070812] shadow-[0_0_70px_rgba(0,0,0,0.70)] lg:absolute lg:right-0 lg:left-auto lg:top-auto lg:mt-4 lg:w-[390px] lg:max-h-[620px]">
             <div className="border-b border-white/10 bg-gradient-to-r from-black via-slate-950 to-violet-950/60 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -271,7 +271,7 @@ export default function NotificationDropdown() {
               </div>
             </div>
 
-            <div className="max-h-[calc(100vh-280px)] overflow-y-auto overscroll-contain p-3 sm:max-h-[430px]">
+            <div className="max-h-[calc(100vh-280px)] overflow-y-auto overscroll-contain p-3 lg:max-h-[430px]">
               {isLoading ? (
                 <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 text-sm font-bold text-sky-200">
                   Loading guild reports...
@@ -280,8 +280,9 @@ export default function NotificationDropdown() {
 
               {!isLoading && logs.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">
-                  Belum ada report log. Aktivitas akan muncul setelah registration,
-                  approval, currency update, atau fortune hall berjalan.
+                  Belum ada report log. Aktivitas akan muncul setelah
+                  registration, approval, currency update, atau fortune hall
+                  berjalan.
                 </div>
               ) : null}
 
