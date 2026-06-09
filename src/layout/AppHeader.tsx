@@ -1,7 +1,9 @@
 "use client";
 
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
+import ForceLogoutButton from "@/components/auth/ForceLogoutButton";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
+import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
@@ -20,7 +22,7 @@ const AppHeader: React.FC = () => {
   };
 
   const toggleApplicationMenu = () => {
-    setApplicationMenuOpen(!isApplicationMenuOpen);
+    setApplicationMenuOpen((prev) => !prev);
   };
 
   useEffect(() => {
@@ -92,6 +94,7 @@ const AppHeader: React.FC = () => {
           <button
             onClick={toggleApplicationMenu}
             className="z-99999 flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-500/20 bg-white/[0.03] text-slate-300 transition hover:bg-amber-500/10 lg:hidden"
+            aria-label="Toggle Header Menu"
           >
             <svg
               width="24"
@@ -134,10 +137,13 @@ const AppHeader: React.FC = () => {
                   ref={inputRef}
                   type="text"
                   placeholder="Search guild records..."
-                  className="h-11 w-full rounded-2xl border border-amber-500/20 bg-black/30 py-2.5 pl-12 pr-16 text-sm text-slate-100 shadow-[0_0_20px_rgba(245,158,11,0.04)] placeholder:text-slate-500 outline-none transition focus:border-amber-400/40 focus:ring-3 focus:ring-amber-500/10 xl:w-[430px]"
+                  className="h-11 w-full rounded-2xl border border-amber-500/20 bg-black/30 py-2.5 pl-12 pr-16 text-sm text-slate-100 shadow-[0_0_20px_rgba(245,158,11,0.04)] outline-none transition placeholder:text-slate-500 focus:border-amber-400/40 focus:ring-3 focus:ring-amber-500/10 xl:w-[430px]"
                 />
 
-                <button className="absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-xl border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-300">
+                <button
+                  type="button"
+                  className="absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-xl border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-300"
+                >
                   <span>⌘</span>
                   <span>K</span>
                 </button>
@@ -154,35 +160,10 @@ const AppHeader: React.FC = () => {
           <div className="flex items-center gap-2 2xsm:gap-3">
             <ThemeToggleButton />
             <NotificationDropdown />
+            <ForceLogoutButton />
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-white/[0.03] px-3 py-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/10 text-sm font-black text-amber-300">
-              GA
-            </div>
-
-            <div className="hidden text-left sm:block">
-              <p className="text-sm font-bold text-slate-100">Guild Admin</p>
-              <p className="text-xs text-slate-500">Lunaria Control</p>
-            </div>
-
-            <svg
-              className="hidden text-slate-500 sm:block"
-              width="16"
-              height="16"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M5 7.5L10 12.5L15 7.5"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+          <UserDropdown />
         </div>
       </div>
     </header>
