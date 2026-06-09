@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -13,6 +13,14 @@ import {
   type CosmeticTheme,
   type CosmeticType,
 } from "./data/cosmeticItems";
+import {
+  canAfford,
+  formatCurrency,
+  normalizeCurrency,
+  silverToCurrency,
+  subtractCurrency,
+  type LunariaCurrency,
+} from "@/lib/lunariaCurrency";
 
 type LunariaSession = {
   role?: "admin" | "player";
@@ -74,7 +82,7 @@ function getThemePanelClass(theme: CosmeticTheme) {
 
 export default function CosmeticShopPage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
-  const [silver, setSilver] = useState<number | null>(null);
+  const [balance, setBalance] = useState<LunariaCurrency | null>(null);
   const [ownedRows, setOwnedRows] = useState<PlayerCosmeticRow[]>([]);
   const [themeFilter, setThemeFilter] = useState<FilterTheme>("all");
   const [typeFilter, setTypeFilter] = useState<FilterType>("all");
@@ -135,7 +143,10 @@ export default function CosmeticShopPage() {
     cosmeticItems[0];
 
   const ownedCount = ownedIds.length;
-  const totalPrice = cosmeticItems.reduce((sum, item) => sum + item.price, 0);
+  const totalPriceSilver = cosmeticItems.reduce(
+    (sum, item) => sum + item.price,
+    0
+  );
 
   useEffect(() => {
     const currentSession = readSession();
@@ -151,16 +162,22 @@ export default function CosmeticShopPage() {
 
     const { data: playerData, error: playerError } = await supabase
       .from("players")
-      .select("silver")
+      .select("gold, silver, bronze")
       .eq("id", playerId)
       .maybeSingle();
 
     if (playerError) {
-      showError(`Gagal membaca silver: ${playerError.message}`);
+      showError(`Gagal membaca balance: ${playerError.message}`);
       return;
     }
 
-    setSilver(Number(playerData?.silver || 0));
+    setBalance(
+      normalizeCurrency({
+        gold: Number(playerData?.gold || 0),
+        silver: Number(playerData?.silver || 0),
+        bronze: Number(playerData?.bronze || 0),
+      })
+    );
 
     const { data: cosmeticData, error: cosmeticError } = await supabase
       .from("player_cosmetics")
@@ -211,32 +228,45 @@ export default function CosmeticShopPage() {
       return;
     }
 
-    if (silver === null) {
-      showError("Balance silver belum terbaca. Refresh halaman dulu.");
+    if (!balance) {
+      showError("Balance belum terbaca. Refresh halaman dulu.");
       return;
     }
 
-    if (silver < item.price) {
-      showError(`Silver tidak cukup. Butuh ${item.price}S.`);
+    const cost = silverToCurrency(item.price);
+
+    if (!canAfford(balance, cost)) {
+      showError(
+        `Uang tidak cukup. Butuh ${formatCurrency(cost)}. Balance kamu ${formatCurrency(
+          balance
+        )}.`
+      );
       return;
     }
 
-    const ok = window.confirm(`Beli ${item.name} seharga ${item.price} Silver?`);
+    const ok = window.confirm(
+      `Beli ${item.name} seharga ${formatCurrency(cost)}?`
+    );
+
     if (!ok) return;
 
     setWorkingId(item.id);
     setError("");
 
-    const nextSilver = silver - item.price;
+    const nextBalance = subtractCurrency(balance, cost);
 
     const { error: updateError } = await supabase
       .from("players")
-      .update({ silver: nextSilver })
+      .update({
+        gold: nextBalance.gold,
+        silver: nextBalance.silver,
+        bronze: nextBalance.bronze,
+      })
       .eq("id", session.playerId);
 
     if (updateError) {
       setWorkingId("");
-      showError(`Gagal update silver: ${updateError.message}`);
+      showError(`Gagal update balance: ${updateError.message}`);
       return;
     }
 
@@ -270,7 +300,11 @@ export default function CosmeticShopPage() {
     if (insertError) {
       await supabase
         .from("players")
-        .update({ silver })
+        .update({
+          gold: balance.gold,
+          silver: balance.silver,
+          bronze: balance.bronze,
+        })
         .eq("id", session.playerId);
 
       setWorkingId("");
@@ -285,10 +319,14 @@ export default function CosmeticShopPage() {
       reason: `Purchased cosmetic: ${item.name}`,
     });
 
-    setSilver(nextSilver);
+    setBalance(nextBalance);
     setOwnedRows((prev) => [...prev, insertData as PlayerCosmeticRow]);
     setWorkingId("");
-    showNotice(`${item.name} berhasil dibeli dan tersimpan permanen.`);
+    showNotice(
+      `${item.name} berhasil dibeli. Sisa balance: ${formatCurrency(
+        nextBalance
+      )}.`
+    );
   }
 
   async function handleEquip(item: CosmeticItem) {
@@ -364,19 +402,24 @@ export default function CosmeticShopPage() {
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 md:text-base">
               Cosmetic Shop untuk Name Effect, ID Border, ID Background, Aura,
-              dan Particle Effect. Semua purchase dan equip sekarang tersimpan
-              permanen di Supabase.
+              dan Particle Effect. Payment sekarang memakai konversi resmi:
+              1G = 1000S dan 1S = 100B.
             </p>
 
             <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
               <VaultStat label="Total Item" value="25" />
               <VaultStat label="Owned" value={`${ownedCount}/25`} />
-              <VaultStat label="Full Vault" value={`${totalPrice}S`} />
               <VaultStat
-                label="Silver"
+                label="Full Vault"
+                value={formatCurrency(silverToCurrency(totalPriceSilver))}
+              />
+              <VaultStat
+                label="Balance"
                 value={
                   session?.role === "player"
-                    ? `${silver ?? "-"}S`
+                    ? balance
+                      ? formatCurrency(balance)
+                      : "-"
                     : session?.role === "admin"
                     ? "Admin"
                     : "-"
@@ -405,6 +448,9 @@ export default function CosmeticShopPage() {
                       className={`mt-1 text-sm font-bold ${featuredItem.accent}`}
                     >
                       {featuredItem.themeName}
+                    </p>
+                    <p className="mt-1 text-xs font-black text-amber-200">
+                      {formatCurrency(silverToCurrency(featuredItem.price))}
                     </p>
                   </div>
                 </div>
