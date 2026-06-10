@@ -12,9 +12,7 @@ export type CosmeticTheme =
   | "crimson-aristocrat"
   | "ethereal-yggdrasil"
   | "ivory-overlord"
-  | "sovereign-lunar-eclipse"
-  | "cosmic-eclipse"
-
+  
   // V2 themes — yang baru dipakai
   | "obsidian-monarch"
   | "blood-cathedral"
