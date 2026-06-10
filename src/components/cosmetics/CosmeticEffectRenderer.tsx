@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React from "react";
 import type { CosmeticTheme } from "./data/cosmeticItems";
@@ -18,38 +18,41 @@ type CosmeticEffectRendererProps = {
   variant?: RendererVariant;
 };
 
-type EffectVariant = "background";
+type TempestPreviewVariant = "background";
+type DivinePreviewVariant = "full";
 
 export default function CosmeticEffectRenderer({
   theme,
   variant = "card",
 }: CosmeticEffectRendererProps) {
-  const effectVariant = getEffectVariant();
-
   if (theme === "sovereign-tempest") {
-    return <SovereignTempestEffect variant={effectVariant} />;
+    return (
+      <SovereignTempestEffect
+        variant={"background" as TempestPreviewVariant}
+      />
+    );
   }
 
   if (theme === "abyssal-leviathan") {
-    return <AbyssalLeviathanEffect variant={effectVariant} />;
+    return <AbyssalLeviathanEffect variant={variant} />;
   }
 
   if (theme === "crimson-aristocrat") {
-    return <CrimsonAristocratEffect variant={effectVariant} />;
+    return <CrimsonAristocratEffect variant={variant} />;
   }
 
   if (theme === "ethereal-yggdrasil") {
-    return <EtherealYggdrasilEffect variant={effectVariant} />;
+    return <EtherealYggdrasilEffect variant={variant} />;
   }
 
   if (theme === "ivory-overlord") {
-    return <IvoryOverlordEffect variant={effectVariant} />;
+    return <IvoryOverlordEffect variant={variant} />;
   }
 
   if (theme === "sovereign-lunar-eclipse") {
     return (
       <SovereignLunarEclipseEffect
-        variant={effectVariant}
+        variant={"full" as DivinePreviewVariant}
         className={getDivineEffectClassName(variant)}
       />
     );
@@ -58,17 +61,13 @@ export default function CosmeticEffectRenderer({
   if (theme === "cosmic-eclipse") {
     return (
       <CosmicEclipseEffect
-        variant={effectVariant}
+        variant={"full" as DivinePreviewVariant}
         className={getDivineEffectClassName(variant)}
       />
     );
   }
 
   return null;
-}
-
-function getEffectVariant(): EffectVariant {
-  return "background";
 }
 
 function getDivineEffectClassName(variant: RendererVariant) {
