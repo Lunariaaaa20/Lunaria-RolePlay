@@ -11,39 +11,45 @@ import IvoryOverlordEffect from "./effects/IvoryOverlordEffect";
 import SovereignLunarEclipseEffect from "./effects/SovereignLunarEclipseEffect";
 import CosmicEclipseEffect from "./effects/CosmicEclipseEffect";
 
+type RendererVariant = "card" | "compact" | "preview";
+
 type CosmeticEffectRendererProps = {
   theme: CosmeticTheme;
-  variant?: "card" | "compact" | "preview";
+  variant?: RendererVariant;
 };
+
+type EffectVariant = "name" | "border" | "background" | "aura" | "particle" | "full";
 
 export default function CosmeticEffectRenderer({
   theme,
   variant = "card",
 }: CosmeticEffectRendererProps) {
+  const effectVariant = getEffectVariant(variant);
+
   if (theme === "sovereign-tempest") {
-    return <SovereignTempestEffect variant={variant} />;
+    return <SovereignTempestEffect variant={effectVariant} />;
   }
 
   if (theme === "abyssal-leviathan") {
-    return <AbyssalLeviathanEffect variant={variant} />;
+    return <AbyssalLeviathanEffect variant={effectVariant} />;
   }
 
   if (theme === "crimson-aristocrat") {
-    return <CrimsonAristocratEffect variant={variant} />;
+    return <CrimsonAristocratEffect variant={effectVariant} />;
   }
 
   if (theme === "ethereal-yggdrasil") {
-    return <EtherealYggdrasilEffect variant={variant} />;
+    return <EtherealYggdrasilEffect variant={effectVariant} />;
   }
 
   if (theme === "ivory-overlord") {
-    return <IvoryOverlordEffect variant={variant} />;
+    return <IvoryOverlordEffect variant={effectVariant} />;
   }
 
   if (theme === "sovereign-lunar-eclipse") {
     return (
       <SovereignLunarEclipseEffect
-        variant="full"
+        variant={effectVariant}
         className={getDivineEffectClassName(variant)}
       />
     );
@@ -52,7 +58,7 @@ export default function CosmeticEffectRenderer({
   if (theme === "cosmic-eclipse") {
     return (
       <CosmicEclipseEffect
-        variant="full"
+        variant={effectVariant}
         className={getDivineEffectClassName(variant)}
       />
     );
@@ -61,7 +67,11 @@ export default function CosmeticEffectRenderer({
   return null;
 }
 
-function getDivineEffectClassName(variant: "card" | "compact" | "preview") {
+function getEffectVariant(_variant: RendererVariant): EffectVariant {
+  return "full";
+}
+
+function getDivineEffectClassName(variant: RendererVariant) {
   if (variant === "compact") {
     return "absolute inset-0 rounded-[24px] opacity-80";
   }
