@@ -1,4 +1,4 @@
-export type CosmeticType =
+ export type CosmeticType =
   | "name_effect"
   | "border"
   | "background"
@@ -10,14 +10,17 @@ export type CosmeticTheme =
   | "abyssal-leviathan"
   | "crimson-aristocrat"
   | "ethereal-yggdrasil"
-  | "ivory-overlord";
+  | "ivory-overlord"
+  | "sovereign-lunar-eclipse"
+  | "cosmic-eclipse";
 
 export type CosmeticRarity =
   | "Common"
   | "Rare"
   | "Epic"
   | "Legendary"
-  | "Mythic";
+  | "Mythic"
+  | "Divine Relic";
 
 export type CosmeticItem = {
   id: string;
@@ -76,6 +79,24 @@ export const cosmeticThemes = [
     icon: "♛",
     mood: "Soulfire Dominion",
     color: "from-cyan-300/20 via-slate-200/10 to-blue-500/20",
+  },
+  {
+    id: "sovereign-lunar-eclipse",
+    name: "Sovereign Lunar Eclipse",
+    subtitle:
+      "Bulan purnama, kristal lunar, istana cahaya, dan keagungan suci.",
+    icon: "◐",
+    mood: "Moonlit Divinity",
+    color: "from-white/25 via-amber-200/20 to-sky-300/18",
+  },
+  {
+    id: "cosmic-eclipse",
+    name: "Cosmic Eclipse",
+    subtitle:
+      "Gerhana merah, obsidian, kuil runtuh, dan corona kosmik terlarang.",
+    icon: "●",
+    mood: "Forbidden Eclipse",
+    color: "from-red-500/25 via-zinc-950/35 to-amber-700/18",
   },
 ] as const;
 
@@ -524,6 +545,186 @@ export const cosmeticItems: CosmeticItem[] = [
     visualQuality: "Floating soulfire ash",
     previewLabel: "Overlord Soul Ash",
   },
+
+  // =========================================================
+  // SOVEREIGN LUNAR ECLIPSE — BULAN PURNAMA & KRISTAL LUNAR
+  // Total set value: 2000S = 2G
+  // =========================================================
+  {
+    id: "lunar-eclipse-name-01",
+    name: "Lunar Crystal Sovereign Name",
+    theme: "sovereign-lunar-eclipse",
+    themeName: "Sovereign Lunar Eclipse",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Divine Relic",
+    price: 450,
+    icon: "◐",
+    accent: "text-sky-100",
+    shortDescription: "Nama kristal lunar dengan ukiran emas putih.",
+    description:
+      "Efek nama tingkat Divine Relic. Huruf tampak seperti kristal bulan transparan dengan tepian emas putih, shimmer safir, dan denyut cahaya purnama yang bergerak lembut dari dalam teks.",
+    visualQuality: "3D lunar crystal text shimmer",
+    previewLabel: "Lunar Crystal Name",
+  },
+  {
+    id: "lunar-eclipse-border-01",
+    name: "White-Gold Moon Palace Frame",
+    theme: "sovereign-lunar-eclipse",
+    themeName: "Sovereign Lunar Eclipse",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Divine Relic",
+    price: 350,
+    icon: "☾",
+    accent: "text-amber-100",
+    shortDescription: "Border istana bulan dengan filigree emas putih.",
+    description:
+      "Bingkai ID Card bergaya arsitektur istana lunar, dihiasi garis kristal, filigree emas putih, dan kilau safir yang memberi kesan lisensi milik bangsawan bulan.",
+    visualQuality: "White-gold lunar palace frame",
+    previewLabel: "Moon Palace Frame",
+  },
+  {
+    id: "lunar-eclipse-background-01",
+    name: "Sovereign Fullmoon Palace",
+    theme: "sovereign-lunar-eclipse",
+    themeName: "Sovereign Lunar Eclipse",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Divine Relic",
+    price: 500,
+    icon: "🌕",
+    accent: "text-blue-100",
+    shortDescription: "Istana kristal di bawah bulan purnama raksasa.",
+    description:
+      "Background profil premium berupa lautan malam tenang, istana lunar transparan di kejauhan, awan emas lembut, dan bulan purnama besar yang memantulkan cahaya putih-safir pada seluruh ID Card.",
+    visualQuality: "Layered fullmoon palace parallax",
+    previewLabel: "Fullmoon Palace Realm",
+  },
+  {
+    id: "lunar-eclipse-aura-01",
+    name: "Sovereign Moon Halo Aura",
+    theme: "sovereign-lunar-eclipse",
+    themeName: "Sovereign Lunar Eclipse",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Divine Relic",
+    price: 450,
+    icon: "◎",
+    accent: "text-white",
+    shortDescription: "Halo bulan putih-emas yang mengorbit avatar.",
+    description:
+      "Aura avatar berupa cahaya putih keemasan, cincin lunar vertikal yang berputar pelan, dan partikel bulan yang jatuh lembut. Terlihat suci, mahal, dan sangat royal.",
+    visualQuality: "Rotating sovereign lunar halo",
+    previewLabel: "Moon Halo Aura",
+  },
+  {
+    id: "lunar-eclipse-particle-01",
+    name: "Falling Moonlight Dust",
+    theme: "sovereign-lunar-eclipse",
+    themeName: "Sovereign Lunar Eclipse",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 250,
+    icon: "✧",
+    accent: "text-amber-100",
+    shortDescription: "Serbuk cahaya bulan yang turun perlahan.",
+    description:
+      "Partikel Divine Relic berupa debu bulan, kilau kristal kecil, dan serpihan cahaya safir yang turun perlahan. Efek halus, tidak ramai, tapi sangat mahal.",
+    visualQuality: "Falling sapphire moonlight dust",
+    previewLabel: "Moonlight Dust",
+  },
+
+  // =========================================================
+  // COSMIC ECLIPSE — GERHANA MERAH & OBSIDIAN KOSMIK
+  // Total set value: 2400S = 2G 400S
+  // =========================================================
+  {
+    id: "cosmic-eclipse-name-01",
+    name: "Obsidian Eclipse Name",
+    theme: "cosmic-eclipse",
+    themeName: "Cosmic Eclipse",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Divine Relic",
+    price: 550,
+    icon: "●",
+    accent: "text-red-300",
+    shortDescription: "Nama obsidian dengan retakan merah darah.",
+    description:
+      "Efek nama Divine Relic yang tampak dipahat dari obsidian hitam mengkilap, dibingkai api gerhana merah tua. Bayangan melintas dari huruf ke huruf, lalu retakan merah menyala seperti kekuatan tersembunyi.",
+    visualQuality: "Obsidian text with blood eclipse fissures",
+    previewLabel: "Obsidian Eclipse Name",
+  },
+  {
+    id: "cosmic-eclipse-border-01",
+    name: "Corona Ruin Frame",
+    theme: "cosmic-eclipse",
+    themeName: "Cosmic Eclipse",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Divine Relic",
+    price: 400,
+    icon: "◉",
+    accent: "text-amber-700",
+    shortDescription: "Border kuil runtuh dengan cincin api gerhana.",
+    description:
+      "Bingkai ID Card dark luxury dengan ukiran kuil kuno, obsidian, tembaga gelap, dan garis corona merah yang bergerak tajam seperti pinggir gerhana total.",
+    visualQuality: "Dark copper eclipse corona frame",
+    previewLabel: "Corona Ruin Frame",
+  },
+  {
+    id: "cosmic-eclipse-background-01",
+    name: "Temple of Total Eclipse",
+    theme: "cosmic-eclipse",
+    themeName: "Cosmic Eclipse",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Divine Relic",
+    price: 600,
+    icon: "🌑",
+    accent: "text-red-200",
+    shortDescription: "Kuil puncak gunung di bawah gerhana total.",
+    description:
+      "Background profil termahal dengan kuil kuno hancur di puncak gunung, awan badai kosmik, gerhana bulan total, dan cincin corona merah-emas yang memberi siluet dramatis pada seluruh kartu.",
+    visualQuality: "Total eclipse ruined temple parallax",
+    previewLabel: "Total Eclipse Temple",
+  },
+  {
+    id: "cosmic-eclipse-aura-01",
+    name: "Devouring Corona Aura",
+    theme: "cosmic-eclipse",
+    themeName: "Cosmic Eclipse",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Divine Relic",
+    price: 550,
+    icon: "☀",
+    accent: "text-red-300",
+    shortDescription: "Aura gelap dengan corona gerhana merah.",
+    description:
+      "Aura avatar berupa kabut hitam-keunguan yang menelan pinggir kartu, lalu cincin api gerhana merah tua berputar tajam di luar avatar. Terasa berbahaya, intens, dan sangat dominan.",
+    visualQuality: "Devouring eclipse corona orbit",
+    previewLabel: "Devouring Corona",
+  },
+  {
+    id: "cosmic-eclipse-particle-01",
+    name: "Dark Cosmic Ash",
+    theme: "cosmic-eclipse",
+    themeName: "Cosmic Eclipse",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 300,
+    icon: "✦",
+    accent: "text-red-400",
+    shortDescription: "Debu kosmik gelap dengan kilatan gerhana.",
+    description:
+      "Partikel obsidian, abu kosmik, serpihan merah darah, dan kilatan corona kecil yang muncul sesekali. Efek ini dibuat untuk memberi kesan limited, mahal, dan mengintimidasi.",
+    visualQuality: "Dark cosmic ash with red eclipse sparks",
+    previewLabel: "Cosmic Ashfall",
+  },
 ];
 
 export const cosmeticTypeLabels: Record<CosmeticType, string> = {
@@ -540,6 +741,7 @@ export const rarityOrder: Record<CosmeticRarity, number> = {
   Epic: 3,
   Legendary: 4,
   Mythic: 5,
+  "Divine Relic": 6,
 };
 
 export function getCosmeticsByTheme(theme: CosmeticTheme) {
