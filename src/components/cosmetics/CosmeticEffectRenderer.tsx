@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React from "react";
 import type { CosmeticTheme } from "./data/cosmeticItems";
@@ -18,13 +18,13 @@ type CosmeticEffectRendererProps = {
   variant?: RendererVariant;
 };
 
-type EffectVariant = "name" | "border" | "background" | "aura" | "particle" | "full";
+type EffectVariant = "background";
 
 export default function CosmeticEffectRenderer({
   theme,
   variant = "card",
 }: CosmeticEffectRendererProps) {
-  const effectVariant = getEffectVariant(variant);
+  const effectVariant = getEffectVariant();
 
   if (theme === "sovereign-tempest") {
     return <SovereignTempestEffect variant={effectVariant} />;
@@ -67,8 +67,8 @@ export default function CosmeticEffectRenderer({
   return null;
 }
 
-function getEffectVariant(_variant: RendererVariant): EffectVariant {
-  return "full";
+function getEffectVariant(): EffectVariant {
+  return "background";
 }
 
 function getDivineEffectClassName(variant: RendererVariant) {
