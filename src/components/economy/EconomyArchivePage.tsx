@@ -3,6 +3,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+type LunariaSession = {
+  role: "player" | "admin";
+  playerId?: string;
+  username: string;
+  characterName?: string;
+  rank?: string;
+  pathway?: string;
+  loginAt?: string;
+};
+
 type TreasuryRow = {
   id: string;
   treasury_balance: number;
@@ -55,12 +65,40 @@ type MarketHistoryRow = {
   created_at: string;
 };
 
+type MarketHoldingRow = {
+  id: string;
+  player_id: string;
+  player_name: string | null;
+  asset_id: string;
+  quantity: number;
+  average_buy_price: number;
+  created_at: string;
+  updated_at: string;
+};
+
 type EconomyData = {
   treasury: TreasuryRow | null;
   ledger: LedgerRow[];
   assets: MarketAssetRow[];
   history: MarketHistoryRow[];
+  holdings: MarketHoldingRow[];
 };
+
+function getStoredSession(): LunariaSession | null {
+  if (typeof window === "undefined") return null;
+
+  const localSession = localStorage.getItem("lunaria_session");
+  const sessionSession = sessionStorage.getItem("lunaria_session");
+  const rawSession = localSession || sessionSession;
+
+  if (!rawSession) return null;
+
+  try {
+    return JSON.parse(rawSession) as LunariaSession;
+  } catch {
+    return null;
+  }
+}
 
 function formatSilver(value: number | null | undefined) {
   const safe = Math.max(0, Math.floor(Number(value) || 0));
@@ -70,6 +108,12 @@ function formatSilver(value: number | null | undefined) {
   if (gold > 0 && silver > 0) return `${gold}G ${silver}S`;
   if (gold > 0) return `${gold}G`;
   return `${silver}S`;
+}
+
+function formatSignedSilver(value: number) {
+  if (value > 0) return `+${value}S`;
+  if (value < 0) return `${value}S`;
+  return "0S";
 }
 
 function formatDate(value: string | null | undefined) {
@@ -176,14 +220,8 @@ function getMarketMood(asset: MarketAssetRow) {
   }
 
   if (asset.asset_key.includes("pearl")) {
-    if (change.percent > 0) {
-      return "Sea route stable, pearl demand rising.";
-    }
-
-    if (change.percent < 0) {
-      return "Storm reports weaken merchant confidence.";
-    }
-
+    if (change.percent > 0) return "Sea route stable, pearl demand rising.";
+    if (change.percent < 0) return "Storm reports weaken merchant confidence.";
     return "Azure Coast trade remains calm.";
   }
 
@@ -204,22 +242,14 @@ function getMarketMood(asset: MarketAssetRow) {
       return "Healers request more luminous herbs after recent quests.";
     }
 
-    if (change.percent < 0) {
-      return "Herb supply is stable, lowering urgency.";
-    }
+    if (change.percent < 0) return "Herb supply is stable, lowering urgency.";
 
     return "Everglow herbal trade remains steady.";
   }
 
   if (asset.asset_key.includes("grain")) {
-    if (change.percent > 0) {
-      return "Village harvest records look favorable.";
-    }
-
-    if (change.percent < 0) {
-      return "Poor road conditions slow grain delivery.";
-    }
-
+    if (change.percent > 0) return "Village harvest records look favorable.";
+    if (change.percent < 0) return "Poor road conditions slow grain delivery.";
     return "Moonlit grain supply is stable.";
   }
 
@@ -227,73 +257,188 @@ function getMarketMood(asset: MarketAssetRow) {
 }
 
 export default function EconomyArchivePage() {
+  const [session, setSession] = useState<LunariaSession | null>(null);
   const [data, setData] = useState<EconomyData>({
     treasury: null,
     ledger: [],
     assets: [],
     history: [],
+    holdings: [],
   });
 
   const [loading, setLoading] = useState(true);
   const [updatingMarket, setUpdatingMarket] = useState(false);
   const [runningTax, setRunningTax] = useState(false);
   const [runningRelief, setRunningRelief] = useState(false);
+  const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
   }, [data.assets]);
 
+  const assetMap = useMemo(() => {
+    return new Map(data.assets.map((asset) => [asset.id, asset]));
+  }, [data.assets]);
+
+  const holdingMap = useMemo(() => {
+    return new Map(data.holdings.map((holding) => [holding.asset_id, holding]));
+  }, [data.holdings]);
+
+  const portfolioValue = useMemo(() => {
+    return data.holdings.reduce((sum, holding) => {
+      const asset = assetMap.get(holding.asset_id);
+      if (!asset) return sum;
+      return sum + holding.quantity * asset.current_price;
+    }, 0);
+  }, [assetMap, data.holdings]);
+
+  const portfolioCost = useMemo(() => {
+    return data.holdings.reduce((sum, holding) => {
+      return sum + holding.quantity * holding.average_buy_price;
+    }, 0);
+  }, [data.holdings]);
+
+  const portfolioProfitLoss = portfolioValue - portfolioCost;
+
   async function loadEconomy() {
     setLoading(true);
 
-    const [treasuryResult, ledgerResult, assetsResult, historyResult] =
-      await Promise.all([
-        supabase
-          .from("economy_treasury")
-          .select("*")
-          .eq("id", "main")
-          .maybeSingle(),
-        supabase
-          .from("economy_ledger")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(12),
-        supabase
-          .from("economy_market_assets")
-          .select("*")
-          .eq("status", "active")
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("economy_market_price_history")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(10),
-      ]);
+    const storedSession = getStoredSession();
+    setSession(storedSession);
 
-    if (treasuryResult.error) {
-      console.error("Treasury load error:", treasuryResult.error);
-    }
+    const [
+      treasuryResult,
+      ledgerResult,
+      assetsResult,
+      historyResult,
+      holdingsResult,
+    ] = await Promise.all([
+      supabase
+        .from("economy_treasury")
+        .select("*")
+        .eq("id", "main")
+        .maybeSingle(),
+      supabase
+        .from("economy_ledger")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(12),
+      supabase
+        .from("economy_market_assets")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("economy_market_price_history")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10),
+      storedSession?.playerId
+        ? supabase
+            .from("economy_market_holdings")
+            .select("*")
+            .eq("player_id", storedSession.playerId)
+            .order("updated_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+    ]);
 
-    if (ledgerResult.error) {
-      console.error("Ledger load error:", ledgerResult.error);
-    }
-
-    if (assetsResult.error) {
-      console.error("Assets load error:", assetsResult.error);
-    }
-
-    if (historyResult.error) {
-      console.error("History load error:", historyResult.error);
-    }
+    if (treasuryResult.error) console.error("Treasury load error:", treasuryResult.error);
+    if (ledgerResult.error) console.error("Ledger load error:", ledgerResult.error);
+    if (assetsResult.error) console.error("Assets load error:", assetsResult.error);
+    if (historyResult.error) console.error("History load error:", historyResult.error);
+    if (holdingsResult.error) console.error("Holdings load error:", holdingsResult.error);
 
     setData({
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
       ledger: (ledgerResult.data as LedgerRow[]) || [],
       assets: (assetsResult.data as MarketAssetRow[]) || [],
       history: (historyResult.data as MarketHistoryRow[]) || [],
+      holdings: (holdingsResult.data as MarketHoldingRow[]) || [],
     });
 
     setLoading(false);
+  }
+
+  function requirePlayerId() {
+    const storedSession = getStoredSession();
+
+    if (!storedSession?.playerId) {
+      alert(
+        "Session player tidak memiliki playerId. Silakan login ulang lewat Access Gate."
+      );
+      return null;
+    }
+
+    return storedSession.playerId;
+  }
+
+  async function handleBuyAsset(asset: MarketAssetRow) {
+    const playerId = requirePlayerId();
+    if (!playerId) return;
+
+    const confirmed = window.confirm(
+      `Beli 1 unit ${asset.name} seharga ${asset.current_price}S?`
+    );
+
+    if (!confirmed) return;
+
+    setTradingAssetId(`${asset.id}:buy`);
+
+    const { error } = await supabase.rpc("buy_market_asset", {
+      input_player_id: playerId,
+      input_asset_id: asset.id,
+      input_quantity: 1,
+    });
+
+    if (error) {
+      console.error("Buy asset error:", error);
+      alert(`Gagal beli asset: ${error.message}`);
+      setTradingAssetId(null);
+      return;
+    }
+
+    await loadEconomy();
+    setTradingAssetId(null);
+
+    alert(`Berhasil membeli 1 unit ${asset.name}.`);
+  }
+
+  async function handleSellAsset(asset: MarketAssetRow) {
+    const playerId = requirePlayerId();
+    if (!playerId) return;
+
+    const holding = holdingMap.get(asset.id);
+
+    if (!holding || holding.quantity <= 0) {
+      alert("Kamu belum memiliki asset ini.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Jual 1 unit ${asset.name} seharga ${asset.current_price}S?`
+    );
+
+    if (!confirmed) return;
+
+    setTradingAssetId(`${asset.id}:sell`);
+
+    const { error } = await supabase.rpc("sell_market_asset", {
+      input_player_id: playerId,
+      input_asset_id: asset.id,
+      input_quantity: 1,
+    });
+
+    if (error) {
+      console.error("Sell asset error:", error);
+      alert(`Gagal jual asset: ${error.message}`);
+      setTradingAssetId(null);
+      return;
+    }
+
+    await loadEconomy();
+    setTradingAssetId(null);
+
+    alert(`Berhasil menjual 1 unit ${asset.name}.`);
   }
 
   async function handleRunWeeklyTax() {
@@ -476,9 +621,21 @@ export default function EconomyArchivePage() {
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.assets.map((asset) => (
-              <MarketAssetCard key={asset.id} asset={asset} />
-            ))}
+            {data.assets.map((asset) => {
+              const holding = holdingMap.get(asset.id);
+
+              return (
+                <MarketAssetCard
+                  key={asset.id}
+                  asset={asset}
+                  holdingQuantity={holding?.quantity || 0}
+                  averageBuyPrice={holding?.average_buy_price || 0}
+                  tradingAssetId={tradingAssetId}
+                  onBuy={() => handleBuyAsset(asset)}
+                  onSell={() => handleSellAsset(asset)}
+                />
+              );
+            })}
 
             {!loading && data.assets.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-slate-400">
@@ -489,6 +646,15 @@ export default function EconomyArchivePage() {
         </div>
 
         <div className="space-y-6">
+          <PortfolioCard
+            session={session}
+            holdings={data.holdings}
+            assets={data.assets}
+            portfolioValue={portfolioValue}
+            portfolioCost={portfolioCost}
+            portfolioProfitLoss={portfolioProfitLoss}
+          />
+
           <TaxRulesCard />
 
           <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
@@ -637,10 +803,30 @@ function ScheduleCard({
   );
 }
 
-function MarketAssetCard({ asset }: { asset: MarketAssetRow }) {
+function MarketAssetCard({
+  asset,
+  holdingQuantity,
+  averageBuyPrice,
+  tradingAssetId,
+  onBuy,
+  onSell,
+}: {
+  asset: MarketAssetRow;
+  holdingQuantity: number;
+  averageBuyPrice: number;
+  tradingAssetId: string | null;
+  onBuy: () => void;
+  onSell: () => void;
+}) {
   const risk = getRiskStyle(asset.risk_level);
   const change = getChangeInfo(asset.current_price, asset.previous_price);
   const mood = getMarketMood(asset);
+  const buying = tradingAssetId === `${asset.id}:buy`;
+  const selling = tradingAssetId === `${asset.id}:sell`;
+  const isTrading = Boolean(tradingAssetId);
+
+  const profitLoss =
+    holdingQuantity > 0 ? (asset.current_price - averageBuyPrice) * holdingQuantity : 0;
 
   return (
     <article className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.84))] p-5">
@@ -698,8 +884,156 @@ function MarketAssetCard({ asset }: { asset: MarketAssetRow }) {
           </p>
           <p className="mt-2 text-xs text-slate-500">Range: {risk.range}</p>
         </div>
+
+        <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-400/[0.045] p-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/80">
+            Your Holding
+          </p>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <MiniMetric label="Owned" value={`${holdingQuantity}`} />
+            <MiniMetric
+              label="Avg Buy"
+              value={holdingQuantity > 0 ? formatSilver(averageBuyPrice) : "-"}
+            />
+            <MiniMetric
+              label="P/L"
+              value={formatSignedSilver(profitLoss)}
+              valueClass={
+                profitLoss > 0
+                  ? "text-emerald-200"
+                  : profitLoss < 0
+                    ? "text-red-200"
+                    : "text-slate-300"
+              }
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onBuy}
+              disabled={isTrading}
+              className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:bg-emerald-400/16 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {buying ? "Buying..." : "Buy 1"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onSell}
+              disabled={isTrading || holdingQuantity <= 0}
+              className="rounded-2xl border border-red-300/25 bg-red-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-red-100 transition hover:bg-red-400/16 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {selling ? "Selling..." : "Sell 1"}
+            </button>
+          </div>
+        </div>
       </div>
     </article>
+  );
+}
+
+function PortfolioCard({
+  session,
+  holdings,
+  assets,
+  portfolioValue,
+  portfolioCost,
+  portfolioProfitLoss,
+}: {
+  session: LunariaSession | null;
+  holdings: MarketHoldingRow[];
+  assets: MarketAssetRow[];
+  portfolioValue: number;
+  portfolioCost: number;
+  portfolioProfitLoss: number;
+}) {
+  const assetMap = useMemo(() => {
+    return new Map(assets.map((asset) => [asset.id, asset]));
+  }, [assets]);
+
+  return (
+    <div className="rounded-[30px] border border-cyan-300/15 bg-cyan-400/[0.045] p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">
+        Player Portfolio
+      </p>
+
+      <h2 className="mt-2 text-2xl font-black text-white">
+        {session?.characterName || session?.username || "Unknown Vessel"}
+      </h2>
+
+      <p className="mt-2 text-sm leading-6 text-slate-400">
+        Asset fantasy yang sedang dimiliki player dari Relic Exchange.
+      </p>
+
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <MiniMetric label="Value" value={formatSilver(portfolioValue)} />
+        <MiniMetric label="Cost" value={formatSilver(portfolioCost)} />
+        <MiniMetric
+          label="P/L"
+          value={formatSignedSilver(portfolioProfitLoss)}
+          valueClass={
+            portfolioProfitLoss > 0
+              ? "text-emerald-200"
+              : portfolioProfitLoss < 0
+                ? "text-red-200"
+                : "text-slate-300"
+          }
+        />
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {holdings.map((holding) => {
+          const asset = assetMap.get(holding.asset_id);
+          if (!asset) return null;
+
+          const value = holding.quantity * asset.current_price;
+          const cost = holding.quantity * holding.average_buy_price;
+          const profitLoss = value - cost;
+
+          return (
+            <div
+              key={holding.id}
+              className="rounded-2xl border border-white/10 bg-black/20 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-white">
+                    {asset.name}
+                  </p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                    Qty {holding.quantity} • Avg {formatSilver(holding.average_buy_price)}
+                  </p>
+                </div>
+
+                <span
+                  className={`shrink-0 text-sm font-black ${
+                    profitLoss > 0
+                      ? "text-emerald-200"
+                      : profitLoss < 0
+                        ? "text-red-200"
+                        : "text-slate-300"
+                  }`}
+                >
+                  {formatSignedSilver(profitLoss)}
+                </span>
+              </div>
+
+              <p className="mt-2 text-xs text-slate-500">
+                Current value: {formatSilver(value)}
+              </p>
+            </div>
+          );
+        })}
+
+        {holdings.length === 0 ? (
+          <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+            Belum ada asset. Beli 1 unit dari Relic Exchange untuk mulai portfolio.
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -858,4 +1192,4 @@ function ActiveActionCard({
       </div>
     </div>
   );
-      }
+}
