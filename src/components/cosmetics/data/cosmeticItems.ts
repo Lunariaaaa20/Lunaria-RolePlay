@@ -1,4 +1,4 @@
- export type CosmeticType =
+export type CosmeticType =
 | "name_effect"
 | "border"
 | "background"
