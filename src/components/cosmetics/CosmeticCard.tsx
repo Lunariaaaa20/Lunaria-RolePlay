@@ -161,10 +161,14 @@ export default function CosmeticCard({
 
           <div className="relative z-10 flex min-h-[96px] items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] text-center">
             <div>
-              <p className={`text-3xl font-black ${item.accent}`}>{item.icon}</p>
+              <p className={`text-3xl font-black ${item.accent}`}>
+                {item.icon}
+              </p>
+
               <p className="mt-2 text-sm font-black text-white">
                 {item.previewLabel}
               </p>
+
               <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                 {item.visualQuality}
               </p>
@@ -176,7 +180,11 @@ export default function CosmeticCard({
           <InfoPill label="Quality" value={rarity.quality} />
           <InfoPill
             label="Motion"
-            value={item.rarity === "Mythic" || item.rarity === "Divine Relic" ? "High" : "Smooth"}
+            value={
+              item.rarity === "Mythic" || item.rarity === "Divine Relic"
+                ? "High"
+                : "Smooth"
+            }
           />
         </div>
       </div>
