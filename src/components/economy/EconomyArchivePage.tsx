@@ -74,6 +74,7 @@ function formatSilver(value: number | null | undefined) {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Belum pernah";
+
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -137,7 +138,9 @@ function getChangeInfo(currentPrice: number, previousPrice: number) {
     };
   }
 
-  const percent = Math.round(((currentPrice - previousPrice) / previousPrice) * 100);
+  const percent = Math.round(
+    ((currentPrice - previousPrice) / previousPrice) * 100
+  );
 
   if (percent > 0) {
     return {
@@ -170,32 +173,62 @@ function getMarketMood(asset: MarketAssetRow) {
   const change = getChangeInfo(asset.current_price, asset.previous_price);
 
   if (risk === "forbidden") {
-    if (change.percent > 0) return "Forbidden relic demand is rising in the shadow market.";
-    if (change.percent < 0) return "Relic panic spreads through hidden merchant circles.";
+    if (change.percent > 0) {
+      return "Forbidden relic demand is rising in the shadow market.";
+    }
+
+    if (change.percent < 0) {
+      return "Relic panic spreads through hidden merchant circles.";
+    }
+
     return "The forbidden market is silent, but unstable.";
   }
 
   if (asset.asset_key.includes("pearl")) {
-    if (change.percent > 0) return "Sea route stable, pearl demand rising.";
-    if (change.percent < 0) return "Storm reports weaken merchant confidence.";
+    if (change.percent > 0) {
+      return "Sea route stable, pearl demand rising.";
+    }
+
+    if (change.percent < 0) {
+      return "Storm reports weaken merchant confidence.";
+    }
+
     return "Azure Coast trade remains calm.";
   }
 
   if (asset.asset_key.includes("ore")) {
-    if (change.percent > 0) return "Blacksmith demand pushes ore contracts upward.";
-    if (change.percent < 0) return "Cinderpeak monster activity disrupts mining routes.";
+    if (change.percent > 0) {
+      return "Blacksmith demand pushes ore contracts upward.";
+    }
+
+    if (change.percent < 0) {
+      return "Cinderpeak monster activity disrupts mining routes.";
+    }
+
     return "Ore caravans are waiting for safer passage.";
   }
 
   if (asset.asset_key.includes("herb")) {
-    if (change.percent > 0) return "Healers request more luminous herbs after recent quests.";
-    if (change.percent < 0) return "Herb supply is stable, lowering urgency.";
+    if (change.percent > 0) {
+      return "Healers request more luminous herbs after recent quests.";
+    }
+
+    if (change.percent < 0) {
+      return "Herb supply is stable, lowering urgency.";
+    }
+
     return "Everglow herbal trade remains steady.";
   }
 
   if (asset.asset_key.includes("grain")) {
-    if (change.percent > 0) return "Village harvest records look favorable.";
-    if (change.percent < 0) return "Poor road conditions slow grain delivery.";
+    if (change.percent > 0) {
+      return "Village harvest records look favorable.";
+    }
+
+    if (change.percent < 0) {
+      return "Poor road conditions slow grain delivery.";
+    }
+
     return "Moonlit grain supply is stable.";
   }
 
@@ -209,7 +242,9 @@ export default function EconomyArchivePage() {
     assets: [],
     history: [],
   });
+
   const [loading, setLoading] = useState(true);
+  const [updatingMarket, setUpdatingMarket] = useState(false);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
@@ -233,6 +268,7 @@ export default function EconomyArchivePage() {
         supabase
           .from("economy_market_assets")
           .select("*")
+          .eq("status", "active")
           .order("created_at", { ascending: true }),
         supabase
           .from("economy_market_price_history")
@@ -240,6 +276,22 @@ export default function EconomyArchivePage() {
           .order("created_at", { ascending: false })
           .limit(10),
       ]);
+
+    if (treasuryResult.error) {
+      console.error("Treasury load error:", treasuryResult.error);
+    }
+
+    if (ledgerResult.error) {
+      console.error("Ledger load error:", ledgerResult.error);
+    }
+
+    if (assetsResult.error) {
+      console.error("Assets load error:", assetsResult.error);
+    }
+
+    if (historyResult.error) {
+      console.error("History load error:", historyResult.error);
+    }
 
     setData({
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
@@ -249,6 +301,30 @@ export default function EconomyArchivePage() {
     });
 
     setLoading(false);
+  }
+
+  async function handleUpdateMarketPrices() {
+    const confirmed = window.confirm(
+      "Update harga Relic Exchange sekarang? Harga semua market asset akan naik/turun otomatis berdasarkan risk roll."
+    );
+
+    if (!confirmed) return;
+
+    setUpdatingMarket(true);
+
+    const { error } = await supabase.rpc("run_market_price_update");
+
+    if (error) {
+      console.error("Market update error:", error);
+      alert(`Gagal update market: ${error.message}`);
+      setUpdatingMarket(false);
+      return;
+    }
+
+    await loadEconomy();
+    setUpdatingMarket(false);
+
+    alert("Relic Exchange berhasil diperbarui.");
   }
 
   useEffect(() => {
@@ -408,9 +484,9 @@ export default function EconomyArchivePage() {
               Admin Economy Controls
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Tombol di bawah belum diaktifkan dulu supaya saldo player tidak
-              kepotong sembarangan. Setelah UI ini aman, kita sambungkan logic
-              satu per satu.
+              Tombol pajak dan bansos masih dikunci dulu supaya saldo player
+              tidak kepotong sembarangan. Market update sudah bisa dijalankan
+              manual oleh admin.
             </p>
           </div>
         </div>
@@ -426,10 +502,13 @@ export default function EconomyArchivePage() {
             description="Bansos otomatis untuk player dengan saldo rendah."
             icon="✦"
           />
-          <DisabledActionCard
+          <ActiveActionCard
             title="Update Market Prices"
-            description="Harga market naik-turun dengan random risk roll."
+            description="Harga market naik-turun otomatis dengan random risk roll dan market event."
             icon="◇"
+            loading={updatingMarket}
+            buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
+            onClick={handleUpdateMarketPrices}
           />
         </div>
       </section>
@@ -548,8 +627,15 @@ function MarketAssetCard({ asset }: { asset: MarketAssetRow }) {
 
         <div className="mt-5 grid grid-cols-3 gap-3">
           <MiniMetric label="Price" value={formatSilver(asset.current_price)} />
-          <MiniMetric label="Before" value={formatSilver(asset.previous_price)} />
-          <MiniMetric label="Change" value={change.label} valueClass={change.className} />
+          <MiniMetric
+            label="Before"
+            value={formatSilver(asset.previous_price)}
+          />
+          <MiniMetric
+            label="Change"
+            value={change.label}
+            valueClass={change.className}
+          />
         </div>
 
         <div className="mt-4 rounded-2xl border border-white/10 bg-black/24 p-4">
@@ -599,7 +685,9 @@ function TaxRulesCard() {
       <p className="text-[10px] font-black uppercase tracking-[0.28em] text-red-300">
         Weekly Tax Rules
       </p>
-      <h2 className="mt-2 text-2xl font-black text-white">Anti Inflation Tax</h2>
+      <h2 className="mt-2 text-2xl font-black text-white">
+        Anti Inflation Tax
+      </h2>
       <p className="mt-2 text-sm leading-6 text-slate-400">
         Pajak dibuat bertingkat. Player kecil aman, player kaya membantu
         treasury guild.
@@ -671,4 +759,46 @@ function DisabledActionCard({
       </div>
     </div>
   );
-  }
+}
+
+function ActiveActionCard({
+  title,
+  description,
+  icon,
+  loading,
+  buttonLabel,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  icon: string;
+  loading: boolean;
+  buttonLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-cyan-300/20 bg-cyan-400/[0.06] p-5 shadow-[0_0_28px_rgba(34,211,238,0.06)]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 text-lg text-cyan-100">
+          {icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black text-white">{title}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            {description}
+          </p>
+
+          <button
+            type="button"
+            onClick={onClick}
+            disabled={loading}
+            className="mt-4 rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-400/16 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {buttonLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
