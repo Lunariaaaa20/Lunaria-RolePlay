@@ -89,7 +89,6 @@ function getRiskStyle(riskLevel: string) {
       label: "Low Risk",
       badge: "border-emerald-300/30 bg-emerald-400/10 text-emerald-100",
       range: "-5% sampai +7%",
-      note: "Aman, kenaikan kecil, cocok untuk player baru.",
     };
   }
 
@@ -98,7 +97,6 @@ function getRiskStyle(riskLevel: string) {
       label: "Medium Risk",
       badge: "border-cyan-300/30 bg-cyan-400/10 text-cyan-100",
       range: "-12% sampai +15%",
-      note: "Seimbang, masih aman tapi bisa rugi sedang.",
     };
   }
 
@@ -107,7 +105,6 @@ function getRiskStyle(riskLevel: string) {
       label: "High Risk",
       badge: "border-amber-300/30 bg-amber-400/10 text-amber-100",
       range: "-25% sampai +30%",
-      note: "Untung bisa besar, rugi juga terasa.",
     };
   }
 
@@ -116,7 +113,6 @@ function getRiskStyle(riskLevel: string) {
       label: "Forbidden Risk",
       badge: "border-red-300/35 bg-red-500/12 text-red-100",
       range: "-45% sampai +60%",
-      note: "Ekstrem. Bisa jackpot, bisa runtuh parah.",
     };
   }
 
@@ -124,7 +120,6 @@ function getRiskStyle(riskLevel: string) {
     label: riskLevel || "Unknown",
     badge: "border-white/15 bg-white/[0.06] text-slate-200",
     range: "Tidak diketahui",
-    note: "Risk belum diatur.",
   };
 }
 
@@ -134,7 +129,6 @@ function getChangeInfo(currentPrice: number, previousPrice: number) {
       percent: 0,
       label: "0%",
       className: "text-slate-300",
-      sign: "neutral",
     };
   }
 
@@ -147,7 +141,6 @@ function getChangeInfo(currentPrice: number, previousPrice: number) {
       percent,
       label: `+${percent}%`,
       className: "text-emerald-200",
-      sign: "up",
     };
   }
 
@@ -156,7 +149,6 @@ function getChangeInfo(currentPrice: number, previousPrice: number) {
       percent,
       label: `${percent}%`,
       className: "text-red-200",
-      sign: "down",
     };
   }
 
@@ -164,7 +156,6 @@ function getChangeInfo(currentPrice: number, previousPrice: number) {
     percent,
     label: "0%",
     className: "text-slate-300",
-    sign: "neutral",
   };
 }
 
@@ -245,6 +236,7 @@ export default function EconomyArchivePage() {
 
   const [loading, setLoading] = useState(true);
   const [updatingMarket, setUpdatingMarket] = useState(false);
+  const [runningTax, setRunningTax] = useState(false);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
@@ -301,6 +293,30 @@ export default function EconomyArchivePage() {
     });
 
     setLoading(false);
+  }
+
+  async function handleRunWeeklyTax() {
+    const confirmed = window.confirm(
+      "Jalankan Weekly Guild Tax sekarang? Saldo player aktif akan dipotong otomatis berdasarkan tier pajak. Sistem akan menolak jika pajak sudah dijalankan dalam 7 hari terakhir."
+    );
+
+    if (!confirmed) return;
+
+    setRunningTax(true);
+
+    const { error } = await supabase.rpc("run_weekly_tax");
+
+    if (error) {
+      console.error("Weekly tax error:", error);
+      alert(`Gagal menjalankan pajak: ${error.message}`);
+      setRunningTax(false);
+      return;
+    }
+
+    await loadEconomy();
+    setRunningTax(false);
+
+    alert("Weekly Guild Tax berhasil dijalankan.");
   }
 
   async function handleUpdateMarketPrices() {
@@ -399,7 +415,7 @@ export default function EconomyArchivePage() {
             <ScheduleCard
               title="Weekly Tax"
               value={formatDate(data.treasury?.last_tax_run_at)}
-              description="Nanti dipakai untuk potong pajak otomatis/semi-manual mingguan."
+              description="Pajak mingguan untuk mencegah inflasi ekonomi guild."
               badge="Anti Inflation"
             />
             <ScheduleCard
@@ -430,7 +446,7 @@ export default function EconomyArchivePage() {
               </h2>
             </div>
             <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">
-              Read Only MVP
+              Live Market
             </span>
           </div>
 
@@ -478,30 +494,35 @@ export default function EconomyArchivePage() {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
-              Next Build Phase
+              Admin Economy Controls
             </p>
             <h2 className="mt-2 text-2xl font-black text-white">
-              Admin Economy Controls
+              Treasury Operations
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Tombol pajak dan bansos masih dikunci dulu supaya saldo player
-              tidak kepotong sembarangan. Market update sudah bisa dijalankan
-              manual oleh admin.
+              Pajak dan market sudah bisa dijalankan manual oleh admin. Relief
+              masih dikunci dulu sampai sistem bansos selesai.
             </p>
           </div>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <DisabledActionCard
+          <ActiveActionCard
             title="Run Weekly Tax"
-            description="Potong pajak otomatis berdasarkan tier saldo player."
+            description="Potong pajak otomatis berdasarkan tier saldo player aktif. Terkunci otomatis selama 7 hari setelah dijalankan."
             icon="⚖"
+            loading={runningTax}
+            buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
+            onClick={handleRunWeeklyTax}
+            tone="amber"
           />
+
           <DisabledActionCard
             title="Distribute Relief"
             description="Bansos otomatis untuk player dengan saldo rendah."
             icon="✦"
           />
+
           <ActiveActionCard
             title="Update Market Prices"
             description="Harga market naik-turun otomatis dengan random risk roll dan market event."
@@ -509,6 +530,7 @@ export default function EconomyArchivePage() {
             loading={updatingMarket}
             buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
             onClick={handleUpdateMarketPrices}
+            tone="cyan"
           />
         </div>
       </section>
@@ -715,6 +737,7 @@ function LedgerItem({ entry }: { entry: LedgerRow }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-white">{entry.title}</p>
           <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+            {entry.player_name ? `${entry.player_name} • ` : ""}
             {entry.entry_type} • {formatDate(entry.created_at)}
           </p>
         </div>
@@ -727,6 +750,13 @@ function LedgerItem({ entry }: { entry: LedgerRow }) {
       {entry.description ? (
         <p className="mt-2 text-xs leading-5 text-slate-400">
           {entry.description}
+        </p>
+      ) : null}
+
+      {entry.balance_before !== null && entry.balance_after !== null ? (
+        <p className="mt-2 text-[11px] font-bold text-slate-500">
+          Balance: {formatSilver(entry.balance_before)} →{" "}
+          {formatSilver(entry.balance_after)}
         </p>
       ) : null}
     </div>
@@ -768,6 +798,7 @@ function ActiveActionCard({
   loading,
   buttonLabel,
   onClick,
+  tone = "cyan",
 }: {
   title: string;
   description: string;
@@ -775,11 +806,29 @@ function ActiveActionCard({
   loading: boolean;
   buttonLabel: string;
   onClick: () => void;
+  tone?: "cyan" | "amber";
 }) {
+  const styles =
+    tone === "amber"
+      ? {
+          card: "border-amber-300/20 bg-amber-400/[0.06] shadow-[0_0_28px_rgba(245,158,11,0.06)]",
+          icon: "border-amber-300/20 bg-amber-400/10 text-amber-100",
+          button:
+            "border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/16",
+        }
+      : {
+          card: "border-cyan-300/20 bg-cyan-400/[0.06] shadow-[0_0_28px_rgba(34,211,238,0.06)]",
+          icon: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100",
+          button:
+            "border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/16",
+        };
+
   return (
-    <div className="rounded-[24px] border border-cyan-300/20 bg-cyan-400/[0.06] p-5 shadow-[0_0_28px_rgba(34,211,238,0.06)]">
+    <div className={`rounded-[24px] border p-5 ${styles.card}`}>
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10 text-lg text-cyan-100">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-lg ${styles.icon}`}
+        >
           {icon}
         </div>
 
@@ -793,7 +842,7 @@ function ActiveActionCard({
             type="button"
             onClick={onClick}
             disabled={loading}
-            className="mt-4 rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-400/16 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`mt-4 rounded-2xl border px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] transition disabled:cursor-not-allowed disabled:opacity-60 ${styles.button}`}
           >
             {buttonLabel}
           </button>
