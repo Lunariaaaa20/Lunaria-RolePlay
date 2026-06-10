@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import AdminMarketAssetForm from "./AdminMarketAssetForm";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -729,6 +730,7 @@ export default function EconomyArchivePage() {
           />
         </div>
       </section>
+      <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
     </main>
   );
 }
