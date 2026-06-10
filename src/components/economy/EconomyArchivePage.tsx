@@ -1232,7 +1232,7 @@ export default function EconomyArchivePage() {
       </div>
     </section>
 
-    <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
+    <section className="mt-6 grid grid-cols-1 gap-6">
       <div className="min-w-0">
         <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
       </div>
