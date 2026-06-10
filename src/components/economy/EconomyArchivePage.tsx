@@ -1119,81 +1119,134 @@ export default function EconomyArchivePage() {
         </section>
 
         {isAdmin ? (
-          <>
-            <section className="mt-6 rounded-[34px] border border-amber-300/15 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.025))] p-5 lg:p-6">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
-                    Admin Treasury Console
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black text-white">
-                    Treasury Operations
-                  </h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-                    Panel operasi ekonomi guild. Jalankan pajak, bantuan, dan
-                    update market secara manual dengan cooldown agar ekonomi
-                    Lunaria tetap terkendali.
-                  </p>
+  <>
+    <section className="relative mt-6 overflow-hidden rounded-[38px] border border-purple-300/15 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.12),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.10),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.94))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] lg:p-6">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.045] [background-image:linear-gradient(rgba(255,255,255,0.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-purple-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-purple-200/35 to-transparent" />
 
-                  <AutoDailyEnginePanel
-  chronicle={data.chronicle}
-  autoCycleStatus={autoCycleStatus}
-/>
+      <div className="relative z-10">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-300">
+              Royal Policy Chamber
+            </p>
 
-                <TaxPolicyEnginePanel
-  policy={data.taxPolicy}
-  history={data.taxPolicyHistory}
-  reviewing={reviewingTaxPolicy}
-  onReview={handleRunTaxPolicyReview}
-/>
-                  
-                </div>
-              </div>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
+              Treasury Intelligence
+            </h2>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <ActiveActionCard
-                  title="Run Weekly Tax"
-                  description="Mengambil pajak bertingkat dari saldo player aktif berdasarkan decree pajak aktif."
-                  icon="⚖"
-                  loading={runningTax}
-                  buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
-                  onClick={handleRunWeeklyTax}
-                  tone="amber"
-                />
+            <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
+              Ruang pembacaan ekonomi Lunaria. Di sini admin memantau engine
+              harian, membaca decree pajak, dan memastikan market bergerak
+              sesuai ritme dunia tanpa perlu intervensi berlebihan.
+            </p>
+          </div>
 
-                <ActiveActionCard
-                  title="Distribute Relief"
-                  description="Membagikan 10S untuk player aktif dengan saldo rendah agar ekonomi tetap adil."
-                  icon="✦"
-                  loading={runningRelief}
-                  buttonLabel={
-                    runningRelief ? "Distributing..." : "Distribute Relief"
-                  }
-                  onClick={handleDistributeRelief}
-                  tone="emerald"
-                />
+          <span className="w-fit rounded-full border border-purple-300/20 bg-purple-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-purple-100">
+            Admin Chamber
+          </span>
+        </div>
 
-                <ActiveActionCard
-                  title="Update Market Prices"
-                  description="Menggerakkan harga asset fantasy berdasarkan Chronicle, risk roll, dan kondisi market."
-                  icon="◇"
-                  loading={updatingMarket}
-                  buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
-                  onClick={handleUpdateMarketPrices}
-                  tone="cyan"
-                />
-              </div>
-            </section>
+        <div className="mt-6 grid grid-cols-1 gap-5">
+          <AutoDailyEnginePanel
+            chronicle={data.chronicle}
+            autoCycleStatus={autoCycleStatus}
+          />
 
-            <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+          <TaxPolicyEnginePanel
+            policy={data.taxPolicy}
+            history={data.taxPolicyHistory}
+            reviewing={reviewingTaxPolicy}
+            onReview={handleRunTaxPolicyReview}
+          />
+        </div>
+      </div>
+    </section>
 
-            <ArchivedAssetViewer
-              assets={data.archivedAssets}
-              restoringAssetId={restoringAssetId}
-              onRestore={handleRestoreAsset}
-            />
-          </>
-        ) : null}
+    <section className="relative mt-6 overflow-hidden rounded-[38px] border border-amber-300/15 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.025))] p-5 shadow-[0_22px_65px_rgba(0,0,0,0.28)] lg:p-6">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(rgba(255,255,255,0.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/35 to-transparent" />
+
+      <div className="relative z-10">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+              Treasury Operation Seals
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-white">
+              Manual Admin Actions
+            </h2>
+
+            <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-400">
+              Tombol resmi untuk tindakan manual treasury. Gunakan hanya saat
+              guild membutuhkan keputusan admin: penyegelan pajak mingguan,
+              pelepasan dana bantuan, atau sinkronisasi market setelah perubahan
+              Chronicle.
+            </p>
+          </div>
+
+          <span className="w-fit rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100">
+            Manual Control
+          </span>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <ActiveActionCard
+            title="Seal Weekly Tax"
+            description="Menjalankan pajak bertingkat dari saldo player aktif berdasarkan decree pajak yang sedang berlaku."
+            icon="⚖"
+            loading={runningTax}
+            buttonLabel={runningTax ? "Sealing..." : "Seal Weekly Tax"}
+            onClick={handleRunWeeklyTax}
+            tone="amber"
+          />
+
+          <ActiveActionCard
+            title="Release Relief Fund"
+            description="Melepaskan bantuan 10S untuk player aktif bersaldo rendah agar ekonomi guild tetap bergerak adil."
+            icon="✦"
+            loading={runningRelief}
+            buttonLabel={
+              runningRelief ? "Releasing..." : "Release Relief Fund"
+            }
+            onClick={handleDistributeRelief}
+            tone="emerald"
+          />
+
+          <ActiveActionCard
+            title="Refresh Relic Exchange"
+            description="Menggerakkan harga asset fantasy berdasarkan Chronicle, risk roll, dan tekanan market terbaru."
+            icon="◇"
+            loading={updatingMarket}
+            buttonLabel={
+              updatingMarket ? "Refreshing..." : "Refresh Relic Exchange"
+            }
+            onClick={handleUpdateMarketPrices}
+            tone="cyan"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
+      <div className="min-w-0">
+        <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+      </div>
+
+      <div className="min-w-0">
+        <ArchivedAssetViewer
+          assets={data.archivedAssets}
+          restoringAssetId={restoringAssetId}
+          onRestore={handleRestoreAsset}
+        />
+      </div>
+    </section>
+  </>
+) : null}
       </div>
     </main>
   );
