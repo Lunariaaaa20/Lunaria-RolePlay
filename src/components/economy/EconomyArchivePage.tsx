@@ -272,6 +272,7 @@ export default function EconomyArchivePage() {
   const [runningTax, setRunningTax] = useState(false);
   const [runningRelief, setRunningRelief] = useState(false);
   const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
+  const [archivingAssetId, setArchivingAssetId] = useState<string | null>(null);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
@@ -343,11 +344,25 @@ export default function EconomyArchivePage() {
         : Promise.resolve({ data: [], error: null }),
     ]);
 
-    if (treasuryResult.error) console.error("Treasury load error:", treasuryResult.error);
-    if (ledgerResult.error) console.error("Ledger load error:", ledgerResult.error);
-    if (assetsResult.error) console.error("Assets load error:", assetsResult.error);
-    if (historyResult.error) console.error("History load error:", historyResult.error);
-    if (holdingsResult.error) console.error("Holdings load error:", holdingsResult.error);
+    if (treasuryResult.error) {
+      console.error("Treasury load error:", treasuryResult.error);
+    }
+
+    if (ledgerResult.error) {
+      console.error("Ledger load error:", ledgerResult.error);
+    }
+
+    if (assetsResult.error) {
+      console.error("Assets load error:", assetsResult.error);
+    }
+
+    if (historyResult.error) {
+      console.error("History load error:", historyResult.error);
+    }
+
+    if (holdingsResult.error) {
+      console.error("Holdings load error:", holdingsResult.error);
+    }
 
     setData({
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
@@ -488,6 +503,37 @@ export default function EconomyArchivePage() {
     setRunningRelief(false);
 
     alert("Weekly Relief berhasil dibagikan.");
+  }
+
+  async function handleArchiveAsset(asset: MarketAssetRow) {
+    if (session?.role !== "admin") {
+      alert("Hanya admin yang bisa archive market asset.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Archive asset ini?\n\n${asset.name}\n\nAsset akan hilang dari Relic Exchange aktif, tapi ledger dan holding player tidak dihapus.`
+    );
+
+    if (!confirmed) return;
+
+    setArchivingAssetId(asset.id);
+
+    const { error } = await supabase.rpc("archive_market_asset", {
+      input_asset_id: asset.id,
+    });
+
+    if (error) {
+      console.error("Archive asset error:", error);
+      alert(`Gagal archive asset: ${error.message}`);
+      setArchivingAssetId(null);
+      return;
+    }
+
+    await loadEconomy();
+    setArchivingAssetId(null);
+
+    alert(`${asset.name} berhasil di-archive.`);
   }
 
   async function handleUpdateMarketPrices() {
@@ -632,8 +678,11 @@ export default function EconomyArchivePage() {
                   holdingQuantity={holding?.quantity || 0}
                   averageBuyPrice={holding?.average_buy_price || 0}
                   tradingAssetId={tradingAssetId}
+                  archivingAssetId={archivingAssetId}
+                  isAdmin={session?.role === "admin"}
                   onBuy={() => handleBuyAsset(asset)}
                   onSell={() => handleSellAsset(asset)}
+                  onArchive={() => handleArchiveAsset(asset)}
                 />
               );
             })}
@@ -730,6 +779,7 @@ export default function EconomyArchivePage() {
           />
         </div>
       </section>
+
       <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
     </main>
   );
@@ -810,25 +860,34 @@ function MarketAssetCard({
   holdingQuantity,
   averageBuyPrice,
   tradingAssetId,
+  archivingAssetId,
+  isAdmin,
   onBuy,
   onSell,
+  onArchive,
 }: {
   asset: MarketAssetRow;
   holdingQuantity: number;
   averageBuyPrice: number;
   tradingAssetId: string | null;
+  archivingAssetId: string | null;
+  isAdmin: boolean;
   onBuy: () => void;
   onSell: () => void;
+  onArchive: () => void;
 }) {
   const risk = getRiskStyle(asset.risk_level);
   const change = getChangeInfo(asset.current_price, asset.previous_price);
   const mood = getMarketMood(asset);
   const buying = tradingAssetId === `${asset.id}:buy`;
   const selling = tradingAssetId === `${asset.id}:sell`;
-  const isTrading = Boolean(tradingAssetId);
+  const archiving = archivingAssetId === asset.id;
+  const isTrading = Boolean(tradingAssetId) || Boolean(archivingAssetId);
 
   const profitLoss =
-    holdingQuantity > 0 ? (asset.current_price - averageBuyPrice) * holdingQuantity : 0;
+    holdingQuantity > 0
+      ? (asset.current_price - averageBuyPrice) * holdingQuantity
+      : 0;
 
   return (
     <article className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.84))] p-5">
@@ -930,6 +989,17 @@ function MarketAssetCard({
               {selling ? "Selling..." : "Sell 1"}
             </button>
           </div>
+
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={onArchive}
+              disabled={isTrading}
+              className="mt-3 w-full rounded-2xl border border-purple-300/25 bg-purple-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-purple-100 transition hover:bg-purple-400/16 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {archiving ? "Archiving..." : "Archive Asset"}
+            </button>
+          ) : null}
         </div>
       </div>
     </article>
@@ -1005,7 +1075,8 @@ function PortfolioCard({
                     {asset.name}
                   </p>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                    Qty {holding.quantity} • Avg {formatSilver(holding.average_buy_price)}
+                    Qty {holding.quantity} • Avg{" "}
+                    {formatSilver(holding.average_buy_price)}
                   </p>
                 </div>
 
@@ -1031,7 +1102,8 @@ function PortfolioCard({
 
         {holdings.length === 0 ? (
           <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-            Belum ada asset. Beli 1 unit dari Relic Exchange untuk mulai portfolio.
+            Belum ada asset. Beli 1 unit dari Relic Exchange untuk mulai
+            portfolio.
           </p>
         ) : null}
       </div>
