@@ -1134,11 +1134,10 @@ export default function EconomyArchivePage() {
                     Lunaria tetap terkendali.
                   </p>
 
-                  {autoCycleStatus ? (
-                    <p className="mt-3 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.055] px-4 py-3 text-xs font-semibold leading-5 text-cyan-100">
-                      {autoCycleStatus}
-                    </p>
-                  ) : null}
+                  <AutoDailyEnginePanel
+  chronicle={data.chronicle}
+  autoCycleStatus={autoCycleStatus}
+/>
                 </div>
               </div>
 
