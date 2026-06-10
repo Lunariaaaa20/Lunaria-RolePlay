@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import AdminMarketAssetForm from "./AdminMarketAssetForm";
 import LunariaChroniclePanel from "./LunariaChroniclePanel";
+import AutoDailyEnginePanel from "./AutoDailyEnginePanel";
 
 type LunariaSession = {
   role: "player" | "admin";
