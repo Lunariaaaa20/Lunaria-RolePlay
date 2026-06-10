@@ -237,6 +237,7 @@ export default function EconomyArchivePage() {
   const [loading, setLoading] = useState(true);
   const [updatingMarket, setUpdatingMarket] = useState(false);
   const [runningTax, setRunningTax] = useState(false);
+  const [runningRelief, setRunningRelief] = useState(false);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
@@ -317,6 +318,30 @@ export default function EconomyArchivePage() {
     setRunningTax(false);
 
     alert("Weekly Guild Tax berhasil dijalankan.");
+  }
+
+  async function handleDistributeRelief() {
+    const confirmed = window.confirm(
+      "Jalankan Weekly Relief sekarang? Player aktif dengan saldo 50S ke bawah akan menerima 10S dari Treasury. Sistem akan menolak jika relief sudah dijalankan dalam 7 hari terakhir."
+    );
+
+    if (!confirmed) return;
+
+    setRunningRelief(true);
+
+    const { error } = await supabase.rpc("run_weekly_relief");
+
+    if (error) {
+      console.error("Weekly relief error:", error);
+      alert(`Gagal menjalankan bansos: ${error.message}`);
+      setRunningRelief(false);
+      return;
+    }
+
+    await loadEconomy();
+    setRunningRelief(false);
+
+    alert("Weekly Relief berhasil dibagikan.");
   }
 
   async function handleUpdateMarketPrices() {
@@ -500,8 +525,8 @@ export default function EconomyArchivePage() {
               Treasury Operations
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Pajak dan market sudah bisa dijalankan manual oleh admin. Relief
-              masih dikunci dulu sampai sistem bansos selesai.
+              Pajak, bansos, dan market sudah bisa dijalankan manual oleh admin.
+              Semua punya cooldown agar ekonomi tidak rusak.
             </p>
           </div>
         </div>
@@ -517,10 +542,14 @@ export default function EconomyArchivePage() {
             tone="amber"
           />
 
-          <DisabledActionCard
+          <ActiveActionCard
             title="Distribute Relief"
-            description="Bansos otomatis untuk player dengan saldo rendah."
+            description="Bansos otomatis 10S untuk player aktif dengan saldo 50S ke bawah. Terkunci otomatis selama 7 hari setelah dijalankan."
             icon="✦"
+            loading={runningRelief}
+            buttonLabel={runningRelief ? "Distributing..." : "Distribute Relief"}
+            onClick={handleDistributeRelief}
+            tone="emerald"
           />
 
           <ActiveActionCard
@@ -763,34 +792,6 @@ function LedgerItem({ entry }: { entry: LedgerRow }) {
   );
 }
 
-function DisabledActionCard({
-  title,
-  description,
-  icon,
-}: {
-  title: string;
-  description: string;
-  icon: string;
-}) {
-  return (
-    <div className="rounded-[24px] border border-white/10 bg-black/24 p-5 opacity-80">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] text-lg">
-          {icon}
-        </div>
-
-        <div>
-          <p className="text-sm font-black text-white">{title}</p>
-          <p className="mt-2 text-xs leading-5 text-slate-400">{description}</p>
-          <p className="mt-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-600">
-            Locked Until Logic Phase
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ActiveActionCard({
   title,
   description,
@@ -806,7 +807,7 @@ function ActiveActionCard({
   loading: boolean;
   buttonLabel: string;
   onClick: () => void;
-  tone?: "cyan" | "amber";
+  tone?: "cyan" | "amber" | "emerald";
 }) {
   const styles =
     tone === "amber"
@@ -816,12 +817,19 @@ function ActiveActionCard({
           button:
             "border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/16",
         }
-      : {
-          card: "border-cyan-300/20 bg-cyan-400/[0.06] shadow-[0_0_28px_rgba(34,211,238,0.06)]",
-          icon: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100",
-          button:
-            "border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/16",
-        };
+      : tone === "emerald"
+        ? {
+            card: "border-emerald-300/20 bg-emerald-400/[0.06] shadow-[0_0_28px_rgba(16,185,129,0.06)]",
+            icon: "border-emerald-300/20 bg-emerald-400/10 text-emerald-100",
+            button:
+              "border-emerald-300/30 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/16",
+          }
+        : {
+            card: "border-cyan-300/20 bg-cyan-400/[0.06] shadow-[0_0_28px_rgba(34,211,238,0.06)]",
+            icon: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100",
+            button:
+              "border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/16",
+          };
 
   return (
     <div className={`rounded-[24px] border p-5 ${styles.card}`}>
@@ -850,4 +858,4 @@ function ActiveActionCard({
       </div>
     </div>
   );
-}
+      }
