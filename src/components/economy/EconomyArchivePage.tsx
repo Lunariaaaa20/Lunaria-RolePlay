@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import AdminMarketAssetForm from "./AdminMarketAssetForm";
 import LunariaChroniclePanel from "./LunariaChroniclePanel";
 import AutoDailyEnginePanel from "./AutoDailyEnginePanel";
+import TaxPolicyEnginePanel from "./TaxPolicyEnginePanel";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -1138,6 +1139,14 @@ export default function EconomyArchivePage() {
   chronicle={data.chronicle}
   autoCycleStatus={autoCycleStatus}
 />
+
+                <TaxPolicyEnginePanel
+  policy={data.taxPolicy}
+  history={data.taxPolicyHistory}
+  reviewing={reviewingTaxPolicy}
+  onReview={handleRunTaxPolicyReview}
+/>
+                  
                 </div>
               </div>
 
