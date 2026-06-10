@@ -228,6 +228,12 @@ function formatSilverChange(value: number) {
   return `${sign}${formatCurrency(currency)}`;
 }
 
+function getLogModeLabel(mode: string) {
+  if (mode === "Daily Number Omen") return "Veiled Number Rite";
+  if (mode === "Fortune Spin") return "Veil Spin";
+  return mode;
+}
+
 function getSpinResult(): SpinResult {
   const roll = Math.random();
 
@@ -424,7 +430,7 @@ export default function Calendar() {
 
       await supabase.from("fortune_logs").insert({
         player_id: entry.player_id,
-        mode: "Veiled Number Rite",
+        mode: "Daily Number Omen",
         detail: `Marked ${entry.picked_number} • Chosen ${winningNumber} • Tribute ${formatCurrency(
           silverToCurrency(entry.bet_amount)
         )}`,
@@ -757,7 +763,7 @@ export default function Calendar() {
 
       await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
-        mode: "Veiled Number Rite",
+        mode: "Daily Number Omen",
         detail: `Marked sigil ${selectedNumber} • Tribute ${formatCurrency(
           betCost
         )}`,
@@ -835,7 +841,7 @@ export default function Calendar() {
 
       const { error: logError } = await supabase.from("fortune_logs").insert({
         player_id: session.playerId,
-        mode: "Veil Spin",
+        mode: "Fortune Spin",
         detail: `${option.title} • ${results.join(", ")}`,
         result:
           net > 0
@@ -865,9 +871,7 @@ export default function Calendar() {
       );
 
       setLastSpinText(
-        `${option.title}: ${results.join(", ")} • ${
-          net >= 0 ? "+" : ""
-        }${formatCurrency(silverToCurrency(net))}`
+        `${option.title}: ${results.join(", ")} • ${formatSilverChange(net)}`
       );
 
       setNotice(
@@ -995,7 +999,7 @@ export default function Calendar() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 md:min-w-[320px]">
+          <div className="grid grid-cols-1 gap-3 md:min-w-[320px]">
             <TopHeroStat
               label="Vessel Balance"
               value={
@@ -1006,11 +1010,6 @@ export default function Calendar() {
                   : "-"
               }
               tone="text-amber-300"
-            />
-            <TopHeroStat
-              label="Veiled Timer"
-              value={activeRound ? countdown : "Dormant"}
-              tone="text-violet-300"
             />
           </div>
         </div>
@@ -1199,7 +1198,7 @@ export default function Calendar() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-black text-white">
-                            {log.mode}
+                            {getLogModeLabel(log.mode)}
                           </p>
                           <p className="mt-1 text-xs leading-5 text-slate-400">
                             {log.detail}
