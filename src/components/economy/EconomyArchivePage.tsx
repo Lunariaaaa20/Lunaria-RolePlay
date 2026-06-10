@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -135,6 +135,7 @@ function getRiskStyle(riskLevel: string) {
       label: "Low Risk",
       badge: "border-emerald-300/30 bg-emerald-400/10 text-emerald-100",
       range: "-5% sampai +7%",
+      glow: "from-emerald-400/18 via-transparent to-transparent",
     };
   }
 
@@ -143,6 +144,7 @@ function getRiskStyle(riskLevel: string) {
       label: "Medium Risk",
       badge: "border-cyan-300/30 bg-cyan-400/10 text-cyan-100",
       range: "-12% sampai +15%",
+      glow: "from-cyan-400/18 via-transparent to-transparent",
     };
   }
 
@@ -151,6 +153,7 @@ function getRiskStyle(riskLevel: string) {
       label: "High Risk",
       badge: "border-amber-300/30 bg-amber-400/10 text-amber-100",
       range: "-25% sampai +30%",
+      glow: "from-amber-400/18 via-transparent to-transparent",
     };
   }
 
@@ -159,6 +162,7 @@ function getRiskStyle(riskLevel: string) {
       label: "Forbidden Risk",
       badge: "border-red-300/35 bg-red-500/12 text-red-100",
       range: "-45% sampai +60%",
+      glow: "from-red-500/20 via-transparent to-transparent",
     };
   }
 
@@ -166,6 +170,7 @@ function getRiskStyle(riskLevel: string) {
     label: riskLevel || "Unknown",
     badge: "border-white/15 bg-white/[0.06] text-slate-200",
     range: "Tidak diketahui",
+    glow: "from-white/10 via-transparent to-transparent",
   };
 }
 
@@ -211,51 +216,63 @@ function getMarketMood(asset: MarketAssetRow) {
 
   if (risk === "forbidden") {
     if (change.percent > 0) {
-      return "Forbidden relic demand is rising in the shadow market.";
+      return "Permintaan relik terlarang meningkat di pasar bayangan kerajaan.";
     }
 
     if (change.percent < 0) {
-      return "Relic panic spreads through hidden merchant circles.";
+      return "Kepanikan relik menyebar di antara lingkar pedagang tersembunyi.";
     }
 
-    return "The forbidden market is silent, but unstable.";
+    return "Pasar terlarang diam, tetapi nilainya tetap tidak stabil.";
   }
 
   if (asset.asset_key.includes("pearl")) {
-    if (change.percent > 0) return "Sea route stable, pearl demand rising.";
-    if (change.percent < 0) return "Storm reports weaken merchant confidence.";
-    return "Azure Coast trade remains calm.";
+    if (change.percent > 0) return "Jalur laut stabil, permintaan mutiara naik.";
+    if (change.percent < 0) return "Laporan badai melemahkan kepercayaan merchant.";
+    return "Perdagangan Azure Coast berada dalam ritme tenang.";
   }
 
   if (asset.asset_key.includes("ore")) {
     if (change.percent > 0) {
-      return "Blacksmith demand pushes ore contracts upward.";
+      return "Permintaan blacksmith mendorong kontrak bijih naik.";
     }
 
     if (change.percent < 0) {
-      return "Cinderpeak monster activity disrupts mining routes.";
+      return "Aktivitas monster Cinderpeak mengganggu jalur tambang.";
     }
 
-    return "Ore caravans are waiting for safer passage.";
+    return "Karavan bijih menunggu jalur yang lebih aman.";
   }
 
   if (asset.asset_key.includes("herb")) {
     if (change.percent > 0) {
-      return "Healers request more luminous herbs after recent quests.";
+      return "Healer dan alchemist meminta lebih banyak herbal bercahaya.";
     }
 
-    if (change.percent < 0) return "Herb supply is stable, lowering urgency.";
+    if (change.percent < 0) return "Pasokan herbal stabil, urgensi pasar menurun.";
 
-    return "Everglow herbal trade remains steady.";
+    return "Perdagangan herbal Everglow bergerak stabil.";
   }
 
   if (asset.asset_key.includes("grain")) {
-    if (change.percent > 0) return "Village harvest records look favorable.";
-    if (change.percent < 0) return "Poor road conditions slow grain delivery.";
-    return "Moonlit grain supply is stable.";
+    if (change.percent > 0) return "Catatan panen desa terlihat menguntungkan.";
+    if (change.percent < 0) return "Kondisi jalan memperlambat pengiriman gandum.";
+    return "Pasokan gandum bulan tetap stabil.";
   }
 
-  return asset.flavor || "Market movement is currently quiet.";
+  if (asset.asset_key.includes("apple")) {
+    if (change.percent > 0) return "Permintaan dapur guild membuat pasokan naik.";
+    if (change.percent < 0) return "Panen basah menekan nilai kontrak apel.";
+    return "Kontrak apel Oakhaven berada di harga aman.";
+  }
+
+  if (asset.asset_key.includes("caravan")) {
+    if (change.percent > 0) return "Karavan malam kembali membawa laba perlahan.";
+    if (change.percent < 0) return "Kabut jalan dagang menahan nilai saham karavan.";
+    return "Saham karavan bergerak tenang di bawah cahaya bulan.";
+  }
+
+  return asset.flavor || "Pergerakan market sedang tenang di arsip treasury.";
 }
 
 export default function EconomyArchivePage() {
@@ -626,233 +643,259 @@ export default function EconomyArchivePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#050711] px-4 py-6 text-white sm:px-6 lg:px-8">
-      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[radial-gradient(circle_at_20%_10%,rgba(245,158,11,0.16),transparent_30%),radial-gradient(circle_at_90%_20%,rgba(34,211,238,0.10),transparent_32%),linear-gradient(135deg,rgba(15,23,42,0.94),rgba(2,6,23,0.98))] p-5 shadow-[0_0_60px_rgba(0,0,0,0.35)] sm:p-7">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:46px_46px]" />
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-20 h-60 w-60 rounded-full bg-cyan-400/10 blur-3xl" />
+    <main className="relative min-h-screen overflow-hidden bg-[#03050d] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.10),transparent_28%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.08),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.10),transparent_32%),linear-gradient(180deg,#03050d,#060816_45%,#02030a)]" />
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.045] [background-image:linear-gradient(rgba(255,255,255,0.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.55)_1px,transparent_1px)] [background-size:54px_54px]" />
+      <div className="pointer-events-none fixed left-1/2 top-0 z-0 h-px w-[84%] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-200/30 to-transparent" />
 
-        <div className="relative z-10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.35em] text-amber-300">
-                Lunaria Economy Archive
-              </p>
-              <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">
-                Royal Treasury
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                Pusat arsip ekonomi guild: pajak mingguan, dana bansos, dan
-                Relic Exchange fantasy market. Sistem ini dibuat untuk mencegah
-                inflasi tanpa bikin player kecil makin berat.
-              </p>
-            </div>
+      <div className="relative z-10">
+        <section className="relative overflow-hidden rounded-[38px] border border-amber-200/15 bg-[radial-gradient(circle_at_20%_15%,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_78%_10%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(2,6,23,0.98))] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.45)] sm:p-7 lg:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.040)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.040)_1px,transparent_1px)] bg-[size:48px_48px]" />
+          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 -left-20 h-72 w-72 rounded-full bg-amber-400/12 blur-3xl" />
+          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/35 to-transparent" />
 
-            <button
-              type="button"
-              onClick={loadEconomy}
-              disabled={loading}
-              className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-amber-100 transition hover:bg-amber-400/16 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Loading..." : "Refresh Archive"}
-            </button>
-          </div>
-
-          <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Treasury Balance"
-              value={formatSilver(data.treasury?.treasury_balance || 0)}
-              note="Dana pajak tersimpan"
-              icon="♛"
-              tone="amber"
-            />
-            <StatCard
-              label="Tax Collected"
-              value={formatSilver(data.treasury?.total_tax_collected || 0)}
-              note="Total pajak terkumpul"
-              icon="⚖"
-              tone="red"
-            />
-            <StatCard
-              label="Relief Distributed"
-              value={formatSilver(data.treasury?.total_relief_distributed || 0)}
-              note="Total bansos keluar"
-              icon="✦"
-              tone="emerald"
-            />
-            <StatCard
-              label="Market Index"
-              value={formatSilver(totalMarketValue)}
-              note={`${data.assets.length} active assets`}
-              icon="◇"
-              tone="cyan"
-            />
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <ScheduleCard
-              title="Weekly Tax"
-              value={formatDate(data.treasury?.last_tax_run_at)}
-              description="Pajak mingguan untuk mencegah inflasi ekonomi guild."
-              badge="Anti Inflation"
-            />
-            <ScheduleCard
-              title="Relief Ledger"
-              value={formatDate(data.treasury?.last_relief_run_at)}
-              description="Dana bansos untuk player saldo rendah."
-              badge="Welfare Fund"
-            />
-            <ScheduleCard
-              title="Market Update"
-              value={formatDate(data.treasury?.last_market_update_at)}
-              description="Harga Relic Exchange naik-turun berdasarkan risk dan event."
-              badge="Fantasy Market"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.45fr_0.9fr]">
-        <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5 shadow-[inset_0_0_30px_rgba(255,255,255,0.025)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">
-                Relic Exchange
-              </p>
-              <h2 className="mt-2 text-2xl font-black text-white">
-                Fantasy Market Assets
-              </h2>
-            </div>
-            <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">
-              Live Market
-            </span>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.assets.map((asset) => {
-              const holding = holdingMap.get(asset.id);
-
-              return (
-                <MarketAssetCard
-                  key={asset.id}
-                  asset={asset}
-                  holdingQuantity={holding?.quantity || 0}
-                  averageBuyPrice={holding?.average_buy_price || 0}
-                  tradingAssetId={tradingAssetId}
-                  archivingAssetId={archivingAssetId}
-                  isAdmin={isAdmin}
-                  onBuy={() => handleBuyAsset(asset)}
-                  onSell={() => handleSellAsset(asset)}
-                  onArchive={() => handleArchiveAsset(asset)}
-                />
-              );
-            })}
-
-            {!loading && data.assets.length === 0 ? (
-              <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                Belum ada market asset aktif. Restore asset archived atau buat
-                asset baru dari panel admin.
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <PortfolioCard
-            session={session}
-            holdings={data.holdings}
-            assets={data.assets}
-            portfolioValue={portfolioValue}
-            portfolioCost={portfolioCost}
-            portfolioProfitLoss={portfolioProfitLoss}
-          />
-
-          <TaxRulesCard />
-
-          <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
-              Economy Ledger
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">
-              Latest Records
-            </h2>
-
-            <div className="mt-5 space-y-3">
-              {data.ledger.map((entry) => (
-                <LedgerItem key={entry.id} entry={entry} />
-              ))}
-
-              {!loading && data.ledger.length === 0 ? (
-                <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-                  Belum ada ledger. Nanti akan terisi saat pajak, bansos, buy,
-                  sell, archive, restore, atau market update berjalan.
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {isAdmin ? (
-        <>
-          <section className="mt-6 rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="relative z-10">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
-                  Admin Economy Controls
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-200 shadow-[0_0_18px_rgba(252,211,77,0.9)]" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-200">
+                    Lunaria Royal Economy
+                  </p>
+                </div>
+
+                <h1 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+                  Royal Treasury
+                </h1>
+
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-[15px]">
+                  Pusat kendali ekonomi Lunaria: tempat silver berputar,
+                  pajak dicatat, dana bantuan disalurkan, dan Relic Exchange
+                  menjaga denyut pasar guild tetap hidup.
                 </p>
-                <h2 className="mt-2 text-2xl font-black text-white">
-                  Treasury Operations
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Pajak, bansos, dan market hanya bisa dijalankan oleh admin.
-                  Semua punya cooldown agar ekonomi tidak rusak.
-                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
+                <button
+                  type="button"
+                  onClick={loadEconomy}
+                  disabled={loading}
+                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.08)] transition hover:bg-amber-400/16 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Syncing..." : "Refresh Treasury"}
+                </button>
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <ActiveActionCard
-                title="Run Weekly Tax"
-                description="Potong pajak otomatis berdasarkan tier saldo player aktif. Terkunci otomatis selama 7 hari setelah dijalankan."
-                icon="⚖"
-                loading={runningTax}
-                buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
-                onClick={handleRunWeeklyTax}
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Treasury Balance"
+                value={formatSilver(data.treasury?.treasury_balance || 0)}
+                note="Dana tersimpan di kas guild"
+                icon="♛"
                 tone="amber"
               />
-
-              <ActiveActionCard
-                title="Distribute Relief"
-                description="Bansos otomatis 10S untuk player aktif dengan saldo 50S ke bawah. Terkunci otomatis selama 7 hari setelah dijalankan."
+              <StatCard
+                label="Tax Collected"
+                value={formatSilver(data.treasury?.total_tax_collected || 0)}
+                note="Total pajak yang telah masuk"
+                icon="⚖"
+                tone="red"
+              />
+              <StatCard
+                label="Relief Distributed"
+                value={formatSilver(data.treasury?.total_relief_distributed || 0)}
+                note="Bantuan untuk player saldo rendah"
                 icon="✦"
-                loading={runningRelief}
-                buttonLabel={runningRelief ? "Distributing..." : "Distribute Relief"}
-                onClick={handleDistributeRelief}
                 tone="emerald"
               />
-
-              <ActiveActionCard
-                title="Update Market Prices"
-                description="Harga market naik-turun otomatis dengan random risk roll dan market event."
+              <StatCard
+                label="Market Index"
+                value={formatSilver(totalMarketValue)}
+                note={`${data.assets.length} instrumen aktif`}
                 icon="◇"
-                loading={updatingMarket}
-                buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
-                onClick={handleUpdateMarketPrices}
                 tone="cyan"
               />
             </div>
-          </section>
 
-          <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <ScheduleCard
+                title="Tax Seal"
+                value={formatDate(data.treasury?.last_tax_run_at)}
+                description="Pajak mingguan menjaga inflasi agar ekonomi guild tetap sehat."
+                badge="Anti Inflation"
+              />
+              <ScheduleCard
+                title="Relief Seal"
+                value={formatDate(data.treasury?.last_relief_run_at)}
+                description="Dana bantuan untuk adventurer aktif yang sedang kekurangan silver."
+                badge="Welfare Fund"
+              />
+              <ScheduleCard
+                title="Market Seal"
+                value={formatDate(data.treasury?.last_market_update_at)}
+                description="Harga Relic Exchange bergerak mengikuti risiko, event, dan demand."
+                badge="Relic Exchange"
+              />
+            </div>
+          </div>
+        </section>
 
-          <ArchivedAssetViewer
-            assets={data.archivedAssets}
-            restoringAssetId={restoringAssetId}
-            onRestore={handleRestoreAsset}
-          />
-        </>
-      ) : null}
+        <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.45fr_0.9fr]">
+          <div className="rounded-[34px] border border-white/10 bg-white/[0.045] p-5 shadow-[inset_0_0_35px_rgba(255,255,255,0.025)] lg:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">
+                  Relic Exchange
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-white">
+                  Market Instruments
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Saham fantasy, kontrak pasokan, dan relik bernilai yang bisa
+                  dibeli atau dijual oleh player.
+                </p>
+              </div>
+
+              <span className="hidden rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100 sm:inline-flex">
+                Live Market
+              </span>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {data.assets.map((asset) => {
+                const holding = holdingMap.get(asset.id);
+
+                return (
+                  <MarketAssetCard
+                    key={asset.id}
+                    asset={asset}
+                    holdingQuantity={holding?.quantity || 0}
+                    averageBuyPrice={holding?.average_buy_price || 0}
+                    tradingAssetId={tradingAssetId}
+                    archivingAssetId={archivingAssetId}
+                    isAdmin={isAdmin}
+                    onBuy={() => handleBuyAsset(asset)}
+                    onSell={() => handleSellAsset(asset)}
+                    onArchive={() => handleArchiveAsset(asset)}
+                  />
+                );
+              })}
+
+              {!loading && data.assets.length === 0 ? (
+                <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm leading-6 text-slate-400">
+                  Belum ada asset aktif. Restore dari archive vault atau buat
+                  instrumen market baru melalui panel admin.
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <PortfolioCard
+              session={session}
+              holdings={data.holdings}
+              assets={data.assets}
+              portfolioValue={portfolioValue}
+              portfolioCost={portfolioCost}
+              portfolioProfitLoss={portfolioProfitLoss}
+            />
+
+            <TaxRulesCard />
+
+            <div className="rounded-[34px] border border-white/10 bg-white/[0.045] p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+                Treasury Ledger
+              </p>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                Archive Records
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Catatan resmi seluruh transaksi treasury, market, pajak,
+                bantuan, archive, dan restore.
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {data.ledger.map((entry) => (
+                  <LedgerItem key={entry.id} entry={entry} />
+                ))}
+
+                {!loading && data.ledger.length === 0 ? (
+                  <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-400">
+                    Belum ada ledger. Catatan akan muncul setelah pajak, bansos,
+                    buy, sell, archive, restore, atau market update berjalan.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {isAdmin ? (
+          <>
+            <section className="mt-6 rounded-[34px] border border-amber-300/15 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.10),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.045),rgba(255,255,255,0.025))] p-5 lg:p-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
+                    Admin Treasury Console
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black text-white">
+                    Treasury Operations
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                    Panel operasi ekonomi guild. Jalankan pajak, bantuan, dan
+                    update market secara manual dengan cooldown agar ekonomi
+                    Lunaria tetap terkendali.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <ActiveActionCard
+                  title="Run Weekly Tax"
+                  description="Mengambil pajak bertingkat dari saldo player aktif dan menyimpannya ke kas guild."
+                  icon="⚖"
+                  loading={runningTax}
+                  buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
+                  onClick={handleRunWeeklyTax}
+                  tone="amber"
+                />
+
+                <ActiveActionCard
+                  title="Distribute Relief"
+                  description="Membagikan 10S untuk player aktif dengan saldo rendah agar ekonomi tetap adil."
+                  icon="✦"
+                  loading={runningRelief}
+                  buttonLabel={
+                    runningRelief ? "Distributing..." : "Distribute Relief"
+                  }
+                  onClick={handleDistributeRelief}
+                  tone="emerald"
+                />
+
+                <ActiveActionCard
+                  title="Update Market Prices"
+                  description="Menggerakkan harga asset fantasy berdasarkan risk roll dan kondisi market."
+                  icon="◇"
+                  loading={updatingMarket}
+                  buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
+                  onClick={handleUpdateMarketPrices}
+                  tone="cyan"
+                />
+              </div>
+            </section>
+
+            <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+
+            <ArchivedAssetViewer
+              assets={data.archivedAssets}
+              restoringAssetId={restoringAssetId}
+              onRestore={handleRestoreAsset}
+            />
+          </>
+        ) : null}
+      </div>
     </main>
   );
 }
@@ -870,27 +913,43 @@ function StatCard({
   icon: string;
   tone: "amber" | "red" | "emerald" | "cyan";
 }) {
-  const toneClass = {
-    amber: "text-amber-200 border-amber-300/20 bg-amber-400/10",
-    red: "text-red-200 border-red-300/20 bg-red-400/10",
-    emerald: "text-emerald-200 border-emerald-300/20 bg-emerald-400/10",
-    cyan: "text-cyan-200 border-cyan-300/20 bg-cyan-400/10",
+  const style = {
+    amber: {
+      icon: "text-amber-100 border-amber-300/25 bg-amber-400/12",
+      glow: "bg-amber-400/10",
+    },
+    red: {
+      icon: "text-red-100 border-red-300/25 bg-red-400/12",
+      glow: "bg-red-400/10",
+    },
+    emerald: {
+      icon: "text-emerald-100 border-emerald-300/25 bg-emerald-400/12",
+      glow: "bg-emerald-400/10",
+    },
+    cyan: {
+      icon: "text-cyan-100 border-cyan-300/25 bg-cyan-400/12",
+      glow: "bg-cyan-400/10",
+    },
   }[tone];
 
   return (
-    <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-black/24 p-5">
-      <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-white/[0.035] blur-xl" />
+    <div className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-black/26 p-5 transition hover:border-white/16 hover:bg-white/[0.055]">
+      <div className={`absolute -right-10 -top-10 h-28 w-28 rounded-full ${style.glow} blur-2xl`} />
+      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
+
       <div className="relative z-10 flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
             {label}
           </p>
-          <p className="mt-3 text-3xl font-black text-white">{value}</p>
-          <p className="mt-2 text-xs text-slate-400">{note}</p>
+          <p className="mt-3 text-3xl font-black tracking-tight text-white">
+            {value}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">{note}</p>
         </div>
 
         <div
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-xl ${toneClass}`}
+          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-xl shadow-[0_0_24px_rgba(255,255,255,0.04)] ${style.icon}`}
         >
           {icon}
         </div>
@@ -911,7 +970,7 @@ function ScheduleCard({
   badge: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-black/22 p-5">
+    <div className="rounded-[24px] border border-white/10 bg-black/24 p-5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
           {title}
@@ -962,15 +1021,17 @@ function MarketAssetCard({
       : 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(15,23,42,0.72),rgba(2,6,23,0.84))] p-5">
-      <div className="absolute right-4 top-4 text-6xl opacity-[0.07]">
+    <article className="relative overflow-hidden rounded-[30px] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.76),rgba(2,6,23,0.92))] p-5 shadow-[0_16px_42px_rgba(0,0,0,0.20)] transition hover:border-white/16 hover:bg-white/[0.055]">
+      <div className={`absolute inset-0 bg-gradient-to-br ${risk.glow} opacity-80`} />
+      <div className="absolute right-4 top-4 text-7xl opacity-[0.055]">
         {asset.icon}
       </div>
+      <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent" />
 
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/35 text-xl">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/35 text-xl shadow-[0_0_22px_rgba(255,255,255,0.035)]">
               {asset.icon}
             </div>
 
@@ -1008,14 +1069,16 @@ function MarketAssetCard({
           />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/24 p-4">
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/26 p-4">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-            Market Status
+            Market Reading
           </p>
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-200">
             {mood}
           </p>
-          <p className="mt-2 text-xs text-slate-500">Range: {risk.range}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            Risk range: {risk.range}
+          </p>
         </div>
 
         <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-400/[0.045] p-4">
@@ -1069,7 +1132,7 @@ function MarketAssetCard({
               disabled={isTrading}
               className="mt-3 w-full rounded-2xl border border-purple-300/25 bg-purple-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-purple-100 transition hover:bg-purple-400/16 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {archiving ? "Archiving..." : "Archive Asset"}
+              {archiving ? "Sealing..." : "Archive Asset"}
             </button>
           ) : null}
         </div>
@@ -1098,7 +1161,7 @@ function PortfolioCard({
   }, [assets]);
 
   return (
-    <div className="rounded-[30px] border border-cyan-300/15 bg-cyan-400/[0.045] p-5">
+    <div className="rounded-[34px] border border-cyan-300/15 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.12),transparent_30%),rgba(34,211,238,0.045)] p-5">
       <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">
         Player Portfolio
       </p>
@@ -1108,7 +1171,7 @@ function PortfolioCard({
       </h2>
 
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Asset fantasy yang sedang dimiliki player dari Relic Exchange.
+        Nilai asset yang sedang dimiliki dari Relic Exchange.
       </p>
 
       <div className="mt-5 grid grid-cols-3 gap-3">
@@ -1139,7 +1202,7 @@ function PortfolioCard({
           return (
             <div
               key={holding.id}
-              className="rounded-2xl border border-white/10 bg-black/20 p-4"
+              className="rounded-2xl border border-white/10 bg-black/22 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1173,9 +1236,9 @@ function PortfolioCard({
         })}
 
         {holdings.length === 0 ? (
-          <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
+          <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-slate-400">
             Belum ada asset. Beli 1 unit dari Relic Exchange untuk mulai
-            portfolio.
+            membangun portfolio.
           </p>
         ) : null}
       </div>
@@ -1193,23 +1256,23 @@ function ArchivedAssetViewer({
   onRestore: (asset: MarketAssetRow) => void;
 }) {
   return (
-    <section className="mt-6 rounded-[30px] border border-purple-300/15 bg-purple-400/[0.045] p-5">
+    <section className="mt-6 rounded-[34px] border border-purple-300/15 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.12),transparent_32%),rgba(168,85,247,0.045)] p-5 lg:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
-            Admin Archive Vault
+            Sealed Archive Vault
           </p>
           <h2 className="mt-2 text-2xl font-black text-white">
             Archived Market Assets
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Asset yang pernah di-archive akan muncul di sini. Admin bisa restore
-            kalau salah archive atau asset ingin dipakai lagi.
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+            Asset yang disegel dari market aktif akan disimpan di vault ini.
+            Admin bisa membuka segel dan mengembalikannya ke Relic Exchange.
           </p>
         </div>
 
         <span className="rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-purple-100">
-          {assets.length} Archived
+          {assets.length} Sealed
         </span>
       </div>
 
@@ -1221,7 +1284,7 @@ function ArchivedAssetViewer({
           return (
             <article
               key={asset.id}
-              className="rounded-[24px] border border-white/10 bg-black/24 p-4"
+              className="rounded-[26px] border border-white/10 bg-black/24 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
@@ -1242,7 +1305,7 @@ function ArchivedAssetViewer({
                 <span
                   className={`shrink-0 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${risk.badge}`}
                 >
-                  Archived
+                  Sealed
                 </span>
               </div>
 
@@ -1270,8 +1333,8 @@ function ArchivedAssetViewer({
 
         {assets.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm leading-6 text-slate-400">
-            Belum ada archived asset. Kalau admin archive asset dari Relic
-            Exchange, datanya akan muncul di sini.
+            Belum ada sealed asset. Kalau admin archive asset dari Relic
+            Exchange, catatannya akan muncul di vault ini.
           </div>
         ) : null}
       </div>
@@ -1308,23 +1371,23 @@ function TaxRulesCard() {
   ];
 
   return (
-    <div className="rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
+    <div className="rounded-[34px] border border-red-300/12 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.10),transparent_30%),rgba(255,255,255,0.045)] p-5">
       <p className="text-[10px] font-black uppercase tracking-[0.28em] text-red-300">
-        Weekly Tax Rules
+        Tax Doctrine
       </p>
       <h2 className="mt-2 text-2xl font-black text-white">
         Anti Inflation Tax
       </h2>
       <p className="mt-2 text-sm leading-6 text-slate-400">
-        Pajak dibuat bertingkat. Player kecil aman, player kaya membantu
-        treasury guild.
+        Pajak dibuat bertingkat. Player kecil aman, player kaya ikut menjaga
+        stabilitas kas guild.
       </p>
 
       <div className="mt-5 space-y-2">
         {tiers.map(([range, rate]) => (
           <div
             key={range}
-            className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3"
+            className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/22 px-4 py-3"
           >
             <span className="text-sm font-bold text-slate-300">{range}</span>
             <span className="text-sm font-black text-amber-200">{rate}</span>
@@ -1337,7 +1400,7 @@ function TaxRulesCard() {
 
 function LedgerItem({ entry }: { entry: LedgerRow }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+    <div className="rounded-2xl border border-white/10 bg-black/22 p-4 transition hover:border-white/16 hover:bg-white/[0.05]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-white">{entry.title}</p>
@@ -1408,7 +1471,7 @@ function ActiveActionCard({
           };
 
   return (
-    <div className={`rounded-[24px] border p-5 ${styles.card}`}>
+    <div className={`rounded-[26px] border p-5 ${styles.card}`}>
       <div className="flex items-start gap-3">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-lg ${styles.icon}`}
