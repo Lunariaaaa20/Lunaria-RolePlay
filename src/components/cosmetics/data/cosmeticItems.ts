@@ -1,555 +1,559 @@
 export type CosmeticType =
-| "name_effect"
-| "border"
-| "background"
-| "aura"
-| "particle";
+  | "name_effect"
+  | "border"
+  | "background"
+  | "aura"
+  | "particle";
 
 export type CosmeticTheme =
-| "sovereign-tempest"
-| "abyssal-leviathan"
-| "crimson-aristocrat"
-| "ethereal-yggdrasil"
-| "ivory-overlord";
+  | "obsidian-monarch"
+  | "blood-cathedral"
+  | "abyss-sovereign"
+  | "thorn-empress"
+  | "soulfire-tyrant";
 
 export type CosmeticRarity =
-| "Common"
-| "Rare"
-| "Epic"
-| "Legendary"
-| "Mythic";
+  | "Common"
+  | "Rare"
+  | "Epic"
+  | "Legendary"
+  | "Mythic"
+  | "Divine Relic"
+  | "Forbidden Relic";
 
 export type CosmeticItem = {
-id: string;
-name: string;
-theme: CosmeticTheme;
-themeName: string;
-type: CosmeticType;
-typeLabel: string;
-rarity: CosmeticRarity;
-price: number;
-icon: string;
-accent: string;
-shortDescription: string;
-description: string;
-visualQuality: string;
-previewLabel: string;
+  id: string;
+  name: string;
+  theme: CosmeticTheme;
+  themeName: string;
+  type: CosmeticType;
+  typeLabel: string;
+  rarity: CosmeticRarity;
+  price: number;
+  icon: string;
+  accent: string;
+  shortDescription: string;
+  description: string;
+  visualQuality: string;
+  previewLabel: string;
 };
 
 export const cosmeticThemes = [
-{
-id: "sovereign-tempest",
-name: "Sovereign Tempest",
-subtitle: "Petir, awan dewa, dan kemuliaan langit kerajaan.",
-icon: "⚡",
-mood: "Storm Royalty",
-color: "from-amber-400/25 via-violet-500/20 to-sky-300/15",
-},
-{
-id: "abyssal-leviathan",
-name: "Abyssal Leviathan",
-subtitle: "Laut dalam, kristal safir, dan cahaya bioluminescent.",
-icon: "◇",
-mood: "Deep Sea Relic",
-color: "from-cyan-300/20 via-blue-500/20 to-emerald-300/15",
-},
-{
-id: "crimson-aristocrat",
-name: "Crimson Aristocrat",
-subtitle: "Gothic vampire, velvet hitam, ruby, dan bangsawan malam.",
-icon: "✦",
-mood: "Blood Moon Noble",
-color: "from-red-500/25 via-rose-900/25 to-amber-300/15",
-},
-{
-id: "ethereal-yggdrasil",
-name: "Ethereal Yggdrasil",
-subtitle: "Hutan peri kuno, akar bercahaya, dan napas alam suci.",
-icon: "✧",
-mood: "Ancient Fairywood",
-color: "from-emerald-300/25 via-lime-400/15 to-amber-200/10",
-},
-{
-id: "ivory-overlord",
-name: "Ivory Overlord",
-subtitle: "Tulang raja, api jiwa cyan, dan singgasana dark fantasy.",
-icon: "♛",
-mood: "Soulfire Dominion",
-color: "from-cyan-300/20 via-slate-200/10 to-blue-500/20",
-},
+  {
+    id: "obsidian-monarch",
+    name: "Obsidian Monarch",
+    subtitle: "Mahkota gelap, obsidian, emas redup, dan tekanan raja terkutuk.",
+    icon: "♛",
+    mood: "Dark Royal Dominion",
+    color: "from-zinc-950 via-stone-900 to-amber-950",
+  },
+  {
+    id: "blood-cathedral",
+    name: "Blood Cathedral",
+    subtitle: "Katedral vampir, velvet merah, kaca patri, dan aristokrat malam.",
+    icon: "◆",
+    mood: "Gothic Blood Noble",
+    color: "from-red-950 via-rose-950 to-black",
+  },
+  {
+    id: "abyss-sovereign",
+    name: "Abyss Sovereign",
+    subtitle: "Laut jurang, leviathan, kristal safir, dan cahaya bioluminescent.",
+    icon: "◇",
+    mood: "Deep Sea Majesty",
+    color: "from-cyan-950 via-blue-950 to-slate-950",
+  },
+  {
+    id: "thorn-empress",
+    name: "Thorn Empress",
+    subtitle: "Ratu peri gelap, akar tajam, duri emas, dan hutan suci berbahaya.",
+    icon: "✧",
+    mood: "Dark Fairywood Empress",
+    color: "from-emerald-950 via-green-950 to-yellow-950",
+  },
+  {
+    id: "soulfire-tyrant",
+    name: "Soulfire Tyrant",
+    subtitle: "Singgasana tulang, api jiwa cyan, kabut arwah, dan dominasi dingin.",
+    icon: "☽",
+    mood: "Cyan Soul Dominion",
+    color: "from-slate-950 via-cyan-950 to-black",
+  },
 ] as const;
 
 export const cosmeticItems: CosmeticItem[] = [
-// =========================================================
-// SOVEREIGN TEMPEST — PETIR & AWAN DEWA
-// =========================================================
-{
-id: "tempest-name-01",
-name: "Storm-Crowned Name",
-theme: "sovereign-tempest",
-themeName: "Sovereign Tempest",
-type: "name_effect",
-typeLabel: "Name Effect",
-rarity: "Rare",
-price: 65,
-icon: "⚡",
-accent: "text-amber-300",
-shortDescription: "Nama berkilat seperti mahkota badai.",
-description:
-"Efek nama dengan kilatan petir kecil yang menyambar halus dari huruf ke huruf, memberi kesan karakter berada di bawah restu langit Lunaria.",
-visualQuality: "Micro lightning text shimmer",
-previewLabel: "Storm Letter Glow",
-},
-{
-id: "tempest-border-01",
-name: "Cumulus Royal Frame",
-theme: "sovereign-tempest",
-themeName: "Sovereign Tempest",
-type: "border",
-typeLabel: "ID Border",
-rarity: "Epic",
-price: 95,
-icon: "☁",
-accent: "text-violet-300",
-shortDescription: "Border awan kerajaan dengan cahaya ungu.",
-description:
-"Bingkai ID Card bergaya awan kumulonimbus magis, dihiasi denyut petir ungu dan garis emas yang membuat kartu terasa seperti lisensi langit.",
-visualQuality: "Animated thunder cloud border",
-previewLabel: "Royal Cloud Frame",
-},
-{
-id: "tempest-background-01",
-name: "Thunder Dragon Sky",
-theme: "sovereign-tempest",
-themeName: "Sovereign Tempest",
-type: "background",
-typeLabel: "ID Background",
-rarity: "Legendary",
-price: 150,
-icon: "🐉",
-accent: "text-amber-300",
-shortDescription: "Langit badai dengan siluet naga petir.",
-description:
-"Background ID Card berupa langit malam yang bergemuruh, dihiasi hujan cahaya emas dan bayangan naga petir yang terasa jauh, mahal, dan mistis.",
-visualQuality: "Layered storm sky parallax",
-previewLabel: "Dragon Storm Realm",
-},
-{
-id: "tempest-aura-01",
-name: "Static Divinity Aura",
-theme: "sovereign-tempest",
-themeName: "Sovereign Tempest",
-type: "aura",
-typeLabel: "Profile Aura",
-rarity: "Legendary",
-price: 170,
-icon: "✺",
-accent: "text-sky-200",
-shortDescription: "Aura listrik statis di sekitar karakter.",
-description:
-"Aura profil dengan percikan listrik statis dan distorsi udara halus. Memberi kesan karakter punya tekanan spiritual seperti dewa badai.",
-visualQuality: "Electric aura distortion",
-previewLabel: "Divine Static Ring",
-},
-{
-id: "tempest-particle-01",
-name: "Golden Stormfall Particles",
-theme: "sovereign-tempest",
-themeName: "Sovereign Tempest",
-type: "particle",
-typeLabel: "Particle Effect",
-rarity: "Mythic",
-price: 220,
-icon: "✹",
-accent: "text-yellow-300",
-shortDescription: "Partikel cahaya emas jatuh seperti hujan langit.",
-description:
-"Efek partikel eksklusif berupa debu cahaya emas, kilatan mini, dan arus angin badai yang bergerak lembut di sekitar kartu.",
-visualQuality: "Falling golden lightning dust",
-previewLabel: "Stormfall Dust",
-},
+  // =========================================================
+  // OBSIDIAN MONARCH
+  // =========================================================
+  {
+    id: "obsidian-name-01",
+    name: "Crown of Black Glass",
+    theme: "obsidian-monarch",
+    themeName: "Obsidian Monarch",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Epic",
+    price: 180,
+    icon: "♛",
+    accent: "text-amber-200",
+    shortDescription: "Nama obsidian dengan kilau mahkota emas redup.",
+    description:
+      "Efek nama mewah seperti kaca hitam kerajaan, dihiasi retakan emas tipis dan shimmer tajam yang bergerak pelan dari kiri ke kanan.",
+    visualQuality: "Obsidian royal text shimmer",
+    previewLabel: "Black Crown Signature",
+  },
+  {
+    id: "obsidian-border-01",
+    name: "Imperial Obsidian Frame",
+    theme: "obsidian-monarch",
+    themeName: "Obsidian Monarch",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Legendary",
+    price: 320,
+    icon: "▰",
+    accent: "text-stone-200",
+    shortDescription: "Border kerajaan hitam dengan garis emas tajam.",
+    description:
+      "Bingkai ID Card bergaya takhta obsidian, memiliki garis emas redup, sudut tajam, dan aura berat seperti lisensi bangsawan gelap.",
+    visualQuality: "Sharp obsidian royal border",
+    previewLabel: "Imperial Black Frame",
+  },
+  {
+    id: "obsidian-background-01",
+    name: "Throne Under Ashfall",
+    theme: "obsidian-monarch",
+    themeName: "Obsidian Monarch",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Legendary",
+    price: 420,
+    icon: "♜",
+    accent: "text-yellow-200",
+    shortDescription: "Latar singgasana gelap di bawah hujan abu emas.",
+    description:
+      "Background profil berisi singgasana batu hitam, kabut istana, dan partikel abu emas yang jatuh perlahan. Mewah, berat, dan intimidatif.",
+    visualQuality: "Dark throne parallax realm",
+    previewLabel: "Ashfall Throne",
+  },
+  {
+    id: "obsidian-aura-01",
+    name: "Monarch Pressure Aura",
+    theme: "obsidian-monarch",
+    themeName: "Obsidian Monarch",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Mythic",
+    price: 650,
+    icon: "✦",
+    accent: "text-amber-300",
+    shortDescription: "Aura tekanan raja yang gelap dan mahal.",
+    description:
+      "Aura hitam keemasan yang berdenyut lambat di sekitar avatar, dengan cincin dominasi tipis dan asap emas yang bergerak seperti napas istana.",
+    visualQuality: "Royal pressure aura loop",
+    previewLabel: "Monarch Pulse",
+  },
+  {
+    id: "obsidian-particle-01",
+    name: "Gilded Ash Particles",
+    theme: "obsidian-monarch",
+    themeName: "Obsidian Monarch",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 1200,
+    icon: "✷",
+    accent: "text-yellow-100",
+    shortDescription: "Abu emas kerajaan yang jatuh tanpa henti.",
+    description:
+      "Partikel premium berupa abu emas, serpihan kaca obsidian, dan micro sparkle tajam yang membuat profil terasa seperti artefak kerajaan.",
+    visualQuality: "Gilded ash particle storm",
+    previewLabel: "Gilded Ashfall",
+  },
 
-// =========================================================
-// ABYSSAL LEVIATHAN — LAUT DALAM & KRISTAL
-// =========================================================
-{
-id: "leviathan-name-01",
-name: "Tideglass Name",
-theme: "abyssal-leviathan",
-themeName: "Abyssal Leviathan",
-type: "name_effect",
-typeLabel: "Name Effect",
-rarity: "Rare",
-price: 60,
-icon: "◇",
-accent: "text-cyan-300",
-shortDescription: "Nama seperti kaca laut yang mengalir.",
-description:
-"Efek nama dengan tekstur air mengalir, gelembung kecil, dan cahaya safir lembut. Cocok untuk karakter elegan, misterius, dan tenang.",
-visualQuality: "Fluid water text glow",
-previewLabel: "Abyssal Letter Flow",
-},
-{
-id: "leviathan-border-01",
-name: "Coral Crystal Frame",
-theme: "abyssal-leviathan",
-themeName: "Abyssal Leviathan",
-type: "border",
-typeLabel: "ID Border",
-rarity: "Epic",
-price: 90,
-icon: "◈",
-accent: "text-blue-300",
-shortDescription: "Border karang kristal laut dalam.",
-description:
-"Bingkai ID Card dari kristal karang bercahaya, dengan garis bioluminescent yang memberi kesan relik dari kerajaan bawah laut.",
-visualQuality: "Crystal coral border shimmer",
-previewLabel: "Crystal Reef Frame",
-},
-{
-id: "leviathan-background-01",
-name: "Sunken Sapphire Realm",
-theme: "abyssal-leviathan",
-themeName: "Abyssal Leviathan",
-type: "background",
-typeLabel: "ID Background",
-rarity: "Legendary",
-price: 145,
-icon: "🌊",
-accent: "text-emerald-300",
-shortDescription: "Background laut dalam dengan plankton bercahaya.",
-description:
-"Latar ID Card bernuansa laut safir gelap dengan god rays, plankton bercahaya, dan kabut air lembut yang terasa mahal namun tidak ramai.",
-visualQuality: "Deep sea luminous parallax",
-previewLabel: "Sapphire Abyss",
-},
-{
-id: "leviathan-aura-01",
-name: "Spirit Fish Aura",
-theme: "abyssal-leviathan",
-themeName: "Abyssal Leviathan",
-type: "aura",
-typeLabel: "Profile Aura",
-rarity: "Legendary",
-price: 165,
-icon: "☄",
-accent: "text-cyan-200",
-shortDescription: "Aura ikan cahaya yang mengitari profil.",
-description:
-"Aura lembut berupa riak air dan spirit fish transparan yang bergerak mengelilingi kartu. Terlihat anggun dan premium.",
-visualQuality: "Ripple aura with spirit fish",
-previewLabel: "Leviathan Ripple",
-},
-{
-id: "leviathan-particle-01",
-name: "Pearl Plankton Particles",
-theme: "abyssal-leviathan",
-themeName: "Abyssal Leviathan",
-type: "particle",
-typeLabel: "Particle Effect",
-rarity: "Mythic",
-price: 210,
-icon: "✧",
-accent: "text-teal-200",
-shortDescription: "Partikel plankton mutiara yang naik perlahan.",
-description:
-"Efek partikel berupa plankton bercahaya, bubble halus, dan kilau mutiara yang membuat ID Card terasa hidup seperti berada di bawah laut.",
-visualQuality: "Floating pearl plankton",
-previewLabel: "Pearl Abyss Dust",
-},
+  // =========================================================
+  // BLOOD CATHEDRAL
+  // =========================================================
+  {
+    id: "blood-name-01",
+    name: "Velvet Bloodline Name",
+    theme: "blood-cathedral",
+    themeName: "Blood Cathedral",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Epic",
+    price: 200,
+    icon: "◆",
+    accent: "text-red-200",
+    shortDescription: "Nama velvet merah dengan kilau darah bangsawan.",
+    description:
+      "Efek nama gothic dengan pantulan ruby, kabut merah halus, dan shimmer old gold yang terasa seperti nama keluarga vampir kerajaan.",
+    visualQuality: "Ruby velvet text motion",
+    previewLabel: "Bloodline Signature",
+  },
+  {
+    id: "blood-border-01",
+    name: "Stained Glass Noble Frame",
+    theme: "blood-cathedral",
+    themeName: "Blood Cathedral",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Legendary",
+    price: 360,
+    icon: "❖",
+    accent: "text-rose-200",
+    shortDescription: "Border kaca patri merah dan ukiran gothic.",
+    description:
+      "Bingkai ID Card dengan motif katedral malam, kaca patri merah gelap, ornamen emas tua, dan sudut victorian yang elegan.",
+    visualQuality: "Gothic stained glass frame",
+    previewLabel: "Cathedral Frame",
+  },
+  {
+    id: "blood-background-01",
+    name: "Blood Moon Nave",
+    theme: "blood-cathedral",
+    themeName: "Blood Cathedral",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Legendary",
+    price: 460,
+    icon: "☾",
+    accent: "text-red-300",
+    shortDescription: "Latar katedral blood moon yang dingin dan megah.",
+    description:
+      "Background profil berupa ruang katedral gelap, cahaya blood moon dari kaca patri, dan kabut merah yang bergerak perlahan.",
+    visualQuality: "Blood moon cathedral realm",
+    previewLabel: "Crimson Nave",
+  },
+  {
+    id: "blood-aura-01",
+    name: "Aristocrat Crimson Mist",
+    theme: "blood-cathedral",
+    themeName: "Blood Cathedral",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Mythic",
+    price: 700,
+    icon: "♜",
+    accent: "text-red-200",
+    shortDescription: "Aura kabut merah aristokrat yang elegan.",
+    description:
+      "Aura profil berupa red mist, ember darah kecil, dan pantulan old gold yang mengitari avatar seperti kutukan bangsawan malam.",
+    visualQuality: "Crimson noble aura loop",
+    previewLabel: "Velvet Mist",
+  },
+  {
+    id: "blood-particle-01",
+    name: "Black Rose Bloodfall",
+    theme: "blood-cathedral",
+    themeName: "Blood Cathedral",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 1350,
+    icon: "✹",
+    accent: "text-rose-100",
+    shortDescription: "Kelopak mawar hitam dan ember darah jatuh perlahan.",
+    description:
+      "Partikel eksklusif berisi kelopak mawar hitam, red ember, dan serpihan ruby yang jatuh seperti ritual katedral terlarang.",
+    visualQuality: "Black rose blood particle field",
+    previewLabel: "Blood Rosefall",
+  },
 
-// =========================================================
-// CRIMSON ARISTOCRAT — VAMPIRE & GOTHIC ROYAL
-// =========================================================
-{
-id: "crimson-name-01",
-name: "Ruby Noble Name",
-theme: "crimson-aristocrat",
-themeName: "Crimson Aristocrat",
-type: "name_effect",
-typeLabel: "Name Effect",
-rarity: "Rare",
-price: 70,
-icon: "♦",
-accent: "text-red-300",
-shortDescription: "Nama bangsawan ruby dengan asap merah.",
-description:
-"Efek nama berkilau ruby gelap, dihiasi asap merah tipis dan pantulan emas tua. Elegan, gothic, dan terasa seperti nama keluarga bangsawan malam.",
-visualQuality: "Ruby gothic text vapor",
-previewLabel: "Bloodline Letter",
-},
-{
-id: "crimson-border-01",
-name: "Black Rose Victorian Frame",
-theme: "crimson-aristocrat",
-themeName: "Crimson Aristocrat",
-type: "border",
-typeLabel: "ID Border",
-rarity: "Epic",
-price: 105,
-icon: "✦",
-accent: "text-rose-300",
-shortDescription: "Border victoria dengan mawar hitam.",
-description:
-"Bingkai ID Card bergaya ukiran victoria, velvet hitam, aksen emas redup, dan kelopak mawar gelap yang memberi rasa aristokrat.",
-visualQuality: "Victorian rose frame",
-previewLabel: "Black Rose Frame",
-},
-{
-id: "crimson-background-01",
-name: "Blood Moon Cathedral",
-theme: "crimson-aristocrat",
-themeName: "Crimson Aristocrat",
-type: "background",
-typeLabel: "ID Background",
-rarity: "Legendary",
-price: 160,
-icon: "☾",
-accent: "text-red-200",
-shortDescription: "Katedral gothic di bawah blood moon.",
-description:
-"Background berupa kaca patri megah, cahaya bulan merah, dan ruang kastil gelap yang cocok untuk karakter bangsawan, villain, atau noble mystery.",
-visualQuality: "Blood moon gothic hall",
-previewLabel: "Crimson Cathedral",
-},
-{
-id: "crimson-aura-01",
-name: "Velvet Mist Aura",
-theme: "crimson-aristocrat",
-themeName: "Crimson Aristocrat",
-type: "aura",
-typeLabel: "Profile Aura",
-rarity: "Legendary",
-price: 175,
-icon: "♜",
-accent: "text-amber-200",
-shortDescription: "Kabut merah velvet dan debu emas.",
-description:
-"Aura profil dengan kabut merah yang merayap perlahan, serpihan emas, dan siluet kelelawar halus yang memudar elegan.",
-visualQuality: "Crimson mist noble aura",
-previewLabel: "Velvet Blood Aura",
-},
-{
-id: "crimson-particle-01",
-name: "Falling Black Rose Petals",
-theme: "crimson-aristocrat",
-themeName: "Crimson Aristocrat",
-type: "particle",
-typeLabel: "Particle Effect",
-rarity: "Mythic",
-price: 230,
-icon: "❖",
-accent: "text-red-300",
-shortDescription: "Kelopak mawar hitam jatuh perlahan.",
-description:
-"Partikel eksklusif berupa kelopak mawar hitam, asap ruby, dan kilau emas tua. Memberi kesan mahal dan sangat khas gothic royal.",
-visualQuality: "Animated black rose fall",
-previewLabel: "Rosefall Particles",
-},
+  // =========================================================
+  // ABYSS SOVEREIGN
+  // =========================================================
+  {
+    id: "abyss-name-01",
+    name: "Sapphire Abyss Name",
+    theme: "abyss-sovereign",
+    themeName: "Abyss Sovereign",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Epic",
+    price: 190,
+    icon: "◇",
+    accent: "text-cyan-200",
+    shortDescription: "Nama safir laut dalam dengan cahaya bioluminescent.",
+    description:
+      "Efek nama dengan kilau air gelap, pantulan safir, gelembung mikro, dan cahaya cyan yang mengalir seperti arus bawah laut.",
+    visualQuality: "Sapphire water text shimmer",
+    previewLabel: "Abyssal Signature",
+  },
+  {
+    id: "abyss-border-01",
+    name: "Leviathan Crystal Frame",
+    theme: "abyss-sovereign",
+    themeName: "Abyss Sovereign",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Legendary",
+    price: 340,
+    icon: "◈",
+    accent: "text-blue-200",
+    shortDescription: "Border kristal leviathan dari laut jurang.",
+    description:
+      "Bingkai ID Card berupa kristal laut gelap, garis neon cyan, dan pecahan relik bawah laut yang bergerak seperti terkena arus.",
+    visualQuality: "Leviathan crystal border",
+    previewLabel: "Abyss Crystal Frame",
+  },
+  {
+    id: "abyss-background-01",
+    name: "Sunken Crown Trench",
+    theme: "abyss-sovereign",
+    themeName: "Abyss Sovereign",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Legendary",
+    price: 450,
+    icon: "🌊",
+    accent: "text-teal-200",
+    shortDescription: "Latar kerajaan tenggelam di palung gelap.",
+    description:
+      "Background profil menampilkan reruntuhan mahkota bawah laut, plankton bercahaya, bubble, dan kabut air safir yang terasa premium.",
+    visualQuality: "Deep sea parallax realm",
+    previewLabel: "Sunken Trench",
+  },
+  {
+    id: "abyss-aura-01",
+    name: "Leviathan Ripple Aura",
+    theme: "abyss-sovereign",
+    themeName: "Abyss Sovereign",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Mythic",
+    price: 680,
+    icon: "☄",
+    accent: "text-cyan-100",
+    shortDescription: "Aura riak leviathan yang berputar halus.",
+    description:
+      "Aura berupa cincin riak air, spirit fish cyan, dan distorsi lembut di sekitar avatar seperti berada di bawah tekanan laut jurang.",
+    visualQuality: "Abyss ripple aura loop",
+    previewLabel: "Leviathan Ripple",
+  },
+  {
+    id: "abyss-particle-01",
+    name: "Pearl Abyss Plankton",
+    theme: "abyss-sovereign",
+    themeName: "Abyss Sovereign",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 1250,
+    icon: "✧",
+    accent: "text-cyan-100",
+    shortDescription: "Plankton mutiara dan bubble bercahaya naik perlahan.",
+    description:
+      "Partikel premium berupa pearl plankton, bubble tipis, dan shimmer safir yang membuat profil hidup seperti istana laut dalam.",
+    visualQuality: "Pearl plankton particle field",
+    previewLabel: "Pearl Abyssfall",
+  },
 
-// =========================================================
-// ETHEREAL YGGDRASIL — HUTAN PERI & ALAM KUNO
-// =========================================================
-{
-id: "yggdrasil-name-01",
-name: "Living Root Name",
-theme: "ethereal-yggdrasil",
-themeName: "Ethereal Yggdrasil",
-type: "name_effect",
-typeLabel: "Name Effect",
-rarity: "Rare",
-price: 60,
-icon: "✧",
-accent: "text-emerald-300",
-shortDescription: "Nama dari akar hidup bercahaya.",
-description:
-"Efek nama seperti akar peri yang tumbuh pelan, memancarkan spora hijau emas dan cahaya alam yang menenangkan.",
-visualQuality: "Growing root text glow",
-previewLabel: "Living Root Letter",
-},
-{
-id: "yggdrasil-border-01",
-name: "Fairywood Branch Frame",
-theme: "ethereal-yggdrasil",
-themeName: "Ethereal Yggdrasil",
-type: "border",
-typeLabel: "ID Border",
-rarity: "Epic",
-price: 90,
-icon: "☘",
-accent: "text-lime-300",
-shortDescription: "Border ranting peri dengan daun bercahaya.",
-description:
-"Bingkai ID Card berupa ranting hutan kuno, daun kecil bercahaya, dan kilau peri yang membuat kartu terasa alami tapi tetap premium.",
-visualQuality: "Glowing fairy branch frame",
-previewLabel: "Fairywood Frame",
-},
-{
-id: "yggdrasil-background-01",
-name: "Ancient Forest Sanctuary",
-theme: "ethereal-yggdrasil",
-themeName: "Ethereal Yggdrasil",
-type: "background",
-typeLabel: "ID Background",
-rarity: "Legendary",
-price: 140,
-icon: "♧",
-accent: "text-green-200",
-shortDescription: "Hutan kuno dengan air terjun bercahaya.",
-description:
-"Background ID Card berupa sanctuary hutan tua, kabut hijau lembut, cahaya peri, dan ilusi kedalaman seperti dunia alam suci.",
-visualQuality: "Breathing ancient forest",
-previewLabel: "Forest Sanctuary",
-},
-{
-id: "yggdrasil-aura-01",
-name: "Butterfly Stardust Aura",
-theme: "ethereal-yggdrasil",
-themeName: "Ethereal Yggdrasil",
-type: "aura",
-typeLabel: "Profile Aura",
-rarity: "Legendary",
-price: 165,
-icon: "✺",
-accent: "text-emerald-200",
-shortDescription: "Aura kupu-kupu cahaya dan stardust.",
-description:
-"Aura profil dengan kupu-kupu cahaya, jejak debu bintang, dan shimmer hijau emas. Cocok untuk karakter nature, healer, elf, dan guardian.",
-visualQuality: "Butterfly light orbit",
-previewLabel: "Fairy Orbit Aura",
-},
-{
-id: "yggdrasil-particle-01",
-name: "Sacred Spore Particles",
-theme: "ethereal-yggdrasil",
-themeName: "Ethereal Yggdrasil",
-type: "particle",
-typeLabel: "Particle Effect",
-rarity: "Mythic",
-price: 205,
-icon: "✤",
-accent: "text-lime-200",
-shortDescription: "Spora suci yang melayang seperti nafas hutan.",
-description:
-"Partikel spora bercahaya, daun kecil, dan debu emas yang bergerak lembut. Memberi kesan karakter berada di bawah restu Yggdrasil.",
-visualQuality: "Floating sacred spores",
-previewLabel: "Yggdrasil Sporefall",
-},
+  // =========================================================
+  // THORN EMPRESS
+  // =========================================================
+  {
+    id: "thorn-name-01",
+    name: "Empress Root Signature",
+    theme: "thorn-empress",
+    themeName: "Thorn Empress",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Epic",
+    price: 185,
+    icon: "✧",
+    accent: "text-emerald-200",
+    shortDescription: "Nama akar peri gelap dengan duri emas.",
+    description:
+      "Efek nama seperti akar hidup yang tumbuh pelan, dihiasi duri emas kecil, spora bercahaya, dan shimmer hijau tua.",
+    visualQuality: "Living root text shimmer",
+    previewLabel: "Root Empress Name",
+  },
+  {
+    id: "thorn-border-01",
+    name: "Dark Fairy Thorn Frame",
+    theme: "thorn-empress",
+    themeName: "Thorn Empress",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Legendary",
+    price: 330,
+    icon: "☘",
+    accent: "text-lime-200",
+    shortDescription: "Border duri peri gelap dengan daun emas.",
+    description:
+      "Bingkai ID Card berupa ranting hitam-hijau, duri tajam, daun emas, dan micro fairy light yang bergerak lembut.",
+    visualQuality: "Dark fairy thorn border",
+    previewLabel: "Thorn Crown Frame",
+  },
+  {
+    id: "thorn-background-01",
+    name: "Forbidden Fairywood Court",
+    theme: "thorn-empress",
+    themeName: "Thorn Empress",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Legendary",
+    price: 430,
+    icon: "♧",
+    accent: "text-green-200",
+    shortDescription: "Latar istana hutan peri gelap.",
+    description:
+      "Background profil dengan sanctuary hutan tua, kabut emerald, akar bercahaya, dan siluet court peri yang terasa cantik tapi berbahaya.",
+    visualQuality: "Dark fairywood realm",
+    previewLabel: "Fairywood Court",
+  },
+  {
+    id: "thorn-aura-01",
+    name: "Thornhalo Empress Aura",
+    theme: "thorn-empress",
+    themeName: "Thorn Empress",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Mythic",
+    price: 660,
+    icon: "✺",
+    accent: "text-emerald-100",
+    shortDescription: "Aura halo duri dan kupu-kupu cahaya.",
+    description:
+      "Aura profil berupa cincin duri hijau emas, butterfly light, dan stardust lembut yang mengitari avatar seperti restu ratu peri.",
+    visualQuality: "Thorn halo aura loop",
+    previewLabel: "Empress Thornhalo",
+  },
+  {
+    id: "thorn-particle-01",
+    name: "Sacred Spore Bloom",
+    theme: "thorn-empress",
+    themeName: "Thorn Empress",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Divine Relic",
+    price: 1180,
+    icon: "✤",
+    accent: "text-lime-100",
+    shortDescription: "Spora suci, daun kecil, dan dust emas melayang ramai.",
+    description:
+      "Partikel premium berupa spora bercahaya, daun lembut, dan fairy dust emas yang membuat profil terasa seperti ritual hutan kuno.",
+    visualQuality: "Sacred spore particle bloom",
+    previewLabel: "Spore Bloomfall",
+  },
 
-// =========================================================
-// IVORY OVERLORD — TULANG RAJA & API JIWA
-// =========================================================
-{
-id: "ivory-name-01",
-name: "Soulcrack Ivory Name",
-theme: "ivory-overlord",
-themeName: "Ivory Overlord",
-type: "name_effect",
-typeLabel: "Name Effect",
-rarity: "Rare",
-price: 75,
-icon: "♛",
-accent: "text-cyan-200",
-shortDescription: "Nama tulang ivory dengan retakan api jiwa.",
-description:
-"Efek nama seperti ukiran tulang mewah, dengan retakan cyan yang menyala dari dalam. Dark fantasy, elegan, dan terasa intimidatif.",
-visualQuality: "Ivory bone text with soulfire",
-previewLabel: "Soulcrack Letter",
-},
-{
-id: "ivory-border-01",
-name: "Bone Crown Frame",
-theme: "ivory-overlord",
-themeName: "Ivory Overlord",
-type: "border",
-typeLabel: "ID Border",
-rarity: "Epic",
-price: 110,
-icon: "♔",
-accent: "text-slate-200",
-shortDescription: "Border mahkota tulang dengan asap cyan.",
-description:
-"Bingkai ID Card berupa ukiran tulang kerajaan, bukan tengkorak polos. Dihiasi asap biru dan garis cyan yang membuatnya terasa mahal.",
-visualQuality: "Royal bone crown border",
-previewLabel: "Ivory Crown Frame",
-},
-{
-id: "ivory-background-01",
-name: "Throne of Blue Souls",
-theme: "ivory-overlord",
-themeName: "Ivory Overlord",
-type: "background",
-typeLabel: "ID Background",
-rarity: "Legendary",
-price: 175,
-icon: "🔥",
-accent: "text-blue-200",
-shortDescription: "Singgasana gading di tengah api jiwa.",
-description:
-"Background dark fantasy dengan singgasana ivory, api cyan, dan abu melayang. Terlihat mewah, dingin, dan berbahaya.",
-visualQuality: "Ivory throne soulfire realm",
-previewLabel: "Soulfire Throne",
-},
-{
-id: "ivory-aura-01",
-name: "Cyan Revenant Aura",
-theme: "ivory-overlord",
-themeName: "Ivory Overlord",
-type: "aura",
-typeLabel: "Profile Aura",
-rarity: "Legendary",
-price: 190,
-icon: "☽",
-accent: "text-cyan-300",
-shortDescription: "Aura roh cyan yang mengorbit kartu.",
-description:
-"Aura profil berupa api jiwa cyan yang bergerak mengorbit. Memberi kesan karakter punya dominasi gelap yang terkontrol.",
-visualQuality: "Orbiting cyan revenant flame",
-previewLabel: "Revenant Orbit Aura",
-},
-{
-id: "ivory-particle-01",
-name: "Soul Ash Particles",
-theme: "ivory-overlord",
-themeName: "Ivory Overlord",
-type: "particle",
-typeLabel: "Particle Effect",
-rarity: "Mythic",
-price: 250,
-icon: "✷",
-accent: "text-cyan-200",
-shortDescription: "Abu jiwa cyan yang naik tanpa gravitasi.",
-description:
-"Partikel abu jiwa, flame wisp cyan, dan kabut tulang yang melayang ke atas. Efek ini dibuat untuk terasa seperti cosmetic tertinggi.",
-visualQuality: "Floating soulfire ash",
-previewLabel: "Overlord Soul Ash",
-},
+  // =========================================================
+  // SOULFIRE TYRANT
+  // =========================================================
+  {
+    id: "soulfire-name-01",
+    name: "Cyan Soulcrack Name",
+    theme: "soulfire-tyrant",
+    themeName: "Soulfire Tyrant",
+    type: "name_effect",
+    typeLabel: "Name Effect",
+    rarity: "Epic",
+    price: 210,
+    icon: "☽",
+    accent: "text-cyan-100",
+    shortDescription: "Nama tulang ivory dengan retakan api jiwa cyan.",
+    description:
+      "Efek nama seperti ukiran tulang raja, memiliki retakan cyan menyala, smoke dingin, dan shimmer arwah yang bergerak tajam.",
+    visualQuality: "Cyan soulcrack text shimmer",
+    previewLabel: "Soulcrack Signature",
+  },
+  {
+    id: "soulfire-border-01",
+    name: "Bone Throne Frame",
+    theme: "soulfire-tyrant",
+    themeName: "Soulfire Tyrant",
+    type: "border",
+    typeLabel: "ID Border",
+    rarity: "Legendary",
+    price: 380,
+    icon: "♔",
+    accent: "text-slate-100",
+    shortDescription: "Border takhta tulang dengan api jiwa cyan.",
+    description:
+      "Bingkai ID Card berupa ukiran tulang kerajaan, flame wisp cyan, garis arcane, dan kabut arwah yang terasa dingin.",
+    visualQuality: "Bone throne animated frame",
+    previewLabel: "Soul Throne Frame",
+  },
+  {
+    id: "soulfire-background-01",
+    name: "Tyrant Soul Throne",
+    theme: "soulfire-tyrant",
+    themeName: "Soulfire Tyrant",
+    type: "background",
+    typeLabel: "ID Background",
+    rarity: "Legendary",
+    price: 500,
+    icon: "🔥",
+    accent: "text-blue-100",
+    shortDescription: "Latar singgasana arwah dengan api cyan.",
+    description:
+      "Background profil berupa singgasana ivory, api jiwa cyan, abu dingin yang naik, dan kabut tulang dark fantasy.",
+    visualQuality: "Cyan soulfire throne realm",
+    previewLabel: "Soul Tyrant Throne",
+  },
+  {
+    id: "soulfire-aura-01",
+    name: "Revenant Crown Aura",
+    theme: "soulfire-tyrant",
+    themeName: "Soulfire Tyrant",
+    type: "aura",
+    typeLabel: "Profile Aura",
+    rarity: "Mythic",
+    price: 760,
+    icon: "✷",
+    accent: "text-cyan-200",
+    shortDescription: "Aura mahkota arwah cyan yang mengorbit avatar.",
+    description:
+      "Aura profil berupa flame wisp cyan, arcane ring, dan ghost crown yang berputar di sekitar avatar dengan dominasi dingin.",
+    visualQuality: "Revenant crown aura loop",
+    previewLabel: "Revenant Crown",
+  },
+  {
+    id: "soulfire-particle-01",
+    name: "Soul Ash Ascension",
+    theme: "soulfire-tyrant",
+    themeName: "Soulfire Tyrant",
+    type: "particle",
+    typeLabel: "Particle Effect",
+    rarity: "Forbidden Relic",
+    price: 1600,
+    icon: "✹",
+    accent: "text-cyan-100",
+    shortDescription: "Abu jiwa cyan naik seperti gravitasi terbalik.",
+    description:
+      "Partikel tertinggi berupa soul ash, flame wisp cyan, debu tulang, dan kabut arwah yang naik perlahan seolah profil berada di altar tiran.",
+    visualQuality: "Forbidden soulfire ash field",
+    previewLabel: "Soul Ash Ascension",
+  },
 ];
 
 export const cosmeticTypeLabels: Record<CosmeticType, string> = {
-name_effect: "Name Effect",
-border: "ID Border",
-background: "ID Background",
-aura: "Profile Aura",
-particle: "Particle Effect",
+  name_effect: "Name Effect",
+  border: "ID Border",
+  background: "ID Background",
+  aura: "Profile Aura",
+  particle: "Particle Effect",
 };
 
 export const rarityOrder: Record<CosmeticRarity, number> = {
-Common: 1,
-Rare: 2,
-Epic: 3,
-Legendary: 4,
-Mythic: 5,
+  Common: 1,
+  Rare: 2,
+  Epic: 3,
+  Legendary: 4,
+  Mythic: 5,
+  "Divine Relic": 6,
+  "Forbidden Relic": 7,
 };
 
 export function getCosmeticsByTheme(theme: CosmeticTheme) {
-return cosmeticItems.filter((item) => item.theme === theme);
+  return cosmeticItems.filter((item) => item.theme === theme);
 }
 
 export function getCosmeticsByType(type: CosmeticType) {
-return cosmeticItems.filter((item) => item.type === type);
+  return cosmeticItems.filter((item) => item.type === type);
 }
 
 export function getCosmeticById(id: string) {
-return cosmeticItems.find((item) => item.id === id) || null;
-}
+  return cosmeticItems.find((item) => item.id === id) || null;
+}p
