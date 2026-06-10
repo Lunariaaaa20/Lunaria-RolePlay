@@ -1,8 +1,9 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import AdminMarketAssetForm from "./AdminMarketAssetForm";
+import LunariaChroniclePanel from "./LunariaChroniclePanel";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -78,6 +79,50 @@ type TaxPolicyHistoryRow = {
   created_at: string;
 };
 
+type WorldChronicleRow = {
+  id: string;
+
+  season_name: string;
+  season_day: number;
+  season_length: number;
+
+  world_day_name: string;
+  weather_name: string;
+  moon_phase: string;
+
+  headline: string;
+  news_body: string;
+
+  event_title: string;
+  event_type: string;
+  event_location: string;
+  event_mode: string;
+  event_requirement: string;
+  event_reward_note: string;
+
+  market_mood: string;
+  market_warning: string;
+
+  created_by: string;
+  last_generated_at: string;
+  next_update_at: string;
+
+  created_at: string;
+  updated_at: string;
+};
+
+type ChronicleMarketNoteRow = {
+  id: string;
+  chronicle_id: string;
+  asset_category: string;
+  effect_type: "positive" | "negative" | "stable" | "volatile";
+  effect_strength: number;
+  title: string;
+  body: string;
+  rumor_tone: "optimistic" | "cautious" | "uncertain" | "warning" | "neutral";
+  created_at: string;
+};
+
 type LedgerRow = {
   id: string;
   entry_type: string;
@@ -135,6 +180,8 @@ type EconomyData = {
   treasury: TreasuryRow | null;
   taxPolicy: TaxPolicyRow | null;
   taxPolicyHistory: TaxPolicyHistoryRow[];
+  chronicle: WorldChronicleRow | null;
+  chronicleMarketNotes: ChronicleMarketNoteRow[];
   ledger: LedgerRow[];
   assets: MarketAssetRow[];
   archivedAssets: MarketAssetRow[];
@@ -364,6 +411,8 @@ export default function EconomyArchivePage() {
     treasury: null,
     taxPolicy: null,
     taxPolicyHistory: [],
+    chronicle: null,
+    chronicleMarketNotes: [],
     ledger: [],
     assets: [],
     archivedAssets: [],
@@ -376,6 +425,7 @@ export default function EconomyArchivePage() {
   const [runningTax, setRunningTax] = useState(false);
   const [runningRelief, setRunningRelief] = useState(false);
   const [reviewingTaxPolicy, setReviewingTaxPolicy] = useState(false);
+  const [updatingChronicle, setUpdatingChronicle] = useState(false);
   const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
   const [archivingAssetId, setArchivingAssetId] = useState<string | null>(null);
   const [restoringAssetId, setRestoringAssetId] = useState<string | null>(null);
@@ -419,6 +469,8 @@ export default function EconomyArchivePage() {
       treasuryResult,
       taxPolicyResult,
       taxPolicyHistoryResult,
+      chronicleResult,
+      chronicleMarketNotesResult,
       ledgerResult,
       assetsResult,
       archivedAssetsResult,
@@ -440,6 +492,16 @@ export default function EconomyArchivePage() {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase
+        .from("world_chronicle")
+        .select("*")
+        .eq("id", "current")
+        .maybeSingle(),
+      supabase
+        .from("world_chronicle_market_notes")
+        .select("*")
+        .eq("chronicle_id", "current")
+        .order("created_at", { ascending: true }),
       supabase
         .from("economy_ledger")
         .select("*")
@@ -481,6 +543,17 @@ export default function EconomyArchivePage() {
       console.error("Tax policy history load error:", taxPolicyHistoryResult.error);
     }
 
+    if (chronicleResult.error) {
+      console.error("Chronicle load error:", chronicleResult.error);
+    }
+
+    if (chronicleMarketNotesResult.error) {
+      console.error(
+        "Chronicle market notes load error:",
+        chronicleMarketNotesResult.error
+      );
+    }
+
     if (ledgerResult.error) {
       console.error("Ledger load error:", ledgerResult.error);
     }
@@ -506,6 +579,9 @@ export default function EconomyArchivePage() {
       taxPolicy: (taxPolicyResult.data as TaxPolicyRow | null) || null,
       taxPolicyHistory:
         (taxPolicyHistoryResult.data as TaxPolicyHistoryRow[]) || [],
+      chronicle: (chronicleResult.data as WorldChronicleRow | null) || null,
+      chronicleMarketNotes:
+        (chronicleMarketNotesResult.data as ChronicleMarketNoteRow[]) || [],
       ledger: (ledgerResult.data as LedgerRow[]) || [],
       assets: (assetsResult.data as MarketAssetRow[]) || [],
       archivedAssets: (archivedAssetsResult.data as MarketAssetRow[]) || [],
@@ -654,6 +730,35 @@ export default function EconomyArchivePage() {
     setReviewingTaxPolicy(false);
 
     alert("Royal Tax Policy Review berhasil dijalankan.");
+  }
+
+  async function handleRunDailyChronicle() {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa menerbitkan Daily Chronicle.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Terbitkan Daily Lunaria Chronicle sekarang? Season day, berita harian, RP notice, dan market bulletin akan diperbarui."
+    );
+
+    if (!confirmed) return;
+
+    setUpdatingChronicle(true);
+
+    const { error } = await supabase.rpc("run_daily_chronicle_update");
+
+    if (error) {
+      console.error("Daily chronicle update error:", error);
+      alert(`Gagal menerbitkan Chronicle: ${error.message}`);
+      setUpdatingChronicle(false);
+      return;
+    }
+
+    await loadEconomy();
+    setUpdatingChronicle(false);
+
+    alert("Daily Lunaria Chronicle berhasil diterbitkan.");
   }
 
   async function handleDistributeRelief() {
@@ -877,6 +982,14 @@ export default function EconomyArchivePage() {
             </div>
           </div>
         </section>
+
+        <LunariaChroniclePanel
+          chronicle={data.chronicle}
+          marketNotes={data.chronicleMarketNotes}
+          isAdmin={isAdmin}
+          updating={updatingChronicle}
+          onRunDailyChronicle={handleRunDailyChronicle}
+        />
 
         <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.45fr_0.9fr]">
           <div className="rounded-[34px] border border-white/10 bg-white/[0.045] p-5 shadow-[inset_0_0_35px_rgba(255,255,255,0.025)] lg:p-6">
