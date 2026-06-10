@@ -15,6 +15,15 @@ type CosmeticCardProps = {
 };
 
 function getRarityStyle(rarity: CosmeticRarity) {
+  if (String(rarity) === "Divine Relic") {
+    return {
+      badge: "border-white/30 bg-white/[0.08] text-white",
+      price: "text-white",
+      glow: "shadow-[0_0_55px_rgba(255,255,255,0.10)]",
+      quality: "Divine Relic",
+    };
+  }
+
   if (rarity === "Mythic") {
     return {
       badge: "border-fuchsia-300/40 bg-fuchsia-400/15 text-fuchsia-100",
@@ -48,15 +57,6 @@ function getRarityStyle(rarity: CosmeticRarity) {
       price: "text-sky-200",
       glow: "shadow-[0_0_38px_rgba(56,189,248,0.09)]",
       quality: "Soft Motion",
-    };
-  }
-
-  if (rarity === "Divine Relic") {
-    return {
-      badge: "border-white/30 bg-white/[0.08] text-white",
-      price: "text-white",
-      glow: "shadow-[0_0_55px_rgba(255,255,255,0.10)]",
-      quality: "Divine Relic",
     };
   }
 
@@ -181,7 +181,8 @@ export default function CosmeticCard({
           <InfoPill
             label="Motion"
             value={
-              item.rarity === "Mythic" || item.rarity === "Divine Relic"
+              item.rarity === "Mythic" ||
+              String(item.rarity) === "Divine Relic"
                 ? "High"
                 : "Smooth"
             }
