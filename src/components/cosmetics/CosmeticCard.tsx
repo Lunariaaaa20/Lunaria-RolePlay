@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { CosmeticItem, CosmeticRarity } from "./data/cosmeticItems";
+import CosmeticEffectRenderer from "./CosmeticEffectRenderer";
 
 type CosmeticCardProps = {
   item: CosmeticItem;
@@ -28,8 +29,10 @@ function getRarityStyle(rarity: CosmeticRarity) {
 
   if (key === "Forbidden Relic") {
     return {
-      badge: "border-red-100/60 bg-red-500/20 text-red-50 shadow-[0_0_24px_rgba(248,113,113,0.18)]",
-      price: "text-red-50 drop-shadow-[0_0_18px_rgba(248,113,113,0.65)]",
+      badge:
+        "border-red-100/60 bg-red-500/20 text-red-50 shadow-[0_0_24px_rgba(248,113,113,0.18)]",
+      price:
+        "text-red-50 drop-shadow-[0_0_18px_rgba(248,113,113,0.65)]",
       glow: "shadow-[0_0_90px_rgba(239,68,68,0.22)]",
       quality: "Forbidden Relic",
       motion: "Forbidden",
@@ -39,8 +42,10 @@ function getRarityStyle(rarity: CosmeticRarity) {
 
   if (key === "Divine Relic") {
     return {
-      badge: "border-white/50 bg-white/[0.12] text-white shadow-[0_0_24px_rgba(255,255,255,0.14)]",
-      price: "text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.55)]",
+      badge:
+        "border-white/50 bg-white/[0.12] text-white shadow-[0_0_24px_rgba(255,255,255,0.14)]",
+      price:
+        "text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.55)]",
       glow: "shadow-[0_0_82px_rgba(255,255,255,0.15)]",
       quality: "Divine Relic",
       motion: "Royal Loop",
@@ -198,6 +203,8 @@ export default function CosmeticCard({
     <article
       className={`group relative overflow-hidden rounded-[34px] border p-5 transition duration-300 hover:-translate-y-1 hover:scale-[1.006] ${theme.card} ${rarity.glow}`}
     >
+      <CosmeticEffectRenderer theme={item.theme} variant="card" />
+
       <div className="pointer-events-none absolute inset-0 z-[1]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_56%)]" />
         <div className="cosmetic-sweep absolute inset-0" />
@@ -225,7 +232,9 @@ export default function CosmeticCard({
         <div
           className={`relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[26px] border bg-black/35 text-4xl shadow-[inset_0_0_26px_rgba(255,255,255,0.055)] ${rarity.crown}`}
         >
-          <div className={`absolute inset-[-6px] rounded-[30px] border ${theme.ring} cosmetic-orbit`} />
+          <div
+            className={`absolute inset-[-6px] rounded-[30px] border ${theme.ring} cosmetic-orbit`}
+          />
           <span className="relative z-10 drop-shadow-[0_0_18px_rgba(255,255,255,0.22)]">
             {item.icon}
           </span>
@@ -274,8 +283,12 @@ export default function CosmeticCard({
         </div>
 
         <div className="relative mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-black/45 p-4">
+          <CosmeticEffectRenderer theme={item.theme} variant="compact" />
+
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.11),transparent_60%)]" />
-          <div className={`absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r ${theme.spark}`} />
+          <div
+            className={`absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r ${theme.spark}`}
+          />
           <div className="absolute inset-x-6 top-5 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
           <MiniParticles particleClass={theme.particle} />
