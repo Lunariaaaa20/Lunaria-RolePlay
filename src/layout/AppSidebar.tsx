@@ -64,18 +64,22 @@ const guildMenu: NavItem[] = [
   },
 ];
 
-const archiveMenu: NavItem[] = [
+ const archiveMenu: NavItem[] = [
   {
     name: "Archives",
     icon: <ArchiveIcon />,
     children: [
       {
-        name: "Guild Notice Board",
-        href: "/blank",
+        name: "Royal Treasury",
+        href: "/economy-archive",
       },
       {
-        name: "Archive Error",
-        href: "/error-404",
+        name: "Relief Ledger",
+        href: "/economy-archive",
+      },
+      {
+        name: "Relic Exchange",
+        href: "/economy-archive",
       },
     ],
   },
