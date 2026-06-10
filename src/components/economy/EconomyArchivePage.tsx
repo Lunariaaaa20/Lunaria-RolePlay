@@ -449,6 +449,7 @@ export default function EconomyArchivePage() {
   const [runningRelief, setRunningRelief] = useState(false);
   const [reviewingTaxPolicy, setReviewingTaxPolicy] = useState(false);
   const [updatingChronicle, setUpdatingChronicle] = useState(false);
+  const [autoCycleStatus, setAutoCycleStatus] = useState<string | null>(null);
   const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
   const [archivingAssetId, setArchivingAssetId] = useState<string | null>(null);
   const [restoringAssetId, setRestoringAssetId] = useState<string | null>(null);
@@ -482,8 +483,38 @@ export default function EconomyArchivePage() {
   const portfolioProfitLoss = portfolioValue - portfolioCost;
   const isAdmin = session?.role === "admin";
 
+  async function runAutoDailyCycle() {
+    const { data: cycleData, error } = await supabase.rpc(
+      "run_lunaria_auto_daily_cycle"
+    );
+
+    if (error) {
+      console.error("Auto daily cycle error:", error);
+      setAutoCycleStatus("Auto Daily Engine gagal dicek.");
+      return;
+    }
+
+    const result = Array.isArray(cycleData) ? cycleData[0] : null;
+
+    if (!result) {
+      setAutoCycleStatus(null);
+      return;
+    }
+
+    if (result.did_run_chronicle || result.did_run_market) {
+      setAutoCycleStatus(
+        "Auto Daily Engine menerbitkan Chronicle dan memperbarui Relic Exchange."
+      );
+      return;
+    }
+
+    setAutoCycleStatus(result.chronicle_status || null);
+  }
+
   async function loadEconomy() {
     setLoading(true);
+
+    await runAutoDailyCycle();
 
     const storedSession = getStoredSession();
     setSession(storedSession);
@@ -1101,6 +1132,12 @@ export default function EconomyArchivePage() {
                     update market secara manual dengan cooldown agar ekonomi
                     Lunaria tetap terkendali.
                   </p>
+
+                  {autoCycleStatus ? (
+                    <p className="mt-3 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.055] px-4 py-3 text-xs font-semibold leading-5 text-cyan-100">
+                      {autoCycleStatus}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
