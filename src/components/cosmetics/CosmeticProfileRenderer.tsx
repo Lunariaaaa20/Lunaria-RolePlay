@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { CosmeticItem, CosmeticType } from "./data/cosmeticItems";
 import { getCosmeticById } from "./data/cosmeticItems";
@@ -97,7 +97,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       background:
         "bg-[radial-gradient(circle_at_18%_12%,rgba(245,158,11,0.18),transparent_30%),radial-gradient(circle_at_88%_78%,rgba(120,113,108,0.22),transparent_42%),linear-gradient(135deg,rgba(7,7,9,0.84),rgba(28,25,23,0.58),rgba(3,7,18,0.84))]",
       name:
-        "bg-gradient-to-r from-amber-200 via-white to-stone-300 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(245,158,11,0.55)]",
+        "text-amber-100 drop-shadow-[0_0_16px_rgba(245,158,11,0.62)]",
       aura:
         "border-amber-200/45 bg-amber-400/10 shadow-[0_0_42px_rgba(245,158,11,0.32)]",
       list:
@@ -115,7 +115,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       background:
         "bg-[radial-gradient(circle_at_18%_12%,rgba(220,38,38,0.20),transparent_32%),radial-gradient(circle_at_88%_78%,rgba(251,191,36,0.10),transparent_42%),linear-gradient(135deg,rgba(18,4,10,0.86),rgba(69,10,10,0.58),rgba(3,7,18,0.84))]",
       name:
-        "bg-gradient-to-r from-red-200 via-rose-50 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(248,113,113,0.55)]",
+        "text-red-100 drop-shadow-[0_0_16px_rgba(248,113,113,0.62)]",
       aura:
         "border-red-200/45 bg-red-400/10 shadow-[0_0_42px_rgba(220,38,38,0.34)]",
       list:
@@ -133,7 +133,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       background:
         "bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_88%_78%,rgba(16,185,129,0.13),transparent_42%),linear-gradient(135deg,rgba(2,12,27,0.86),rgba(8,47,73,0.58),rgba(3,7,18,0.84))]",
       name:
-        "bg-gradient-to-r from-cyan-200 via-white to-emerald-200 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]",
+        "text-cyan-100 drop-shadow-[0_0_16px_rgba(34,211,238,0.62)]",
       aura:
         "border-cyan-200/45 bg-cyan-400/10 shadow-[0_0_42px_rgba(34,211,238,0.34)]",
       list:
@@ -151,7 +151,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       background:
         "bg-[radial-gradient(circle_at_18%_12%,rgba(52,211,153,0.18),transparent_32%),radial-gradient(circle_at_88%_78%,rgba(250,204,21,0.10),transparent_42%),linear-gradient(135deg,rgba(3,22,17,0.86),rgba(20,83,45,0.52),rgba(5,18,12,0.84))]",
       name:
-        "bg-gradient-to-r from-emerald-200 via-lime-50 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(52,211,153,0.50)]",
+        "text-emerald-100 drop-shadow-[0_0_16px_rgba(52,211,153,0.58)]",
       aura:
         "border-emerald-200/45 bg-emerald-400/10 shadow-[0_0_42px_rgba(52,211,153,0.32)]",
       list:
@@ -169,7 +169,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       background:
         "bg-[radial-gradient(circle_at_18%_12%,rgba(207,250,254,0.14),transparent_32%),radial-gradient(circle_at_88%_78%,rgba(34,211,238,0.16),transparent_42%),linear-gradient(135deg,rgba(5,9,18,0.88),rgba(15,23,42,0.62),rgba(0,0,0,0.86))]",
       name:
-        "bg-gradient-to-r from-cyan-50 via-white to-sky-200 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(125,211,252,0.58)]",
+        "text-cyan-50 drop-shadow-[0_0_18px_rgba(125,211,252,0.68)]",
       aura:
         "border-cyan-100/45 bg-cyan-300/10 shadow-[0_0_42px_rgba(125,211,252,0.34)]",
       list:
@@ -185,8 +185,7 @@ function getThemeProfileStyle(item: CosmeticItem | null) {
       "border-white/12 shadow-[0_0_42px_rgba(148,163,184,0.11),inset_0_0_30px_rgba(255,255,255,0.03)]",
     background:
       "bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.08),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.78),rgba(2,6,23,0.84))]",
-    name:
-      "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.28)]",
+    name: "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.28)]",
     aura:
       "border-white/25 bg-white/[0.06] shadow-[0_0_30px_rgba(255,255,255,0.12)]",
     list:
@@ -233,23 +232,26 @@ export function CosmeticNameText({
 
   return (
     <span
-      className={`relative inline-block ${className} ${style.name}`}
+      className={`relative inline-flex min-h-[1em] items-center justify-center overflow-hidden ${className}`}
       style={{ fontFamily: style.font }}
     >
-      <span className="relative z-10">{children}</span>
-      <span className="cosmetic-name-glint pointer-events-none absolute inset-y-0 left-0 z-20 w-2/3 bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+      <span className={`relative z-10 inline-block ${style.name}`}>
+        {children}
+      </span>
+
+      <span className="cosmetic-name-glint pointer-events-none absolute inset-y-0 left-0 z-20 w-2/3 bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
       <style jsx>{`
         @keyframes cosmetic-name-glint {
           0% {
-            transform: translateX(-155%) skewX(-18deg);
+            transform: translateX(-165%) skewX(-18deg);
             opacity: 0;
           }
           32% {
-            opacity: 0.55;
+            opacity: 0.42;
           }
           100% {
-            transform: translateX(155%) skewX(-18deg);
+            transform: translateX(165%) skewX(-18deg);
             opacity: 0;
           }
         }
@@ -323,7 +325,7 @@ export function EquippedCosmeticList({ playerId }: { playerId: string }) {
           className={`mt-1 text-sm font-black ${style.accent}`}
           style={{ fontFamily: style.font }}
         >
-          {mainItem ? mainItem.theme.replaceAll("-", " ") : "Default Lunaria"}
+          {mainItem ? mainItem.theme.split("-").join(" ") : "Default Lunaria"}
         </p>
       </div>
     </div>
@@ -338,13 +340,13 @@ function ProfileAuraLayer({ item }: { item: CosmeticItem | null }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-[3] overflow-hidden">
       <div
-        className={`cosmetic-profile-aura absolute left-1/2 top-[160px] h-44 w-44 -translate-x-1/2 rounded-full border ${style.aura}`}
+        className={`cosmetic-profile-aura absolute left-1/2 top-[150px] h-44 w-44 -translate-x-1/2 rounded-full border ${style.aura}`}
       />
       <div
-        className={`cosmetic-profile-aura cosmetic-profile-aura-two absolute left-1/2 top-[176px] h-32 w-32 -translate-x-1/2 rounded-full border ${style.aura}`}
+        className={`cosmetic-profile-aura cosmetic-profile-aura-two absolute left-1/2 top-[166px] h-32 w-32 -translate-x-1/2 rounded-full border ${style.aura}`}
       />
       <div
-        className={`absolute left-1/2 top-[202px] -translate-x-1/2 text-6xl opacity-[0.08] ${style.accent}`}
+        className={`absolute left-1/2 top-[192px] -translate-x-1/2 text-6xl opacity-[0.08] ${style.accent}`}
         style={{ fontFamily: style.font }}
       >
         {style.symbol}
@@ -412,8 +414,7 @@ export default function CosmeticProfileRenderer({
   const background = getCosmeticById(equipped.background);
   const aura = getCosmeticById(equipped.aura);
   const particle = getCosmeticById(equipped.particle);
-
-  const mainVisual = useMemo(() => getMainVisualItem(equipped), [equipped]);
+  const mainVisual = getMainVisualItem(equipped);
   const mainStyle = getThemeProfileStyle(background || border || mainVisual);
 
   return (
