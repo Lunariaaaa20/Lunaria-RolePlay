@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -405,6 +405,29 @@ function getPolicyStatusStyle(status: string) {
   };
 }
 
+function getChronicleEffectLabel(effectType: ChronicleMarketNoteRow["effect_type"]) {
+  if (effectType === "positive") return "Demand Pressure";
+  if (effectType === "negative") return "Supply Pressure";
+  if (effectType === "volatile") return "Volatile Signal";
+  return "Stable Watch";
+}
+
+function getChronicleEffectBadge(effectType?: ChronicleMarketNoteRow["effect_type"]) {
+  if (effectType === "positive") {
+    return "border-emerald-300/25 bg-emerald-400/10 text-emerald-100";
+  }
+
+  if (effectType === "negative") {
+    return "border-red-300/25 bg-red-400/10 text-red-100";
+  }
+
+  if (effectType === "volatile") {
+    return "border-amber-300/25 bg-amber-400/10 text-amber-100";
+  }
+
+  return "border-cyan-300/25 bg-cyan-400/10 text-cyan-100";
+}
+
 export default function EconomyArchivePage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [data, setData] = useState<EconomyData>({
@@ -531,48 +554,16 @@ export default function EconomyArchivePage() {
         : Promise.resolve({ data: [], error: null }),
     ]);
 
-    if (treasuryResult.error) {
-      console.error("Treasury load error:", treasuryResult.error);
-    }
-
-    if (taxPolicyResult.error) {
-      console.error("Tax policy load error:", taxPolicyResult.error);
-    }
-
-    if (taxPolicyHistoryResult.error) {
-      console.error("Tax policy history load error:", taxPolicyHistoryResult.error);
-    }
-
-    if (chronicleResult.error) {
-      console.error("Chronicle load error:", chronicleResult.error);
-    }
-
-    if (chronicleMarketNotesResult.error) {
-      console.error(
-        "Chronicle market notes load error:",
-        chronicleMarketNotesResult.error
-      );
-    }
-
-    if (ledgerResult.error) {
-      console.error("Ledger load error:", ledgerResult.error);
-    }
-
-    if (assetsResult.error) {
-      console.error("Assets load error:", assetsResult.error);
-    }
-
-    if (archivedAssetsResult.error) {
-      console.error("Archived assets load error:", archivedAssetsResult.error);
-    }
-
-    if (historyResult.error) {
-      console.error("History load error:", historyResult.error);
-    }
-
-    if (holdingsResult.error) {
-      console.error("Holdings load error:", holdingsResult.error);
-    }
+    if (treasuryResult.error) console.error("Treasury load error:", treasuryResult.error);
+    if (taxPolicyResult.error) console.error("Tax policy load error:", taxPolicyResult.error);
+    if (taxPolicyHistoryResult.error) console.error("Tax policy history load error:", taxPolicyHistoryResult.error);
+    if (chronicleResult.error) console.error("Chronicle load error:", chronicleResult.error);
+    if (chronicleMarketNotesResult.error) console.error("Chronicle market notes load error:", chronicleMarketNotesResult.error);
+    if (ledgerResult.error) console.error("Ledger load error:", ledgerResult.error);
+    if (assetsResult.error) console.error("Assets load error:", assetsResult.error);
+    if (archivedAssetsResult.error) console.error("Archived assets load error:", archivedAssetsResult.error);
+    if (historyResult.error) console.error("History load error:", historyResult.error);
+    if (holdingsResult.error) console.error("Holdings load error:", holdingsResult.error);
 
     setData({
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
@@ -859,7 +850,7 @@ export default function EconomyArchivePage() {
     }
 
     const confirmed = window.confirm(
-      "Update harga Relic Exchange sekarang? Harga semua market asset akan naik/turun otomatis berdasarkan risk roll."
+      "Update harga Relic Exchange sekarang? Harga semua market asset akan naik/turun otomatis berdasarkan Chronicle, risk roll, dan kondisi market."
     );
 
     if (!confirmed) return;
@@ -1015,6 +1006,12 @@ export default function EconomyArchivePage() {
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
               {data.assets.map((asset) => {
                 const holding = holdingMap.get(asset.id);
+                const chronicleNote =
+                  data.chronicleMarketNotes.find(
+                    (note) =>
+                      note.asset_category.toLowerCase() ===
+                      asset.category.toLowerCase()
+                  ) || null;
 
                 return (
                   <MarketAssetCard
@@ -1022,6 +1019,7 @@ export default function EconomyArchivePage() {
                     asset={asset}
                     holdingQuantity={holding?.quantity || 0}
                     averageBuyPrice={holding?.average_buy_price || 0}
+                    chronicleNote={chronicleNote}
                     tradingAssetId={tradingAssetId}
                     archivingAssetId={archivingAssetId}
                     isAdmin={isAdmin}
@@ -1131,7 +1129,7 @@ export default function EconomyArchivePage() {
 
                 <ActiveActionCard
                   title="Update Market Prices"
-                  description="Menggerakkan harga asset fantasy berdasarkan risk roll dan kondisi market."
+                  description="Menggerakkan harga asset fantasy berdasarkan Chronicle, risk roll, dan kondisi market."
                   icon="◇"
                   loading={updatingMarket}
                   buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
@@ -1245,6 +1243,7 @@ function MarketAssetCard({
   asset,
   holdingQuantity,
   averageBuyPrice,
+  chronicleNote,
   tradingAssetId,
   archivingAssetId,
   isAdmin,
@@ -1255,6 +1254,7 @@ function MarketAssetCard({
   asset: MarketAssetRow;
   holdingQuantity: number;
   averageBuyPrice: number;
+  chronicleNote: ChronicleMarketNoteRow | null;
   tradingAssetId: string | null;
   archivingAssetId: string | null;
   isAdmin: boolean;
@@ -1333,6 +1333,47 @@ function MarketAssetCard({
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Risk range: {risk.range}
+          </p>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.045] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300">
+                Affected by Chronicle
+              </p>
+
+              <p className="mt-2 text-sm font-black text-white">
+                {chronicleNote
+                  ? `${chronicleNote.asset_category} • ${getChronicleEffectLabel(
+                      chronicleNote.effect_type
+                    )}`
+                  : "No Direct Chronicle Signal"}
+              </p>
+            </div>
+
+            <span
+              className={`shrink-0 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${getChronicleEffectBadge(
+                chronicleNote?.effect_type
+              )}`}
+            >
+              {chronicleNote
+                ? `${chronicleNote.effect_strength > 0 ? "+" : ""}${
+                    chronicleNote.effect_strength
+                  }`
+                : "0"}
+            </span>
+          </div>
+
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            {chronicleNote
+              ? `${chronicleNote.title}. ${chronicleNote.body}`
+              : "Chronicle hari ini belum memberi sinyal langsung untuk kategori asset ini. Harga tetap bergerak berdasarkan risk roll normal."}
+          </p>
+
+          <p className="mt-3 text-[11px] font-semibold leading-5 text-slate-500">
+            Chronicle memberi konteks market, bukan bocoran pasti. Harga tetap
+            dapat naik atau turun karena base roll dan risk level asset.
           </p>
         </div>
 
