@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/lunaria-daily",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 17 * * *"
     }
   ]
 }
