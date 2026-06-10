@@ -81,6 +81,7 @@ type EconomyData = {
   treasury: TreasuryRow | null;
   ledger: LedgerRow[];
   assets: MarketAssetRow[];
+  archivedAssets: MarketAssetRow[];
   history: MarketHistoryRow[];
   holdings: MarketHoldingRow[];
 };
@@ -263,6 +264,7 @@ export default function EconomyArchivePage() {
     treasury: null,
     ledger: [],
     assets: [],
+    archivedAssets: [],
     history: [],
     holdings: [],
   });
@@ -273,6 +275,7 @@ export default function EconomyArchivePage() {
   const [runningRelief, setRunningRelief] = useState(false);
   const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
   const [archivingAssetId, setArchivingAssetId] = useState<string | null>(null);
+  const [restoringAssetId, setRestoringAssetId] = useState<string | null>(null);
 
   const totalMarketValue = useMemo(() => {
     return data.assets.reduce((sum, asset) => sum + asset.current_price, 0);
@@ -313,6 +316,7 @@ export default function EconomyArchivePage() {
       treasuryResult,
       ledgerResult,
       assetsResult,
+      archivedAssetsResult,
       historyResult,
       holdingsResult,
     ] = await Promise.all([
@@ -331,6 +335,11 @@ export default function EconomyArchivePage() {
         .select("*")
         .eq("status", "active")
         .order("created_at", { ascending: true }),
+      supabase
+        .from("economy_market_assets")
+        .select("*")
+        .eq("status", "archived")
+        .order("updated_at", { ascending: false }),
       supabase
         .from("economy_market_price_history")
         .select("*")
@@ -357,6 +366,10 @@ export default function EconomyArchivePage() {
       console.error("Assets load error:", assetsResult.error);
     }
 
+    if (archivedAssetsResult.error) {
+      console.error("Archived assets load error:", archivedAssetsResult.error);
+    }
+
     if (historyResult.error) {
       console.error("History load error:", historyResult.error);
     }
@@ -369,6 +382,7 @@ export default function EconomyArchivePage() {
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
       ledger: (ledgerResult.data as LedgerRow[]) || [],
       assets: (assetsResult.data as MarketAssetRow[]) || [],
+      archivedAssets: (archivedAssetsResult.data as MarketAssetRow[]) || [],
       history: (historyResult.data as MarketHistoryRow[]) || [],
       holdings: (holdingsResult.data as MarketHoldingRow[]) || [],
     });
@@ -547,6 +561,37 @@ export default function EconomyArchivePage() {
     alert(`${asset.name} berhasil di-archive.`);
   }
 
+  async function handleRestoreAsset(asset: MarketAssetRow) {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa restore market asset.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Restore asset ini?\n\n${asset.name}\n\nAsset akan kembali muncul di Relic Exchange aktif dan bisa dibeli/jual player lagi.`
+    );
+
+    if (!confirmed) return;
+
+    setRestoringAssetId(asset.id);
+
+    const { error } = await supabase.rpc("restore_market_asset", {
+      input_asset_id: asset.id,
+    });
+
+    if (error) {
+      console.error("Restore asset error:", error);
+      alert(`Gagal restore asset: ${error.message}`);
+      setRestoringAssetId(null);
+      return;
+    }
+
+    await loadEconomy();
+    setRestoringAssetId(null);
+
+    alert(`${asset.name} berhasil di-restore.`);
+  }
+
   async function handleUpdateMarketPrices() {
     if (!isAdmin) {
       alert("Hanya admin yang bisa update harga market.");
@@ -705,7 +750,8 @@ export default function EconomyArchivePage() {
 
             {!loading && data.assets.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm text-slate-400">
-                Belum ada market asset. Cek lagi SQL seed di Supabase.
+                Belum ada market asset aktif. Restore asset archived atau buat
+                asset baru dari panel admin.
               </div>
             ) : null}
           </div>
@@ -739,7 +785,7 @@ export default function EconomyArchivePage() {
               {!loading && data.ledger.length === 0 ? (
                 <p className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-400">
                   Belum ada ledger. Nanti akan terisi saat pajak, bansos, buy,
-                  sell, atau market update berjalan.
+                  sell, archive, restore, atau market update berjalan.
                 </p>
               ) : null}
             </div>
@@ -799,6 +845,12 @@ export default function EconomyArchivePage() {
           </section>
 
           <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+
+          <ArchivedAssetViewer
+            assets={data.archivedAssets}
+            restoringAssetId={restoringAssetId}
+            onRestore={handleRestoreAsset}
+          />
         </>
       ) : null}
     </main>
@@ -1128,6 +1180,102 @@ function PortfolioCard({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function ArchivedAssetViewer({
+  assets,
+  restoringAssetId,
+  onRestore,
+}: {
+  assets: MarketAssetRow[];
+  restoringAssetId: string | null;
+  onRestore: (asset: MarketAssetRow) => void;
+}) {
+  return (
+    <section className="mt-6 rounded-[30px] border border-purple-300/15 bg-purple-400/[0.045] p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
+            Admin Archive Vault
+          </p>
+          <h2 className="mt-2 text-2xl font-black text-white">
+            Archived Market Assets
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Asset yang pernah di-archive akan muncul di sini. Admin bisa restore
+            kalau salah archive atau asset ingin dipakai lagi.
+          </p>
+        </div>
+
+        <span className="rounded-full border border-purple-300/20 bg-purple-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-purple-100">
+          {assets.length} Archived
+        </span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        {assets.map((asset) => {
+          const risk = getRiskStyle(asset.risk_level);
+          const restoring = restoringAssetId === asset.id;
+
+          return (
+            <article
+              key={asset.id}
+              className="rounded-[24px] border border-white/10 bg-black/24 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.045] text-lg">
+                    {asset.icon}
+                  </div>
+
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-black text-white">
+                      {asset.name}
+                    </h3>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                      {asset.asset_key}
+                    </p>
+                  </div>
+                </div>
+
+                <span
+                  className={`shrink-0 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${risk.badge}`}
+                >
+                  Archived
+                </span>
+              </div>
+
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-400">
+                {asset.description}
+              </p>
+
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <MiniMetric label="Price" value={formatSilver(asset.current_price)} />
+                <MiniMetric label="Risk" value={risk.label} />
+                <MiniMetric label="Updated" value={formatDate(asset.updated_at)} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onRestore(asset)}
+                disabled={Boolean(restoringAssetId)}
+                className="mt-4 w-full rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100 transition hover:bg-emerald-400/16 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {restoring ? "Restoring..." : "Restore Asset"}
+              </button>
+            </article>
+          );
+        })}
+
+        {assets.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-black/20 p-5 text-sm leading-6 text-slate-400">
+            Belum ada archived asset. Kalau admin archive asset dari Relic
+            Exchange, datanya akan muncul di sini.
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
