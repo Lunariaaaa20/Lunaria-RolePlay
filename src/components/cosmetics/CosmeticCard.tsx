@@ -51,6 +51,15 @@ function getRarityStyle(rarity: CosmeticRarity) {
     };
   }
 
+  if (rarity === "Divine Relic") {
+    return {
+      badge: "border-white/30 bg-white/[0.08] text-white",
+      price: "text-white",
+      glow: "shadow-[0_0_55px_rgba(255,255,255,0.10)]",
+      quality: "Divine Relic",
+    };
+  }
+
   return {
     badge: "border-white/15 bg-white/[0.06] text-slate-200",
     price: "text-slate-100",
@@ -74,6 +83,14 @@ function getThemeCardClass(theme: CosmeticItem["theme"]) {
 
   if (theme === "ethereal-yggdrasil") {
     return "border-emerald-300/25 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.12),transparent_42%),linear-gradient(135deg,rgba(4,24,19,0.94),rgba(20,83,45,0.58))]";
+  }
+
+  if (theme === "sovereign-lunar-eclipse") {
+    return "border-white/25 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(147,197,253,0.16),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(30,41,59,0.72))]";
+  }
+
+  if (theme === "cosmic-eclipse") {
+    return "border-red-300/25 bg-[radial-gradient(circle_at_top_left,rgba(185,28,28,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.10),transparent_42%),linear-gradient(135deg,rgba(9,9,11,0.96),rgba(69,10,10,0.64))]";
   }
 
   return "border-cyan-200/25 bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.13),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_42%),linear-gradient(135deg,rgba(8,13,24,0.95),rgba(15,23,42,0.72))]";
@@ -157,7 +174,10 @@ export default function CosmeticCard({
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <InfoPill label="Quality" value={rarity.quality} />
-          <InfoPill label="Motion" value={item.rarity === "Mythic" ? "High" : "Smooth"} />
+          <InfoPill
+            label="Motion"
+            value={item.rarity === "Mythic" || item.rarity === "Divine Relic" ? "High" : "Smooth"}
+          />
         </div>
       </div>
 
