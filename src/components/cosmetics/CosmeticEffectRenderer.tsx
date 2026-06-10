@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { CosmeticTheme } from "./data/cosmeticItems";
+import PremiumCosmeticCanvas from "./effects/PremiumCosmeticCanvas";
 
 type CosmeticEffectRendererProps = {
   theme: CosmeticTheme;
@@ -12,8 +13,5 @@ export default function CosmeticEffectRenderer({
   theme,
   variant = "card",
 }: CosmeticEffectRendererProps) {
-  void theme;
-  void variant;
-
-  return null;
+  return <PremiumCosmeticCanvas theme={theme} variant={variant} />;
 }
