@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React from "react";
 import type { CosmeticItem, CosmeticRarity } from "./data/cosmeticItems";
@@ -14,13 +14,36 @@ type CosmeticCardProps = {
   onPreview?: () => void;
 };
 
+function formatSilverPrice(price: number) {
+  const safePrice = Math.max(0, Math.floor(Number(price) || 0));
+  const gold = Math.floor(safePrice / 1000);
+  const silver = safePrice % 1000;
+
+  if (gold > 0 && silver > 0) return `${gold}G ${silver}S`;
+  if (gold > 0) return `${gold}G`;
+  return `${silver}S`;
+}
+
 function getRarityStyle(rarity: CosmeticRarity) {
+  if (rarity === "Divine Relic") {
+    return {
+      badge:
+        "border-white/45 bg-[linear-gradient(135deg,rgba(255,255,255,0.20),rgba(251,191,36,0.16),rgba(239,68,68,0.12))] text-white shadow-[0_0_22px_rgba(255,255,255,0.12)]",
+      price: "text-white drop-shadow-[0_0_14px_rgba(251,191,36,0.38)]",
+      glow:
+        "shadow-[0_0_70px_rgba(255,255,255,0.12),0_0_95px_rgba(245,158,11,0.08),0_0_120px_rgba(239,68,68,0.06)]",
+      quality: "Divine Relic",
+      motion: "Royal Loop",
+    };
+  }
+
   if (rarity === "Mythic") {
     return {
       badge: "border-fuchsia-300/40 bg-fuchsia-400/15 text-fuchsia-100",
       price: "text-fuchsia-200",
       glow: "shadow-[0_0_55px_rgba(217,70,239,0.16)]",
       quality: "Luxury Motion",
+      motion: "High",
     };
   }
 
@@ -30,6 +53,7 @@ function getRarityStyle(rarity: CosmeticRarity) {
       price: "text-amber-200",
       glow: "shadow-[0_0_55px_rgba(245,158,11,0.15)]",
       quality: "Premium Depth",
+      motion: "Smooth",
     };
   }
 
@@ -39,6 +63,7 @@ function getRarityStyle(rarity: CosmeticRarity) {
       price: "text-violet-200",
       glow: "shadow-[0_0_45px_rgba(168,85,247,0.12)]",
       quality: "Animated Layer",
+      motion: "Smooth",
     };
   }
 
@@ -48,6 +73,7 @@ function getRarityStyle(rarity: CosmeticRarity) {
       price: "text-sky-200",
       glow: "shadow-[0_0_38px_rgba(56,189,248,0.09)]",
       quality: "Soft Motion",
+      motion: "Soft",
     };
   }
 
@@ -56,6 +82,7 @@ function getRarityStyle(rarity: CosmeticRarity) {
     price: "text-slate-100",
     glow: "shadow-[0_0_30px_rgba(148,163,184,0.07)]",
     quality: "Clean Basic",
+    motion: "Clean",
   };
 }
 
@@ -76,7 +103,39 @@ function getThemeCardClass(theme: CosmeticItem["theme"]) {
     return "border-emerald-300/25 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.12),transparent_42%),linear-gradient(135deg,rgba(4,24,19,0.94),rgba(20,83,45,0.58))]";
   }
 
-  return "border-cyan-200/25 bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.13),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_42%),linear-gradient(135deg,rgba(8,13,24,0.95),rgba(15,23,42,0.72))]";
+  if (theme === "ivory-overlord") {
+    return "border-cyan-200/25 bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.13),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_42%),linear-gradient(135deg,rgba(8,13,24,0.95),rgba(15,23,42,0.72))]";
+  }
+
+  if (theme === "sovereign-lunar-eclipse") {
+    return "border-white/35 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_30%),radial-gradient(circle_at_top_right,rgba(147,197,253,0.20),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.16),transparent_42%),linear-gradient(135deg,rgba(8,13,28,0.96),rgba(30,41,59,0.76),rgba(15,23,42,0.88))]";
+  }
+
+  if (theme === "cosmic-eclipse") {
+    return "border-red-300/30 bg-[radial-gradient(circle_at_top_left,rgba(185,28,28,0.26),transparent_32%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(0,0,0,0.42),transparent_44%),linear-gradient(135deg,rgba(3,3,8,0.98),rgba(39,8,12,0.82),rgba(9,9,11,0.94))]";
+  }
+
+  return "border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(2,6,23,0.90))]";
+}
+
+function getDivineCardCrown(theme: CosmeticItem["theme"]) {
+  if (theme === "sovereign-lunar-eclipse") {
+    return (
+      <div className="pointer-events-none absolute right-5 top-5 z-[1] rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.22em] text-white/80 shadow-[0_0_20px_rgba(255,255,255,0.10)]">
+        Moonlit Sovereign
+      </div>
+    );
+  }
+
+  if (theme === "cosmic-eclipse") {
+    return (
+      <div className="pointer-events-none absolute right-5 top-5 z-[1] rounded-full border border-red-300/25 bg-red-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.22em] text-red-100 shadow-[0_0_20px_rgba(239,68,68,0.12)]">
+        Forbidden Relic
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function CosmeticCard({
@@ -98,6 +157,10 @@ export default function CosmeticCard({
     >
       <CosmeticEffectRenderer theme={item.theme} variant="card" />
 
+      {getDivineCardCrown(item.theme)}
+
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(115deg,transparent,rgba(255,255,255,0.055),transparent)] opacity-70" />
+
       <div className="relative z-10 flex items-start justify-between gap-4">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] border border-white/15 bg-black/30 text-3xl shadow-[inset_0_0_24px_rgba(255,255,255,0.04)]">
           {item.icon}
@@ -111,7 +174,7 @@ export default function CosmeticCard({
           </span>
 
           <p className={`mt-3 text-4xl font-black ${rarity.price}`}>
-            {item.price}S
+            {formatSilverPrice(item.price)}
           </p>
         </div>
       </div>
@@ -157,7 +220,7 @@ export default function CosmeticCard({
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <InfoPill label="Quality" value={rarity.quality} />
-          <InfoPill label="Motion" value={item.rarity === "Mythic" ? "High" : "Smooth"} />
+          <InfoPill label="Motion" value={rarity.motion} />
         </div>
       </div>
 
@@ -190,7 +253,7 @@ export default function CosmeticCard({
             disabled={working}
             className="rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-600/25 via-amber-500/14 to-violet-600/20 px-4 py-4 text-xs font-black uppercase tracking-[0.18em] text-amber-100 transition hover:border-amber-200/55 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {working ? "Buying..." : "Buy"}
+            {working ? "Buying..." : `Buy • ${formatSilverPrice(item.price)}`}
           </button>
         )}
       </div>
@@ -207,4 +270,4 @@ function InfoPill({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-xs font-black text-slate-200">{value}</p>
     </div>
   );
-        }
+}
