@@ -13,7 +13,12 @@ type LunariaSession = {
   loginAt?: string;
 };
 
-const PUBLIC_ROUTES = ["/signin", "/signup", "/reset-password", "/form-elements"];
+const PUBLIC_ROUTES = [
+  "/signin",
+  "/signup",
+  "/reset-password",
+  "/form-elements",
+];
 
 const ADMIN_ONLY_ROUTES = ["/basic-tables"];
 
@@ -23,6 +28,7 @@ const PLAYER_ALLOWED_ROUTES = [
   "/buttons",
   "/calendar",
   "/line-chart",
+  "/economy-archive",
 ];
 
 function getStoredSession(): LunariaSession | null {
