@@ -6,14 +6,16 @@ export type CosmeticType =
   | "particle";
 
 export type CosmeticTheme =
-  // Legacy themes — biarin ada supaya file lama tidak error
+  // Legacy themes — jangan dihapus dulu supaya file lama tidak error
   | "sovereign-tempest"
   | "abyssal-leviathan"
   | "crimson-aristocrat"
   | "ethereal-yggdrasil"
   | "ivory-overlord"
-  
-  // V2 themes — yang baru dipakai
+  | "sovereign-lunar-eclipse"
+  | "cosmic-eclipse"
+
+  // V2 themes — ini yang dipakai item baru
   | "obsidian-monarch"
   | "blood-cathedral"
   | "abyss-sovereign"
@@ -46,7 +48,32 @@ export type CosmeticItem = {
   previewLabel: string;
 };
 
-export const cosmeticThemes = [
+export const cosmeticTypeLabels: Record<CosmeticType, string> = {
+  name_effect: "Name Effect",
+  border: "ID Border",
+  background: "ID Background",
+  aura: "Profile Aura",
+  particle: "Particle Effect",
+};
+
+export const rarityOrder: Record<CosmeticRarity, number> = {
+  Common: 1,
+  Rare: 2,
+  Epic: 3,
+  Legendary: 4,
+  Mythic: 5,
+  "Divine Relic": 6,
+  "Forbidden Relic": 7,
+};
+
+export const cosmeticThemes: {
+  id: CosmeticTheme;
+  name: string;
+  subtitle: string;
+  icon: string;
+  mood: string;
+  color: string;
+}[] = [
   {
     id: "obsidian-monarch",
     name: "Obsidian Monarch",
@@ -87,12 +114,9 @@ export const cosmeticThemes = [
     mood: "Cyan Soul Dominion",
     color: "from-slate-950 via-cyan-950 to-black",
   },
-] as const;
+];
 
 export const cosmeticItems: CosmeticItem[] = [
-  // =========================================================
-  // OBSIDIAN MONARCH
-  // =========================================================
   {
     id: "obsidian-name-01",
     name: "Crown of Black Glass",
@@ -179,9 +203,6 @@ export const cosmeticItems: CosmeticItem[] = [
     previewLabel: "Gilded Ashfall",
   },
 
-  // =========================================================
-  // BLOOD CATHEDRAL
-  // =========================================================
   {
     id: "blood-name-01",
     name: "Velvet Bloodline Name",
@@ -268,9 +289,6 @@ export const cosmeticItems: CosmeticItem[] = [
     previewLabel: "Blood Rosefall",
   },
 
-  // =========================================================
-  // ABYSS SOVEREIGN
-  // =========================================================
   {
     id: "abyss-name-01",
     name: "Sapphire Abyss Name",
@@ -314,7 +332,7 @@ export const cosmeticItems: CosmeticItem[] = [
     typeLabel: "ID Background",
     rarity: "Legendary",
     price: 450,
-    icon: "🌊",
+    icon: "◇",
     accent: "text-teal-200",
     shortDescription: "Latar kerajaan tenggelam di palung gelap.",
     description:
@@ -357,9 +375,6 @@ export const cosmeticItems: CosmeticItem[] = [
     previewLabel: "Pearl Abyssfall",
   },
 
-  // =========================================================
-  // THORN EMPRESS
-  // =========================================================
   {
     id: "thorn-name-01",
     name: "Empress Root Signature",
@@ -446,9 +461,6 @@ export const cosmeticItems: CosmeticItem[] = [
     previewLabel: "Spore Bloomfall",
   },
 
-  // =========================================================
-  // SOULFIRE TYRANT
-  // =========================================================
   {
     id: "soulfire-name-01",
     name: "Cyan Soulcrack Name",
@@ -492,7 +504,7 @@ export const cosmeticItems: CosmeticItem[] = [
     typeLabel: "ID Background",
     rarity: "Legendary",
     price: 500,
-    icon: "🔥",
+    icon: "♔",
     accent: "text-blue-100",
     shortDescription: "Latar singgasana arwah dengan api cyan.",
     description:
@@ -536,24 +548,6 @@ export const cosmeticItems: CosmeticItem[] = [
   },
 ];
 
-export const cosmeticTypeLabels: Record<CosmeticType, string> = {
-  name_effect: "Name Effect",
-  border: "ID Border",
-  background: "ID Background",
-  aura: "Profile Aura",
-  particle: "Particle Effect",
-};
-
-export const rarityOrder: Record<CosmeticRarity, number> = {
-  Common: 1,
-  Rare: 2,
-  Epic: 3,
-  Legendary: 4,
-  Mythic: 5,
-  "Divine Relic": 6,
-  "Forbidden Relic": 7,
-};
-
 export function getCosmeticsByTheme(theme: CosmeticTheme) {
   return cosmeticItems.filter((item) => item.theme === theme);
 }
@@ -564,4 +558,4 @@ export function getCosmeticsByType(type: CosmeticType) {
 
 export function getCosmeticById(id: string) {
   return cosmeticItems.find((item) => item.id === id) || null;
-}p
+}
