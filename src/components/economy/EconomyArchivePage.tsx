@@ -301,6 +301,7 @@ export default function EconomyArchivePage() {
   }, [data.holdings]);
 
   const portfolioProfitLoss = portfolioValue - portfolioCost;
+  const isAdmin = session?.role === "admin";
 
   async function loadEconomy() {
     setLoading(true);
@@ -458,6 +459,11 @@ export default function EconomyArchivePage() {
   }
 
   async function handleRunWeeklyTax() {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa menjalankan pajak.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Jalankan Weekly Guild Tax sekarang? Saldo player aktif akan dipotong otomatis berdasarkan tier pajak. Sistem akan menolak jika pajak sudah dijalankan dalam 7 hari terakhir."
     );
@@ -482,6 +488,11 @@ export default function EconomyArchivePage() {
   }
 
   async function handleDistributeRelief() {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa membagikan bansos.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Jalankan Weekly Relief sekarang? Player aktif dengan saldo 50S ke bawah akan menerima 10S dari Treasury. Sistem akan menolak jika relief sudah dijalankan dalam 7 hari terakhir."
     );
@@ -506,7 +517,7 @@ export default function EconomyArchivePage() {
   }
 
   async function handleArchiveAsset(asset: MarketAssetRow) {
-    if (session?.role !== "admin") {
+    if (!isAdmin) {
       alert("Hanya admin yang bisa archive market asset.");
       return;
     }
@@ -537,6 +548,11 @@ export default function EconomyArchivePage() {
   }
 
   async function handleUpdateMarketPrices() {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa update harga market.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Update harga Relic Exchange sekarang? Harga semua market asset akan naik/turun otomatis berdasarkan risk roll."
     );
@@ -679,7 +695,7 @@ export default function EconomyArchivePage() {
                   averageBuyPrice={holding?.average_buy_price || 0}
                   tradingAssetId={tradingAssetId}
                   archivingAssetId={archivingAssetId}
-                  isAdmin={session?.role === "admin"}
+                  isAdmin={isAdmin}
                   onBuy={() => handleBuyAsset(asset)}
                   onSell={() => handleSellAsset(asset)}
                   onArchive={() => handleArchiveAsset(asset)}
@@ -731,56 +747,60 @@ export default function EconomyArchivePage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
-              Admin Economy Controls
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-white">
-              Treasury Operations
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              Pajak, bansos, dan market sudah bisa dijalankan manual oleh admin.
-              Semua punya cooldown agar ekonomi tidak rusak.
-            </p>
-          </div>
-        </div>
+      {isAdmin ? (
+        <>
+          <section className="mt-6 rounded-[30px] border border-white/10 bg-white/[0.045] p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-purple-300">
+                  Admin Economy Controls
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-white">
+                  Treasury Operations
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Pajak, bansos, dan market hanya bisa dijalankan oleh admin.
+                  Semua punya cooldown agar ekonomi tidak rusak.
+                </p>
+              </div>
+            </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <ActiveActionCard
-            title="Run Weekly Tax"
-            description="Potong pajak otomatis berdasarkan tier saldo player aktif. Terkunci otomatis selama 7 hari setelah dijalankan."
-            icon="⚖"
-            loading={runningTax}
-            buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
-            onClick={handleRunWeeklyTax}
-            tone="amber"
-          />
+            <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <ActiveActionCard
+                title="Run Weekly Tax"
+                description="Potong pajak otomatis berdasarkan tier saldo player aktif. Terkunci otomatis selama 7 hari setelah dijalankan."
+                icon="⚖"
+                loading={runningTax}
+                buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
+                onClick={handleRunWeeklyTax}
+                tone="amber"
+              />
 
-          <ActiveActionCard
-            title="Distribute Relief"
-            description="Bansos otomatis 10S untuk player aktif dengan saldo 50S ke bawah. Terkunci otomatis selama 7 hari setelah dijalankan."
-            icon="✦"
-            loading={runningRelief}
-            buttonLabel={runningRelief ? "Distributing..." : "Distribute Relief"}
-            onClick={handleDistributeRelief}
-            tone="emerald"
-          />
+              <ActiveActionCard
+                title="Distribute Relief"
+                description="Bansos otomatis 10S untuk player aktif dengan saldo 50S ke bawah. Terkunci otomatis selama 7 hari setelah dijalankan."
+                icon="✦"
+                loading={runningRelief}
+                buttonLabel={runningRelief ? "Distributing..." : "Distribute Relief"}
+                onClick={handleDistributeRelief}
+                tone="emerald"
+              />
 
-          <ActiveActionCard
-            title="Update Market Prices"
-            description="Harga market naik-turun otomatis dengan random risk roll dan market event."
-            icon="◇"
-            loading={updatingMarket}
-            buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
-            onClick={handleUpdateMarketPrices}
-            tone="cyan"
-          />
-        </div>
-      </section>
+              <ActiveActionCard
+                title="Update Market Prices"
+                description="Harga market naik-turun otomatis dengan random risk roll dan market event."
+                icon="◇"
+                loading={updatingMarket}
+                buttonLabel={updatingMarket ? "Updating..." : "Run Market Update"}
+                onClick={handleUpdateMarketPrices}
+                tone="cyan"
+              />
+            </div>
+          </section>
 
-      <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+          <AdminMarketAssetForm role={session?.role} onCreated={loadEconomy} />
+        </>
+      ) : null}
     </main>
   );
 }
