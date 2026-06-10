@@ -15,7 +15,9 @@ type CosmeticCardProps = {
 };
 
 function getRarityStyle(rarity: CosmeticRarity) {
-  if (String(rarity) === "Divine Relic") {
+  const rarityKey = String(rarity);
+
+  if (rarityKey === "Divine Relic") {
     return {
       badge: "border-white/30 bg-white/[0.08] text-white",
       price: "text-white",
@@ -69,31 +71,37 @@ function getRarityStyle(rarity: CosmeticRarity) {
 }
 
 function getThemeCardClass(theme: CosmeticItem["theme"]) {
-  if (theme === "sovereign-tempest") {
+  const themeKey = String(theme);
+
+  if (themeKey === "sovereign-tempest") {
     return "border-amber-300/25 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.20),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.18),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(30,27,75,0.70))]";
   }
 
-  if (theme === "abyssal-leviathan") {
+  if (themeKey === "abyssal-leviathan") {
     return "border-cyan-300/25 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_42%),linear-gradient(135deg,rgba(3,16,35,0.94),rgba(8,47,73,0.70))]";
   }
 
-  if (theme === "crimson-aristocrat") {
+  if (themeKey === "crimson-aristocrat") {
     return "border-red-300/25 bg-[radial-gradient(circle_at_top_left,rgba(185,28,28,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.12),transparent_42%),linear-gradient(135deg,rgba(22,5,14,0.94),rgba(69,10,10,0.62))]";
   }
 
-  if (theme === "ethereal-yggdrasil") {
+  if (themeKey === "ethereal-yggdrasil") {
     return "border-emerald-300/25 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.12),transparent_42%),linear-gradient(135deg,rgba(4,24,19,0.94),rgba(20,83,45,0.58))]";
   }
 
-  if (theme === "sovereign-lunar-eclipse") {
+  if (themeKey === "ivory-overlord") {
+    return "border-cyan-200/25 bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.13),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_42%),linear-gradient(135deg,rgba(8,13,24,0.95),rgba(15,23,42,0.72))]";
+  }
+
+  if (themeKey === "sovereign-lunar-eclipse") {
     return "border-white/25 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(147,197,253,0.16),transparent_42%),linear-gradient(135deg,rgba(15,23,42,0.92),rgba(30,41,59,0.72))]";
   }
 
-  if (theme === "cosmic-eclipse") {
+  if (themeKey === "cosmic-eclipse") {
     return "border-red-300/25 bg-[radial-gradient(circle_at_top_left,rgba(185,28,28,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(251,191,36,0.10),transparent_42%),linear-gradient(135deg,rgba(9,9,11,0.96),rgba(69,10,10,0.64))]";
   }
 
-  return "border-cyan-200/25 bg-[radial-gradient(circle_at_top_left,rgba(226,232,240,0.13),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(34,211,238,0.18),transparent_42%),linear-gradient(135deg,rgba(8,13,24,0.95),rgba(15,23,42,0.72))]";
+  return "border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(2,6,23,0.90))]";
 }
 
 export default function CosmeticCard({
@@ -106,6 +114,7 @@ export default function CosmeticCard({
   onPreview,
 }: CosmeticCardProps) {
   const rarity = getRarityStyle(item.rarity);
+  const rarityKey = String(item.rarity);
 
   return (
     <article
@@ -181,8 +190,7 @@ export default function CosmeticCard({
           <InfoPill
             label="Motion"
             value={
-              item.rarity === "Mythic" ||
-              String(item.rarity) === "Divine Relic"
+              item.rarity === "Mythic" || rarityKey === "Divine Relic"
                 ? "High"
                 : "Smooth"
             }
