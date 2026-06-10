@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React from "react";
 import type { CosmeticItem, CosmeticRarity } from "./data/cosmeticItems";
@@ -155,7 +155,11 @@ export default function CosmeticCard({
         item.theme
       )} ${rarity.glow}`}
     >
-      <CosmeticEffectRenderer theme={item.theme} variant="card" />
+      <CosmeticEffectRenderer
+        theme={item.theme}
+        type={item.type}
+        variant="card"
+      />
 
       {getDivineCardCrown(item.theme)}
 
@@ -203,14 +207,22 @@ export default function CosmeticCard({
         </p>
 
         <div className="relative mt-4 overflow-hidden rounded-[22px] border border-white/10 bg-black/35 p-4">
-          <CosmeticEffectRenderer theme={item.theme} variant="compact" />
+          <CosmeticEffectRenderer
+            theme={item.theme}
+            type={item.type}
+            variant="compact"
+          />
 
           <div className="relative z-10 flex min-h-[96px] items-center justify-center rounded-[18px] border border-white/10 bg-white/[0.04] text-center">
             <div>
-              <p className={`text-3xl font-black ${item.accent}`}>{item.icon}</p>
+              <p className={`text-3xl font-black ${item.accent}`}>
+                {item.icon}
+              </p>
+
               <p className="mt-2 text-sm font-black text-white">
                 {item.previewLabel}
               </p>
+
               <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                 {item.visualQuality}
               </p>
