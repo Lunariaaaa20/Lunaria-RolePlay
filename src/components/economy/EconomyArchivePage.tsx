@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +22,60 @@ type TreasuryRow = {
   last_tax_run_at: string | null;
   last_relief_run_at: string | null;
   last_market_update_at: string | null;
+};
+
+type TaxPolicyRow = {
+  id: string;
+  decree_name: string;
+  status: "lowered" | "stable" | "raised";
+  reason: string;
+
+  tier_0_max: number;
+  tier_0_rate: number;
+
+  tier_1_min: number;
+  tier_1_max: number;
+  tier_1_rate: number;
+
+  tier_2_min: number;
+  tier_2_max: number;
+  tier_2_rate: number;
+
+  tier_3_min: number;
+  tier_3_max: number;
+  tier_3_rate: number;
+
+  tier_4_min: number;
+  tier_4_rate: number;
+
+  last_review_at: string | null;
+  next_review_at: string | null;
+
+  created_at: string;
+  updated_at: string;
+};
+
+type TaxPolicyHistoryRow = {
+  id: string;
+  decree_name: string;
+  status: "lowered" | "stable" | "raised";
+  reason: string;
+
+  tier_0_rate: number;
+  tier_1_rate: number;
+  tier_2_rate: number;
+  tier_3_rate: number;
+  tier_4_rate: number;
+
+  previous_tier_0_rate: number | null;
+  previous_tier_1_rate: number | null;
+  previous_tier_2_rate: number | null;
+  previous_tier_3_rate: number | null;
+  previous_tier_4_rate: number | null;
+
+  review_summary: string | null;
+  created_by: string;
+  created_at: string;
 };
 
 type LedgerRow = {
@@ -79,6 +133,8 @@ type MarketHoldingRow = {
 
 type EconomyData = {
   treasury: TreasuryRow | null;
+  taxPolicy: TaxPolicyRow | null;
+  taxPolicyHistory: TaxPolicyHistoryRow[];
   ledger: LedgerRow[];
   assets: MarketAssetRow[];
   archivedAssets: MarketAssetRow[];
@@ -135,7 +191,7 @@ function getRiskStyle(riskLevel: string) {
       label: "Low Risk",
       badge: "border-emerald-300/30 bg-emerald-400/10 text-emerald-100",
       range: "-5% sampai +7%",
-      glow: "from-emerald-400/18 via-transparent to-transparent",
+      glow: "from-emerald-400/16 via-transparent to-transparent",
     };
   }
 
@@ -144,7 +200,7 @@ function getRiskStyle(riskLevel: string) {
       label: "Medium Risk",
       badge: "border-cyan-300/30 bg-cyan-400/10 text-cyan-100",
       range: "-12% sampai +15%",
-      glow: "from-cyan-400/18 via-transparent to-transparent",
+      glow: "from-cyan-400/16 via-transparent to-transparent",
     };
   }
 
@@ -275,10 +331,39 @@ function getMarketMood(asset: MarketAssetRow) {
   return asset.flavor || "Pergerakan market sedang tenang di arsip treasury.";
 }
 
+function getPolicyStatusStyle(status: string) {
+  if (status === "raised") {
+    return {
+      label: "Raised",
+      badge: "border-red-300/30 bg-red-400/10 text-red-100",
+      note: "Tarif naik ringan untuk memperkuat kas guild dan menahan tekanan inflasi.",
+      glow: "from-red-400/14 via-transparent to-transparent",
+    };
+  }
+
+  if (status === "lowered") {
+    return {
+      label: "Lowered",
+      badge: "border-emerald-300/30 bg-emerald-400/10 text-emerald-100",
+      note: "Tarif turun ringan untuk memberi ruang ekonomi kepada player dan merchant.",
+      glow: "from-emerald-400/14 via-transparent to-transparent",
+    };
+  }
+
+  return {
+    label: "Stable",
+    badge: "border-cyan-300/30 bg-cyan-400/10 text-cyan-100",
+    note: "Tarif dipertahankan agar ekonomi tetap seimbang dan tidak berubah terlalu cepat.",
+    glow: "from-cyan-400/14 via-transparent to-transparent",
+  };
+}
+
 export default function EconomyArchivePage() {
   const [session, setSession] = useState<LunariaSession | null>(null);
   const [data, setData] = useState<EconomyData>({
     treasury: null,
+    taxPolicy: null,
+    taxPolicyHistory: [],
     ledger: [],
     assets: [],
     archivedAssets: [],
@@ -290,6 +375,7 @@ export default function EconomyArchivePage() {
   const [updatingMarket, setUpdatingMarket] = useState(false);
   const [runningTax, setRunningTax] = useState(false);
   const [runningRelief, setRunningRelief] = useState(false);
+  const [reviewingTaxPolicy, setReviewingTaxPolicy] = useState(false);
   const [tradingAssetId, setTradingAssetId] = useState<string | null>(null);
   const [archivingAssetId, setArchivingAssetId] = useState<string | null>(null);
   const [restoringAssetId, setRestoringAssetId] = useState<string | null>(null);
@@ -331,6 +417,8 @@ export default function EconomyArchivePage() {
 
     const [
       treasuryResult,
+      taxPolicyResult,
+      taxPolicyHistoryResult,
       ledgerResult,
       assetsResult,
       archivedAssetsResult,
@@ -342,6 +430,16 @@ export default function EconomyArchivePage() {
         .select("*")
         .eq("id", "main")
         .maybeSingle(),
+      supabase
+        .from("economy_tax_policy")
+        .select("*")
+        .eq("id", "main")
+        .maybeSingle(),
+      supabase
+        .from("economy_tax_policy_history")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5),
       supabase
         .from("economy_ledger")
         .select("*")
@@ -375,6 +473,14 @@ export default function EconomyArchivePage() {
       console.error("Treasury load error:", treasuryResult.error);
     }
 
+    if (taxPolicyResult.error) {
+      console.error("Tax policy load error:", taxPolicyResult.error);
+    }
+
+    if (taxPolicyHistoryResult.error) {
+      console.error("Tax policy history load error:", taxPolicyHistoryResult.error);
+    }
+
     if (ledgerResult.error) {
       console.error("Ledger load error:", ledgerResult.error);
     }
@@ -397,6 +503,9 @@ export default function EconomyArchivePage() {
 
     setData({
       treasury: (treasuryResult.data as TreasuryRow | null) || null,
+      taxPolicy: (taxPolicyResult.data as TaxPolicyRow | null) || null,
+      taxPolicyHistory:
+        (taxPolicyHistoryResult.data as TaxPolicyHistoryRow[]) || [],
       ledger: (ledgerResult.data as LedgerRow[]) || [],
       assets: (assetsResult.data as MarketAssetRow[]) || [],
       archivedAssets: (archivedAssetsResult.data as MarketAssetRow[]) || [],
@@ -496,7 +605,7 @@ export default function EconomyArchivePage() {
     }
 
     const confirmed = window.confirm(
-      "Jalankan Weekly Guild Tax sekarang? Saldo player aktif akan dipotong otomatis berdasarkan tier pajak. Sistem akan menolak jika pajak sudah dijalankan dalam 7 hari terakhir."
+      "Jalankan Weekly Guild Tax sekarang? Saldo player aktif akan dipotong otomatis berdasarkan decree pajak aktif. Sistem akan menolak jika pajak sudah dijalankan dalam 7 hari terakhir."
     );
 
     if (!confirmed) return;
@@ -516,6 +625,35 @@ export default function EconomyArchivePage() {
     setRunningTax(false);
 
     alert("Weekly Guild Tax berhasil dijalankan.");
+  }
+
+  async function handleRunTaxPolicyReview() {
+    if (!isAdmin) {
+      alert("Hanya admin yang bisa menjalankan review kebijakan pajak.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Jalankan Royal Tax Policy Review sekarang? Sistem akan mengecek kondisi treasury dan menentukan apakah pajak naik, turun, atau tetap. Review normalnya hanya bisa berjalan 14 hari sekali."
+    );
+
+    if (!confirmed) return;
+
+    setReviewingTaxPolicy(true);
+
+    const { error } = await supabase.rpc("run_tax_policy_review");
+
+    if (error) {
+      console.error("Tax policy review error:", error);
+      alert(`Gagal menjalankan tax policy review: ${error.message}`);
+      setReviewingTaxPolicy(false);
+      return;
+    }
+
+    await loadEconomy();
+    setReviewingTaxPolicy(false);
+
+    alert("Royal Tax Policy Review berhasil dijalankan.");
   }
 
   async function handleDistributeRelief() {
@@ -676,16 +814,14 @@ export default function EconomyArchivePage() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-                <button
-                  type="button"
-                  onClick={loadEconomy}
-                  disabled={loading}
-                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.08)] transition hover:bg-amber-400/16 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? "Syncing..." : "Refresh Treasury"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={loadEconomy}
+                disabled={loading}
+                className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-amber-100 shadow-[0_0_30px_rgba(245,158,11,0.08)] transition hover:bg-amber-400/16 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Syncing..." : "Refresh Treasury"}
+              </button>
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -802,7 +938,13 @@ export default function EconomyArchivePage() {
               portfolioProfitLoss={portfolioProfitLoss}
             />
 
-            <TaxRulesCard />
+            <RoyalTaxPolicyCard
+              policy={data.taxPolicy}
+              history={data.taxPolicyHistory}
+              isAdmin={isAdmin}
+              reviewing={reviewingTaxPolicy}
+              onReview={handleRunTaxPolicyReview}
+            />
 
             <div className="rounded-[34px] border border-white/10 bg-white/[0.045] p-5">
               <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
@@ -854,7 +996,7 @@ export default function EconomyArchivePage() {
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
                 <ActiveActionCard
                   title="Run Weekly Tax"
-                  description="Mengambil pajak bertingkat dari saldo player aktif dan menyimpannya ke kas guild."
+                  description="Mengambil pajak bertingkat dari saldo player aktif berdasarkan decree pajak aktif."
                   icon="⚖"
                   loading={runningTax}
                   buttonLabel={runningTax ? "Running..." : "Run Weekly Tax"}
@@ -1246,6 +1388,171 @@ function PortfolioCard({
   );
 }
 
+function RoyalTaxPolicyCard({
+  policy,
+  history,
+  isAdmin,
+  reviewing,
+  onReview,
+}: {
+  policy: TaxPolicyRow | null;
+  history: TaxPolicyHistoryRow[];
+  isAdmin: boolean;
+  reviewing: boolean;
+  onReview: () => void;
+}) {
+  const status = getPolicyStatusStyle(policy?.status || "stable");
+
+  const tiers = policy
+    ? [
+        [`0S–${policy.tier_0_max}S`, `${policy.tier_0_rate}%`],
+        [
+          `${policy.tier_1_min}S–${policy.tier_1_max}S`,
+          `${policy.tier_1_rate}%`,
+        ],
+        [
+          `${policy.tier_2_min}S–${policy.tier_2_max}S`,
+          `${policy.tier_2_rate}%`,
+        ],
+        [
+          `${policy.tier_3_min}S–${policy.tier_3_max}S`,
+          `${policy.tier_3_rate}%`,
+        ],
+        [`${policy.tier_4_min}S+`, `${policy.tier_4_rate}%`],
+      ]
+    : [
+        ["0S–50S", "0%"],
+        ["51S–150S", "3%"],
+        ["151S–300S", "5%"],
+        ["301S–700S", "7%"],
+        ["701S+", "10%"],
+      ];
+
+  return (
+    <div className="relative overflow-hidden rounded-[34px] border border-amber-300/15 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.12),transparent_30%),rgba(255,255,255,0.045)] p-5">
+      <div className={`absolute inset-0 bg-gradient-to-br ${status.glow}`} />
+      <div className="absolute right-4 top-4 text-7xl opacity-[0.05]">⚖</div>
+
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+              Royal Tax Policy
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black text-white">
+              {policy?.decree_name || "Balanced Treasury Order"}
+            </h2>
+          </div>
+
+          <span
+            className={`shrink-0 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] ${status.badge}`}
+          >
+            {status.label}
+          </span>
+        </div>
+
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          {policy?.reason ||
+            "Treasury Lunaria berada dalam kondisi seimbang. Pajak dipertahankan agar ekonomi guild tetap stabil."}
+        </p>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/22 p-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+            Policy Reading
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">{status.note}</p>
+
+          <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-400">
+            <div className="flex items-center justify-between gap-3">
+              <span>Last Review</span>
+              <span className="text-right font-bold text-slate-200">
+                {formatDate(policy?.last_review_at)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span>Next Review</span>
+              <span className="text-right font-bold text-amber-200">
+                {formatDate(policy?.next_review_at)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          {tiers.map(([range, rate]) => (
+            <div
+              key={range}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/22 px-4 py-3"
+            >
+              <span className="text-sm font-bold text-slate-300">{range}</span>
+              <span className="text-sm font-black text-amber-200">{rate}</span>
+            </div>
+          ))}
+        </div>
+
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={onReview}
+            disabled={reviewing}
+            className="mt-5 w-full rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-amber-100 transition hover:bg-amber-400/16 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {reviewing ? "Reviewing..." : "Run Tax Policy Review"}
+          </button>
+        ) : null}
+
+        <div className="mt-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
+            Recent Policy History
+          </p>
+
+          <div className="mt-3 space-y-2">
+            {history.slice(0, 3).map((item) => {
+              const itemStatus = getPolicyStatusStyle(item.status);
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/10 bg-black/20 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-white">
+                        {item.decree_name}
+                      </p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        {formatDate(item.created_at)}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.14em] ${itemStatus.badge}`}
+                    >
+                      {itemStatus.label}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-400">
+                    {item.reason}
+                  </p>
+                </div>
+              );
+            })}
+
+            {history.length === 0 ? (
+              <p className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs leading-5 text-slate-400">
+                Belum ada riwayat policy selain decree aktif.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArchivedAssetViewer({
   assets,
   restoringAssetId,
@@ -1357,43 +1664,6 @@ function MiniMetric({
         {label}
       </p>
       <p className={`mt-1 text-sm font-black ${valueClass}`}>{value}</p>
-    </div>
-  );
-}
-
-function TaxRulesCard() {
-  const tiers = [
-    ["0S–50S", "0%"],
-    ["51S–150S", "3%"],
-    ["151S–300S", "5%"],
-    ["301S–700S", "7%"],
-    ["701S+", "10%"],
-  ];
-
-  return (
-    <div className="rounded-[34px] border border-red-300/12 bg-[radial-gradient(circle_at_top_left,rgba(248,113,113,0.10),transparent_30%),rgba(255,255,255,0.045)] p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-red-300">
-        Tax Doctrine
-      </p>
-      <h2 className="mt-2 text-2xl font-black text-white">
-        Anti Inflation Tax
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">
-        Pajak dibuat bertingkat. Player kecil aman, player kaya ikut menjaga
-        stabilitas kas guild.
-      </p>
-
-      <div className="mt-5 space-y-2">
-        {tiers.map(([range, rate]) => (
-          <div
-            key={range}
-            className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/22 px-4 py-3"
-          >
-            <span className="text-sm font-bold text-slate-300">{range}</span>
-            <span className="text-sm font-black text-amber-200">{rate}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
