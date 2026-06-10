@@ -6,6 +6,16 @@ export type CosmeticType =
   | "particle";
 
 export type CosmeticTheme =
+  // Legacy themes — biarin ada supaya file lama tidak error
+  | "sovereign-tempest"
+  | "abyssal-leviathan"
+  | "crimson-aristocrat"
+  | "ethereal-yggdrasil"
+  | "ivory-overlord"
+  | "sovereign-lunar-eclipse"
+  | "cosmic-eclipse"
+
+  // V2 themes — yang baru dipakai
   | "obsidian-monarch"
   | "blood-cathedral"
   | "abyss-sovereign"
