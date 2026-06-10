@@ -3,6 +3,7 @@
 import React from "react";
 import type { CosmeticItem, CosmeticRarity } from "./data/cosmeticItems";
 import CosmeticEffectRenderer from "./CosmeticEffectRenderer";
+import CosmeticItemShowcase from "./CosmeticItemShowcase";
 
 type CosmeticCardProps = {
   item: CosmeticItem;
@@ -56,7 +57,8 @@ function getRarityStyle(rarity: CosmeticRarity) {
   if (key === "Mythic") {
     return {
       badge: "border-fuchsia-300/45 bg-fuchsia-400/18 text-fuchsia-100",
-      price: "text-fuchsia-100 drop-shadow-[0_0_14px_rgba(217,70,239,0.35)]",
+      price:
+        "text-fuchsia-100 drop-shadow-[0_0_14px_rgba(217,70,239,0.35)]",
       glow: "shadow-[0_0_62px_rgba(217,70,239,0.17)]",
       quality: "Luxury Motion",
       motion: "High",
@@ -67,7 +69,8 @@ function getRarityStyle(rarity: CosmeticRarity) {
   if (key === "Legendary") {
     return {
       badge: "border-amber-300/45 bg-amber-400/16 text-amber-100",
-      price: "text-amber-100 drop-shadow-[0_0_12px_rgba(245,158,11,0.30)]",
+      price:
+        "text-amber-100 drop-shadow-[0_0_12px_rgba(245,158,11,0.30)]",
       glow: "shadow-[0_0_55px_rgba(245,158,11,0.15)]",
       quality: "Premium Depth",
       motion: "Smooth",
@@ -282,36 +285,13 @@ export default function CosmeticCard({
           <span className={`text-lg ${theme.mini}`}>{theme.ornament}</span>
         </div>
 
-        <div className="relative mt-4 overflow-hidden rounded-[24px] border border-white/10 bg-black/45 p-4">
-          <CosmeticEffectRenderer theme={item.theme} variant="compact" />
-
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.11),transparent_60%)]" />
-          <div
-            className={`absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r ${theme.spark}`}
-          />
-          <div className="absolute inset-x-6 top-5 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
-          <MiniParticles particleClass={theme.particle} />
-
-          <div className="relative z-10 flex min-h-[104px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.045] text-center">
-            <div>
-              <p className={`text-4xl font-black ${item.accent}`}>
-                {item.icon}
-              </p>
-
-              <p
-                className="mt-2 text-lg font-black text-white"
-                style={{ fontFamily: theme.font }}
-              >
-                {item.previewLabel}
-              </p>
-
-              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                {item.visualQuality}
-              </p>
-            </div>
-          </div>
-        </div>
+        <CosmeticItemShowcase
+          item={item}
+          themeFont={theme.font}
+          themeMini={theme.mini}
+          themeSpark={theme.spark}
+          themeParticle={theme.particle}
+        />
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <InfoPill label="Quality" value={rarity.quality} />
@@ -372,20 +352,6 @@ export default function CosmeticCard({
           }
         }
 
-        @keyframes cosmetic-mini-float {
-          0% {
-            transform: translateY(18px) scale(0.7);
-            opacity: 0;
-          }
-          25% {
-            opacity: 0.62;
-          }
-          100% {
-            transform: translateY(-42px) scale(1);
-            opacity: 0;
-          }
-        }
-
         @keyframes cosmetic-sweep-pass {
           0% {
             transform: translateX(-160%) skewX(-18deg);
@@ -440,13 +406,6 @@ export default function CosmeticCard({
           will-change: transform, opacity;
         }
 
-        .cosmetic-mini-particle {
-          animation-name: cosmetic-mini-float;
-          animation-timing-function: ease-in-out;
-          animation-iteration-count: infinite;
-          will-change: transform, opacity;
-        }
-
         .cosmetic-orbit {
           animation: cosmetic-orbit-pulse 4.8s ease-in-out infinite;
           will-change: transform, opacity;
@@ -475,25 +434,6 @@ function FloatingParticles({ particleClass }: { particleClass: string }) {
               "--particle-drift": `${index % 2 === 0 ? 22 : -22}px`,
             } as React.CSSProperties
           }
-        />
-      ))}
-    </div>
-  );
-}
-
-function MiniParticles({ particleClass }: { particleClass: string }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[3] overflow-hidden">
-      {Array.from({ length: 10 }).map((_, index) => (
-        <span
-          key={`cosmetic-mini-particle-${index}`}
-          className={`cosmetic-mini-particle absolute h-1 w-1 rounded-full ${particleClass}`}
-          style={{
-            left: `${8 + ((index * 17) % 84)}%`,
-            top: `${30 + ((index * 23) % 46)}%`,
-            animationDelay: `${index * 0.22}s`,
-            animationDuration: `${3.2 + (index % 4) * 0.35}s`,
-          }}
         />
       ))}
     </div>
