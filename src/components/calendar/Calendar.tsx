@@ -3,7 +3,6 @@
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import FortuneWagerArena from "@/components/calendar/FortuneWagerArena";
 import {
   addCurrency,
   canAfford,
@@ -1042,12 +1041,6 @@ export default function Calendar() {
           <p className="text-sm font-bold">Unsealing Fortune Hall...</p>
         </section>
       ) : null}
-
-      <FortuneWagerArena
-  session={session}
-  player={player}
-  onRefresh={loadFortuneData}
-/>
 
       {isAdminSession ? (
         <section className="relative overflow-hidden rounded-[34px] border border-red-400/20 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.10),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(239,68,68,0.12),transparent_28%),linear-gradient(135deg,rgba(26,8,8,0.92),rgba(11,11,20,0.98),rgba(43,16,24,0.90))] p-6 shadow-[0_0_45px_rgba(248,113,113,0.06)]">
