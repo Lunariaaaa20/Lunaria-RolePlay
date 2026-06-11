@@ -52,11 +52,6 @@ const guildMenu: NavItem[] = [
     icon: <MoonCalendarIcon />,
   },
   {
-  name: "Fortune Game",
-  href: "/fortune-game",
-  icon: <MoonCalendarIcon />,
- },
-  {
     name: "Registry",
     href: "/form-elements",
     icon: <ScrollIcon />,
