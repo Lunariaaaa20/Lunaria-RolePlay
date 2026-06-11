@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
@@ -308,6 +308,12 @@ export default function FortuneGameCasino() {
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
+  const [roundCountdown, setRoundCountdown] = useState<number | null>(null);
+  const [dealerOverride, setDealerOverride] = useState("");
+  const [winnerReveal, setWinnerReveal] = useState<{
+    name: string;
+    payoutSilver: number;
+  } | null>(null);
 
   const isPlayer = session?.role === "player" && Boolean(session.playerId);
   const isAdmin = session?.role === "admin";
@@ -368,6 +374,45 @@ export default function FortuneGameCasino() {
     const winner = latestRoundPlayers.find((item) => item.status === "win");
     return winner?.player_name || "";
   }, [latestRoundPlayers]);
+
+  const phaseLabel = useMemo(() => {
+    if (winnerReveal) return "WINNER REVEAL";
+    if (roundCountdown) return "READY CHECK";
+    if (isRolling || selectedLobby?.status === "playing") return "ROLLING DICE";
+    if (readyPlayers.length >= 2) return "READY CHECK";
+    if (selectedLobby) return "WAITING FOR PLAYERS";
+    return "NO TABLE SELECTED";
+  }, [winnerReveal, roundCountdown, isRolling, selectedLobby, readyPlayers.length]);
+
+  const dealerLine = useMemo(() => {
+    if (dealerOverride) return dealerOverride;
+
+    if (!selectedLobby) {
+      return "Dealer: pilih meja terlebih dahulu. Fortune Hall menunggu tamu baru.";
+    }
+
+    if (winnerReveal) {
+      return `Dealer: ${winnerReveal.name} membawa pulang pot. Meja kembali panas.`;
+    }
+
+    if (roundCountdown) {
+      return `Dealer: dadu akan turun dalam ${roundCountdown}. Jangan kedip.`;
+    }
+
+    if (isRolling || selectedLobby.status === "playing") {
+      return "Dealer: dadu sedang bergerak. Nasib sedang diputar.";
+    }
+
+    if (readyPlayers.length >= 2) {
+      return "Dealer: ready check selesai. Meja akan dikunci sebentar lagi.";
+    }
+
+    if (readyPlayers.length === 1) {
+      return "Dealer: satu player sudah Ready. Butuh satu lagi untuk memulai ronde.";
+    }
+
+    return `Dealer: ${selectedLobby.table_name} terbuka. Silakan duduk dan tekan Ready.`;
+  }, [dealerOverride, selectedLobby, winnerReveal, roundCountdown, isRolling, readyPlayers.length]);
 
   const readPlayerCurrency = async (playerId: string) => {
     const { data, error } = await supabase
@@ -639,6 +684,8 @@ export default function FortuneGameCasino() {
   const handleCreateLobby = async () => {
     setErrorMessage("");
     setNotice("");
+    setDealerOverride("");
+    setWinnerReveal(null);
 
     if (!isPlayer || !session?.playerId) {
       setErrorMessage("Masuk sebagai player untuk membuka meja.");
@@ -716,6 +763,8 @@ export default function FortuneGameCasino() {
   const handleJoinLobby = async (lobby: WagerLobby) => {
     setErrorMessage("");
     setNotice("");
+    setDealerOverride("");
+    setWinnerReveal(null);
 
     if (!isPlayer || !session?.playerId) {
       setErrorMessage("Masuk sebagai player untuk join meja.");
@@ -811,6 +860,8 @@ export default function FortuneGameCasino() {
   const handleToggleReady = async () => {
     setErrorMessage("");
     setNotice("");
+    setDealerOverride("");
+    setWinnerReveal(null);
 
     if (!selectedLobby || !currentLobbyPlayer) {
       setErrorMessage("Masuk ke meja dulu.");
@@ -890,6 +941,8 @@ export default function FortuneGameCasino() {
   const handleLeaveLobby = async () => {
     setErrorMessage("");
     setNotice("");
+    setDealerOverride("");
+    setWinnerReveal(null);
 
     if (!selectedLobby || !currentLobbyPlayer) {
       setErrorMessage("Kamu belum berada di meja.");
@@ -930,6 +983,8 @@ export default function FortuneGameCasino() {
   const handleCloseLobby = async () => {
     setErrorMessage("");
     setNotice("");
+    setDealerOverride("");
+    setWinnerReveal(null);
 
     if (!selectedLobby) {
       setErrorMessage("Pilih meja dulu.");
@@ -1006,7 +1061,10 @@ export default function FortuneGameCasino() {
     }
 
     setIsWorking(true);
-    setIsRolling(true);
+    setIsRolling(false);
+    setWinnerReveal(null);
+    setDealerOverride("Dealer: meja dikunci. Dadu sedang disiapkan.");
+    setRoundCountdown(null);
 
     try {
       const playerIds = playersForRound.map((item) => item.player_id);
@@ -1071,7 +1129,21 @@ export default function FortuneGameCasino() {
       });
 
       await loadGame(selectedLobby.id);
-      await sleep(1700);
+
+      setDealerOverride("Dealer: ready check selesai. Dadu akan turun.");
+      setRoundCountdown(3);
+      await sleep(650);
+
+      setRoundCountdown(2);
+      await sleep(650);
+
+      setRoundCountdown(1);
+      await sleep(650);
+
+      setRoundCountdown(null);
+      setDealerOverride("Dealer: dadu turun. Jangan kedip.");
+      setIsRolling(true);
+      await sleep(1200);
 
       for (const item of playersForRound) {
         const wallet = walletMap.get(item.player_id);
@@ -1213,6 +1285,12 @@ export default function FortuneGameCasino() {
         message: "GG. Saldonya aman di dompetku.",
       });
 
+      setWinnerReveal({
+        name: winner.player_name,
+        payoutSilver: winner.payout_silver,
+      });
+
+      setDealerOverride(`Dealer: ${winner.player_name} membawa pulang pot.`);
       setNotice(
         `${winner.player_name} menang dan menerima ${formatCurrency(
           silverToCurrency(winner.payout_silver)
@@ -1220,17 +1298,20 @@ export default function FortuneGameCasino() {
       );
 
       await loadGame(selectedLobby.id);
+      await sleep(1800);
+      setWinnerReveal(null);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown start round error.";
       setErrorMessage(message);
     } finally {
+      setRoundCountdown(null);
       setIsRolling(false);
       setIsWorking(false);
     }
   };
 
-return (
+  return (
     <main className="min-h-screen overflow-hidden bg-[#03050d] text-slate-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,199,90,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.20),transparent_32%),linear-gradient(135deg,#03050d,#080d1f,#140716)]" />
       <div className="casino-grid pointer-events-none fixed inset-0 opacity-[0.09]" />
@@ -1362,7 +1443,7 @@ return (
             />
 
             <div
-              className={`absolute left-1/2 top-1/2 flex h-[360px] w-[min(82vw,640px)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[42px] border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.10),transparent_30%),linear-gradient(135deg,#0b5b42,#063b2e,#082419)] shadow-[inset_0_0_80px_rgba(0,0,0,0.35),0_0_70px_rgba(16,185,129,0.12)] ${
+              className={`absolute left-1/2 top-1/2 flex h-[390px] w-[min(84vw,660px)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[42px] border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.10),transparent_30%),linear-gradient(135deg,#0b5b42,#063b2e,#082419)] shadow-[inset_0_0_80px_rgba(0,0,0,0.35),0_0_70px_rgba(16,185,129,0.12)] ${
                 readyPlayers.length >= 2 || selectedLobby?.status === "playing"
                   ? "casino-table-hot"
                   : "casino-table-idle"
@@ -1377,17 +1458,13 @@ return (
                   Moonfall Dice
                 </p>
 
+                <p className="mt-2 rounded-full border border-violet-300/25 bg-violet-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-violet-200">
+                  {phaseLabel}
+                </p>
+
                 <DiceCenter isRolling={isRolling || selectedLobby?.status === "playing"} />
 
-                <p className="mt-3 px-5 text-sm font-bold text-slate-200">
-                  {selectedLobby
-                    ? selectedLobby.status === "playing"
-                      ? "Dadu sedang turun..."
-                      : readyPlayers.length >= 2
-                      ? "Minimal ready terpenuhi. Round akan dimulai otomatis."
-                      : "Menunggu minimal 2 player Ready."
-                    : "Pilih atau buat meja dulu."}
-                </p>
+                <DealerConsole line={dealerLine} countdown={roundCountdown} />
 
                 <div className="mt-4 rounded-2xl border border-amber-300/20 bg-black/35 px-5 py-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
@@ -1413,6 +1490,13 @@ return (
                 ) : null}
               </div>
             </div>
+
+            {winnerReveal ? (
+              <WinnerRevealOverlay
+                name={winnerReveal.name}
+                payoutSilver={winnerReveal.payoutSilver}
+              />
+            ) : null}
 
             <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-center gap-2 rounded-[24px] border border-white/10 bg-black/45 p-3 backdrop-blur-xl">
               {selectedLobby ? (
@@ -1883,6 +1967,25 @@ return (
           animation: winner-flash 2.2s ease-in-out infinite;
         }
 
+        .dealer-console {
+          animation: dealer-glow 2.8s ease-in-out infinite;
+        }
+
+        .cinematic-winner-overlay {
+          animation: winner-overlay-in 240ms ease-out both;
+        }
+
+        .winner-name-glow {
+          text-shadow: 0 0 18px rgba(245, 199, 90, 0.45),
+            0 0 38px rgba(16, 185, 129, 0.24);
+        }
+
+        .countdown-number {
+          text-shadow: 0 0 20px rgba(245, 199, 90, 0.7),
+            0 0 60px rgba(245, 199, 90, 0.25);
+          animation: countdown-pop 650ms ease-out both;
+        }
+
         .dice-idle {
           animation: dice-idle-float 3s ease-in-out infinite;
         }
@@ -1989,6 +2092,42 @@ return (
           }
         }
 
+        @keyframes dealer-glow {
+          0%,
+          100% {
+            box-shadow: 0 0 0 rgba(245, 199, 90, 0);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(245, 199, 90, 0.12);
+          }
+        }
+
+        @keyframes winner-overlay-in {
+          0% {
+            opacity: 0;
+            transform: scale(0.96);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes countdown-pop {
+          0% {
+            opacity: 0;
+            transform: scale(0.65);
+          }
+          45% {
+            opacity: 1;
+            transform: scale(1.18);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
         @keyframes dice-idle-float {
           0%,
           100% {
@@ -2077,6 +2216,60 @@ function LiveTicker({
     <div className="mt-4 overflow-hidden rounded-2xl border border-amber-300/20 bg-black/35 px-4 py-3">
       <div className="casino-ticker-track text-xs font-black uppercase tracking-[0.2em] text-amber-200/90">
         {text}
+      </div>
+    </div>
+  );
+}
+
+function DealerConsole({
+  line,
+  countdown,
+}: {
+  line: string;
+  countdown: number | null;
+}) {
+  return (
+    <div className="dealer-console mt-4 w-[min(90%,420px)] rounded-2xl border border-amber-300/20 bg-black/45 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">
+        Royal Dealer
+      </p>
+
+      <p className="mt-2 text-sm font-bold leading-6 text-slate-200">{line}</p>
+
+      {countdown ? (
+        <p className="countdown-number mt-2 text-5xl font-black text-amber-200">
+          {countdown}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function WinnerRevealOverlay({
+  name,
+  payoutSilver,
+}: {
+  name: string;
+  payoutSilver: number;
+}) {
+  return (
+    <div className="cinematic-winner-overlay pointer-events-none absolute inset-4 z-30 flex items-center justify-center rounded-[34px] border border-amber-300/25 bg-black/55 backdrop-blur-sm">
+      <div className="rounded-[30px] border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.18),transparent_55%),rgba(0,0,0,0.72)] px-8 py-7 text-center shadow-[0_0_70px_rgba(245,199,90,0.16)]">
+        <p className="text-[10px] font-black uppercase tracking-[0.34em] text-amber-300">
+          Winner Revealed
+        </p>
+
+        <p className="winner-name-glow mt-3 text-4xl font-black uppercase tracking-[-0.04em] text-white md:text-5xl">
+          {name}
+        </p>
+
+        <p className="mt-3 text-lg font-black text-emerald-300">
+          +{formatCurrency(silverToCurrency(payoutSilver))}
+        </p>
+
+        <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+          Moonfall Dice has spoken
+        </p>
       </div>
     </div>
   );
@@ -2211,4 +2404,4 @@ function CasinoSeat({
       ) : null}
     </div>
   );
-             }
+}
