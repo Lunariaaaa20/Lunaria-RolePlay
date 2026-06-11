@@ -311,6 +311,10 @@ export default function FortuneGameCasino() {
 
   const isPlayer = session?.role === "player" && Boolean(session.playerId);
   const isAdmin = session?.role === "admin";
+  const isLobbyCreator = Boolean(
+    selectedLobby?.created_by && selectedLobby.created_by === session?.playerId
+  );
+  const canControlRound = isLobbyCreator;
   const playerBalance = player ? getPlayerCurrency(player) : null;
 
   const selectedTable = TABLE_OPTIONS.find(
@@ -600,6 +604,32 @@ export default function FortuneGameCasino() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLobbyId]);
+
+  useEffect(() => {
+    if (!selectedLobby) return;
+    if (!currentLobbyPlayer) return;
+    if (!canControlRound) return;
+    if (selectedLobby.status === "playing") return;
+    if (readyPlayers.length < 2) return;
+    if (isWorking || isRolling) return;
+
+    const timer = window.setTimeout(() => {
+      handleStartRound();
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedLobby?.id,
+    selectedLobby?.status,
+    currentLobbyPlayer?.id,
+    canControlRound,
+    readyPlayers.length,
+    isWorking,
+    isRolling,
+  ]);
 
   const handleCreateLobby = async () => {
     setErrorMessage("");
@@ -946,6 +976,11 @@ export default function FortuneGameCasino() {
       return;
     }
 
+    if (!canControlRound) {
+      setErrorMessage("Round hanya bisa dimulai otomatis oleh pembuat lobby.");
+      return;
+    }
+
     if (selectedLobby.status === "playing") {
       setErrorMessage("Round sedang berjalan.");
       return;
@@ -1268,7 +1303,7 @@ export default function FortuneGameCasino() {
         ) : null}
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="relative min-h-[740px] overflow-hidden rounded-[38px] border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.12),transparent_36%),linear-gradient(135deg,rgba(7,11,25,0.92),rgba(4,6,15,0.98),rgba(18,6,22,0.92))] p-4 shadow-[0_0_80px_rgba(0,0,0,0.45)] sm:p-6">
+          <section className="relative min-h-[760px] overflow-hidden rounded-[38px] border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.12),transparent_36%),linear-gradient(135deg,rgba(7,11,25,0.92),rgba(4,6,15,0.98),rgba(18,6,22,0.92))] p-4 shadow-[0_0_80px_rgba(0,0,0,0.45)] sm:p-6">
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[680px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/8 blur-3xl" />
 
             <CasinoSeat
@@ -1298,7 +1333,7 @@ export default function FortuneGameCasino() {
             <CasinoSeat
               seat="A"
               player={seats[0]}
-              positionClass="bottom-4 left-1/2 -translate-x-1/2"
+              positionClass="bottom-28 left-1/2 -translate-x-1/2"
               taunt={seats[0] ? latestTauntByPlayer.get(seats[0].player_id) : null}
               roll={seats[0] ? latestRollMap.get(seats[0].player_id) : null}
               isSelf
@@ -1320,7 +1355,7 @@ export default function FortuneGameCasino() {
                     ? selectedLobby.status === "playing"
                       ? "Dadu sedang turun..."
                       : readyPlayers.length >= 2
-                      ? "Minimal ready terpenuhi. Start round bisa ditekan."
+                      ? "Minimal ready terpenuhi. Round akan dimulai otomatis."
                       : "Menunggu minimal 2 player Ready."
                     : "Pilih atau buat meja dulu."}
                 </p>
@@ -1365,20 +1400,26 @@ export default function FortuneGameCasino() {
                 {currentLobbyPlayer?.status === "ready" ? "Cancel Ready" : "Ready"}
               </button>
 
-              <button
-                type="button"
-                onClick={handleStartRound}
-                disabled={
-                  isWorking ||
-                  isRolling ||
-                  !selectedLobby ||
-                  readyPlayers.length < 2 ||
-                  selectedLobby.status === "playing"
-                }
-                className="casino-action border-amber-300/30 bg-amber-400/10 text-amber-200 disabled:opacity-45"
-              >
-                Start Roll
-              </button>
+              {canControlRound ? (
+                <button
+                  type="button"
+                  onClick={handleStartRound}
+                  disabled={
+                    isWorking ||
+                    isRolling ||
+                    !selectedLobby ||
+                    readyPlayers.length < 2 ||
+                    selectedLobby.status === "playing"
+                  }
+                  className="casino-action border-amber-300/30 bg-amber-400/10 text-amber-200 disabled:opacity-45"
+                >
+                  {readyPlayers.length >= 2 ? "Force Start" : "Need 2 Ready"}
+                </button>
+              ) : (
+                <span className="casino-status-chip border-amber-300/20 bg-amber-400/10 text-amber-200">
+                  Auto Start
+                </span>
+              )}
 
               <button
                 type="button"
@@ -1624,6 +1665,19 @@ export default function FortuneGameCasino() {
           transform: translateY(-1px);
         }
 
+        .casino-status-chip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-width: 1px;
+          border-radius: 1rem;
+          padding: 0.85rem 1rem;
+          font-size: 0.72rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+        }
+
         @keyframes dice-shake {
           0%,
           100% {
@@ -1780,7 +1834,13 @@ function CasinoSeat({
       </div>
 
       {taunt ? (
-        <div className="taunt-bubble mt-2 rounded-2xl border border-violet-300/20 bg-violet-500/15 px-4 py-3 text-xs font-bold leading-5 text-violet-100 shadow-[0_0_24px_rgba(168,85,247,0.10)]">
+        <div
+          className={`taunt-bubble rounded-2xl border border-violet-300/20 bg-violet-500/15 px-4 py-3 text-xs font-bold leading-5 text-violet-100 shadow-[0_0_24px_rgba(168,85,247,0.10)] ${
+            isSelf
+              ? "absolute bottom-full left-1/2 mb-2 w-[220px] -translate-x-1/2"
+              : "mt-2"
+          }`}
+        >
           {taunt.message}
         </div>
       ) : null}
