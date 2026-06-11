@@ -1,4 +1,4 @@
- import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import "flatpickr/dist/flatpickr.css";
@@ -10,24 +10,35 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Lunaria Roleplay Guild",
-  description: "Premium fantasy roleplay guild management web app for Lunaria.",
-  manifest: "/manifest.json",
+  metadataBase: new URL("https://lunaria-role-play.vercel.app"),
+  title: {
+    default: "Lunaria",
+    template: "%s | Lunaria",
+  },
+  description:
+    "Premium fantasy roleplay guild management web app for Lunaria.",
   applicationName: "Lunaria",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon",
+    apple: "/apple-icon",
+    shortcut: "/icon",
+  },
   appleWebApp: {
     capable: true,
-    title: "Lunaria",
     statusBarStyle: "black-translucent",
+    title: "Lunaria",
   },
- icons: {
-    icon: "/icons/lunaria-icon.svg",
-    apple: "/icons/lunaria-icon.svg",
+  formatDetection: {
+    telephone: false,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#d7a83f",
-  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#060816",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -36,8 +47,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
-      <body className={`${outfit.className} dark:bg-gray-900`}>
+    <html lang="id" suppressHydrationWarning>
+      <body
+        className={`${outfit.className} min-h-screen bg-[#060816] text-white antialiased`}
+      >
         <ThemeProvider>
           <SidebarProvider>{children}</SidebarProvider>
         </ThemeProvider>
