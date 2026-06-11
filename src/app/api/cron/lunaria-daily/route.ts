@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -15,17 +15,7 @@ type AutoDailyCycleResult = {
   next_update_at: string;
 };
 
-function unauthorized() {
-  return NextResponse.json(
-    {
-      ok: false,
-      message: "Unauthorized cron request.",
-    },
-    { status: 401 }
-  );
-}
-
-function getSupabaseClient() {
+function createSupabaseServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -42,8 +32,8 @@ function getSupabaseClient() {
 }
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization");
 
   if (!cronSecret) {
     return NextResponse.json(
@@ -56,93 +46,20 @@ export async function GET(request: Request) {
   }
 
   if (authHeader !== `Bearer ${cronSecret}`) {
-    return unauthorized();
-  }
-
-  let supabase: ReturnType<typeof createClient>;
-
-  try {
-    supabase = getSupabaseClient();
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to initialize Supabase client.";
-
     return NextResponse.json(
       {
         ok: false,
-        message,
+        message: "Unauthorized cron request.",
       },
-      { status: 500 }
+      { status: 401 }
     );
   }
 
-  try {
-    const { data, error } = await supabase.rpc("run_lunaria_auto_daily_cycle");
+  const supabase = createSupabaseServerClient();
 
-    if (error) {
-      console.error("Lunaria cron failed:", error);
+  const { data, error } = await supabase.rpc("run_lunaria_auto_daily_cycle");
 
-      await supabase.from("cron_activity_logs").insert({
-        job_name: "lunaria_daily_engine",
-        status: "failed",
-        did_run_chronicle: false,
-        did_run_market: false,
-        chronicle_status: "failed",
-        market_status: "failed",
-        error_message: error.message,
-      });
-
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Lunaria daily cycle failed.",
-          error: error.message,
-        },
-        { status: 500 }
-      );
-    }
-
-    const result = Array.isArray(data)
-      ? (data[0] as AutoDailyCycleResult | undefined)
-      : undefined;
-
-    const didRunChronicle = Boolean(result?.did_run_chronicle);
-    const didRunMarket = Boolean(result?.did_run_market);
-
-    const status =
-      didRunChronicle || didRunMarket ? "success" : "sleeping";
-
-    await supabase.from("cron_activity_logs").insert({
-      job_name: "lunaria_daily_engine",
-      status,
-      did_run_chronicle: didRunChronicle,
-      did_run_market: didRunMarket,
-      chronicle_status:
-        result?.chronicle_status || "Chronicle status unavailable.",
-      market_status: result?.market_status || "Market status unavailable.",
-      current_season: result?.current_season || null,
-      current_season_day: result?.current_season_day || null,
-      current_headline: result?.current_headline || null,
-      next_update_at: result?.next_update_at || null,
-      error_message: null,
-    });
-
-    return NextResponse.json({
-      ok: true,
-      message: "Lunaria daily cron checked successfully.",
-      status,
-      result: result || null,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unexpected Lunaria cron error.";
-
-    console.error("Unexpected Lunaria cron error:", error);
-
+  if (error) {
     await supabase.from("cron_activity_logs").insert({
       job_name: "lunaria_daily_engine",
       status: "failed",
@@ -150,16 +67,47 @@ export async function GET(request: Request) {
       did_run_market: false,
       chronicle_status: "failed",
       market_status: "failed",
-      error_message: message,
+      error_message: error.message,
     });
 
     return NextResponse.json(
       {
         ok: false,
-        message: "Unexpected Lunaria cron error.",
-        error: message,
+        message: "Lunaria daily cycle failed.",
+        error: error.message,
       },
       { status: 500 }
     );
   }
+
+  const result = Array.isArray(data)
+    ? (data[0] as AutoDailyCycleResult | undefined)
+    : undefined;
+
+  const didRunChronicle = Boolean(result?.did_run_chronicle);
+  const didRunMarket = Boolean(result?.did_run_market);
+
+  const cronStatus = didRunChronicle || didRunMarket ? "success" : "sleeping";
+
+  await supabase.from("cron_activity_logs").insert({
+    job_name: "lunaria_daily_engine",
+    status: cronStatus,
+    did_run_chronicle: didRunChronicle,
+    did_run_market: didRunMarket,
+    chronicle_status:
+      result?.chronicle_status || "Chronicle status unavailable.",
+    market_status: result?.market_status || "Market status unavailable.",
+    current_season: result?.current_season || null,
+    current_season_day: result?.current_season_day || null,
+    current_headline: result?.current_headline || null,
+    next_update_at: result?.next_update_at || null,
+    error_message: null,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    message: "Lunaria daily cron checked successfully.",
+    status: cronStatus,
+    result: result || null,
+  });
 }
