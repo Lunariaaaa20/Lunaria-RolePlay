@@ -1,4 +1,4 @@
-{
+ {
   "name": "Lunaria Roleplay Guild",
   "short_name": "Lunaria",
   "description": "Premium fantasy roleplay guild management web app for Lunaria.",
@@ -11,10 +11,10 @@
   "categories": ["entertainment", "productivity"],
   "icons": [
     {
-      "src": "/images/lunaria-login-bg.png",
+      "src": "/icons/lunaria-icon.svg",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
