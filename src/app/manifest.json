@@ -1,0 +1,26 @@
+{
+  "name": "Lunaria Roleplay Guild",
+  "short_name": "Lunaria",
+  "description": "Premium fantasy roleplay guild management web app for Lunaria.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060816",
+  "theme_color": "#060816",
+  "categories": ["entertainment", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/lunaria-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/lunaria-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
