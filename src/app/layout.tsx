@@ -19,9 +19,9 @@ export const metadata: Metadata = {
     title: "Lunaria",
     statusBarStyle: "black-translucent",
   },
-  icons: {
-    icon: "/images/lunaria-login-bg.png",
-    apple: "/images/lunaria-login-bg.png",
+ icons: {
+    icon: "/icons/lunaria-icon.svg",
+    apple: "/icons/lunaria-icon.svg",
   },
 };
 
