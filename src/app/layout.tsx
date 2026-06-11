@@ -20,14 +20,36 @@ export const metadata: Metadata = {
   applicationName: "Lunaria",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/lunaria-icon-512.png",
-    apple: "/icons/lunaria-icon-180.png",
+    icon: [
+      {
+        url: "/icons/lunaria-icon-32.png",
+        sizes: "32x32",
+        type: "image/png",
+      },
+      {
+        url: "/icons/lunaria-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icons/lunaria-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/icons/lunaria-icon-180.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
     shortcut: "/icons/lunaria-icon-32.png",
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
     title: "Lunaria",
+    statusBarStyle: "black-translucent",
   },
   formatDetection: {
     telephone: false,
@@ -48,9 +70,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body
-        className={`${outfit.className} min-h-screen bg-[#060816] text-white antialiased`}
-      >
+      <body className={`${outfit.className} dark:bg-gray-900`}>
         <ThemeProvider>
           <SidebarProvider>{children}</SidebarProvider>
         </ThemeProvider>
