@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import LunariaBrandLogo from "@/components/common/LunariaBrandLogo";
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -210,11 +211,15 @@ export default function SignInForm() {
 
             <div className="relative z-10 flex h-full flex-col justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.45em] text-amber-300">
-                  Lunaria
+                <div className="mb-8">
+                  <LunariaBrandLogo />
+                </div>
+
+                <p className="text-xs font-black uppercase tracking-[0.35em] text-amber-300">
+                  Moonlit Guild Access
                 </p>
 
-                <h1 className="mt-6 max-w-md text-5xl font-black leading-[1.08] text-white xl:text-6xl">
+                <h1 className="mt-5 max-w-md text-5xl font-black leading-[1.08] text-white xl:text-6xl">
                   Roleplay Guild Access Gate
                 </h1>
 
@@ -248,6 +253,10 @@ export default function SignInForm() {
             <div className="absolute inset-0 bg-gradient-to-br from-slate-950/80 via-black/70 to-violet-950/35" />
 
             <div className="relative z-10 flex min-h-full flex-col justify-center p-5 sm:p-8 lg:p-10">
+              <div className="mb-6 flex justify-center lg:hidden">
+                <LunariaBrandLogo />
+              </div>
+
               <div className="mb-7 flex items-center justify-between gap-4">
                 <Link
                   href="/"
@@ -610,4 +619,4 @@ function SmallLoreCard({ title, value }: { title: string; value: string }) {
       <p className="mt-2 text-lg font-black text-white">{value}</p>
     </div>
   );
-}
+                }
