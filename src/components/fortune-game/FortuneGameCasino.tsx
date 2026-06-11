@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
@@ -279,9 +279,7 @@ function arrangeSeats(players: LobbyPlayer[], currentPlayerId?: string) {
     (item) => item.player_id !== currentPlayer?.player_id
   );
 
-  const ordered = currentPlayer
-    ? [currentPlayer, ...others]
-    : [...activePlayers];
+  const ordered = currentPlayer ? [currentPlayer, ...others] : [...activePlayers];
 
   return [
     ordered[0] || null,
@@ -515,7 +513,9 @@ export default function FortuneGameCasino() {
 
       if (roundError) throw new Error(roundError.message);
 
-      const round = ((roundRows as unknown as WagerRound[] | null) || [])[0] || null;
+      const round =
+        ((roundRows as unknown as WagerRound[] | null) || [])[0] || null;
+
       setLatestRound(round);
 
       if (round) {
@@ -691,11 +691,12 @@ export default function FortuneGameCasino() {
 
     try {
       const members = await loadPlayersWithNames(lobby.id);
-      const alreadyInside = members.some(
+      const activeMember = members.find(
         (item) => item.player_id === session.playerId
       );
 
-      if (alreadyInside) {
+      if (activeMember) {
+        setNotice("Kamu sudah berada di meja ini.");
         await loadGame(lobby.id);
         return;
       }
@@ -705,16 +706,51 @@ export default function FortuneGameCasino() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: existingRows, error: existingError } = await supabase
         .from("fortune_wager_lobby_players")
-        .insert({
-          lobby_id: lobby.id,
-          player_id: session.playerId,
-          seat_number: members.length + 1,
-          status: "waiting",
-        });
+        .select("id, status, seat_number")
+        .eq("lobby_id", lobby.id)
+        .eq("player_id", session.playerId)
+        .limit(1);
 
-      if (error) throw new Error(error.message);
+      if (existingError) {
+        throw new Error(existingError.message);
+      }
+
+      const existingRow =
+        (
+          (existingRows as unknown as
+            | { id: string; status: string; seat_number: number | null }[]
+            | null) || []
+        )[0] || null;
+
+      if (existingRow) {
+        const { error: reviveError } = await supabase
+          .from("fortune_wager_lobby_players")
+          .update({
+            status: "waiting",
+            seat_number: existingRow.seat_number || members.length + 1,
+            last_seen_at: new Date().toISOString(),
+          })
+          .eq("id", existingRow.id);
+
+        if (reviveError) {
+          throw new Error(reviveError.message);
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from("fortune_wager_lobby_players")
+          .insert({
+            lobby_id: lobby.id,
+            player_id: session.playerId,
+            seat_number: members.length + 1,
+            status: "waiting",
+          });
+
+        if (insertError) {
+          throw new Error(insertError.message);
+        }
+      }
 
       await supabase.from("fortune_wager_taunts").insert({
         lobby_id: lobby.id,
@@ -811,8 +847,7 @@ export default function FortuneGameCasino() {
 
       await loadGame(selectedLobby.id);
     } catch (error) {
-      const text =
-        error instanceof Error ? error.message : "Unknown taunt error.";
+      const text = error instanceof Error ? error.message : "Unknown taunt error.";
       setErrorMessage(text);
     }
   };
@@ -827,7 +862,9 @@ export default function FortuneGameCasino() {
     }
 
     if (selectedLobby.status === "playing") {
-      setErrorMessage("Round sedang berjalan. Leave saat playing akan dibuat forfeit di versi berikutnya.");
+      setErrorMessage(
+        "Round sedang berjalan. Leave saat playing akan dibuat forfeit di versi berikutnya."
+      );
       return;
     }
 
@@ -1197,11 +1234,13 @@ export default function FortuneGameCasino() {
               }
               tone="text-amber-300"
             />
+
             <HeaderStat
               label="Table"
               value={selectedLobby?.table_name || "-"}
               tone="text-emerald-300"
             />
+
             <HeaderStat
               label="Status"
               value={selectedLobby?.status || "none"}
@@ -1228,7 +1267,7 @@ export default function FortuneGameCasino() {
           </div>
         ) : null}
 
-        <div className="mt-5 grid flex-1 grid-cols-1 gap-5 xl:grid-cols-[1fr_390px]">
+        <div className="mt-5 grid flex-1 grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
           <section className="relative min-h-[740px] overflow-hidden rounded-[38px] border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.12),transparent_36%),linear-gradient(135deg,rgba(7,11,25,0.92),rgba(4,6,15,0.98),rgba(18,6,22,0.92))] p-4 shadow-[0_0_80px_rgba(0,0,0,0.45)] sm:p-6">
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[680px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/8 blur-3xl" />
 
@@ -1276,7 +1315,7 @@ export default function FortuneGameCasino() {
 
                 <DiceCenter isRolling={isRolling || selectedLobby?.status === "playing"} />
 
-                <p className="mt-3 text-sm font-bold text-slate-200">
+                <p className="mt-3 px-5 text-sm font-bold text-slate-200">
                   {selectedLobby
                     ? selectedLobby.status === "playing"
                       ? "Dadu sedang turun..."
@@ -1290,11 +1329,13 @@ export default function FortuneGameCasino() {
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
                     Current Pot
                   </p>
+
                   <p className="mt-1 text-3xl font-black text-amber-300">
                     {selectedLobby
                       ? formatCurrency(
                           silverToCurrency(
-                            selectedLobby.bet_silver * Math.max(readyPlayers.length, 2)
+                            selectedLobby.bet_silver *
+                              Math.max(readyPlayers.length, 2)
                           )
                         )
                       : "-"}
@@ -1374,6 +1415,7 @@ export default function FortuneGameCasino() {
                         {table.bet > 0 ? `${table.bet}S` : "Custom"}
                       </p>
                     </div>
+
                     <p className="mt-1 text-xs text-slate-500">{table.desc}</p>
                   </button>
                 ))}
@@ -1384,6 +1426,7 @@ export default function FortuneGameCasino() {
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
                     Custom Silver
                   </p>
+
                   <input
                     type="number"
                     min={5}
@@ -1425,6 +1468,7 @@ export default function FortuneGameCasino() {
                           {lobby.bet_silver}S
                         </p>
                       </div>
+
                       <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
                         {lobby.status}
                       </p>
@@ -1474,10 +1518,12 @@ export default function FortuneGameCasino() {
                         <p className="text-sm font-black text-white">
                           {taunt.player_name}
                         </p>
+
                         <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600">
                           {formatTime(taunt.created_at)}
                         </p>
                       </div>
+
                       <p className="mt-2 text-sm font-bold text-slate-300">
                         {taunt.message}
                       </p>
@@ -1502,6 +1548,7 @@ export default function FortuneGameCasino() {
                     <p className="text-sm font-black text-white">
                       Round #{latestRound.round_number}
                     </p>
+
                     <p className="mt-1 text-xs text-slate-400">
                       Pot {latestRound.total_pot_silver}S • Tax{" "}
                       {latestRound.tax_silver}S • Net {latestRound.net_pot_silver}S
@@ -1517,6 +1564,7 @@ export default function FortuneGameCasino() {
                         <p className="text-sm font-black text-white">
                           #{row.placement} {row.player_name}
                         </p>
+
                         <p className="text-xs text-slate-500">
                           Score {row.total_score}
                         </p>
@@ -1531,7 +1579,9 @@ export default function FortuneGameCasino() {
                             : "text-red-300"
                         }`}
                       >
-                        {row.payout_silver > 0 ? `+${row.payout_silver}S` : row.status}
+                        {row.payout_silver > 0
+                          ? `+${row.payout_silver}S`
+                          : row.status}
                       </p>
                     </div>
                   ))}
@@ -1627,6 +1677,7 @@ function HeaderStat({
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
         {label}
       </p>
+
       <p className={`mt-2 truncate text-lg font-black ${tone}`}>{value}</p>
     </div>
   );
@@ -1634,13 +1685,19 @@ function HeaderStat({
 
 function DiceCenter({ isRolling }: { isRolling: boolean }) {
   return (
-    <div className={`mt-5 flex items-center justify-center gap-3 ${isRolling ? "dice-rolling" : ""}`}>
+    <div
+      className={`mt-5 flex items-center justify-center gap-3 ${
+        isRolling ? "dice-rolling" : ""
+      }`}
+    >
       <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/40 text-5xl shadow-[0_0_30px_rgba(245,199,90,0.12)]">
         🎲
       </span>
+
       <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/40 text-5xl shadow-[0_0_30px_rgba(245,199,90,0.12)]">
         🎲
       </span>
+
       <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/40 text-5xl shadow-[0_0_30px_rgba(245,199,90,0.12)]">
         🎲
       </span>
@@ -1681,6 +1738,7 @@ function CasinoSeat({
             <p className="truncate text-sm font-black text-white">
               {player?.player_name || "Empty Seat"}
             </p>
+
             <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">
               {player?.player_rank || "Waiting"}
             </p>
