@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   applicationName: "Lunaria",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon",
-    apple: "/apple-icon",
-    shortcut: "/icon",
+    icon: "/icons/lunaria-icon-512.png",
+    apple: "/icons/lunaria-icon-180.png",
+    shortcut: "/icons/lunaria-icon-32.png",
   },
   appleWebApp: {
     capable: true,
