@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description:
     "Premium fantasy roleplay guild management web app for Lunaria.",
   applicationName: "Lunaria",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.json",
   icons: {
     icon: "/icons/lunaria-icon-512.png",
     apple: "/icons/lunaria-icon-180.png",
