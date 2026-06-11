@@ -364,6 +364,11 @@ export default function FortuneGameCasino() {
     return map;
   }, [latestRound]);
 
+  const latestWinnerName = useMemo(() => {
+    const winner = latestRoundPlayers.find((item) => item.status === "win");
+    return winner?.player_name || "";
+  }, [latestRoundPlayers]);
+
   const readPlayerCurrency = async (playerId: string) => {
     const { data, error } = await supabase
       .from("players")
@@ -1225,64 +1230,80 @@ export default function FortuneGameCasino() {
     }
   };
 
-  return (
+return (
     <main className="min-h-screen overflow-hidden bg-[#03050d] text-slate-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(245,199,90,0.18),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.20),transparent_32%),linear-gradient(135deg,#03050d,#080d1f,#140716)]" />
-      <div className="pointer-events-none fixed inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.45)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.45)_1px,transparent_1px)] [background-size:64px_64px]" />
+      <div className="casino-grid pointer-events-none fixed inset-0 opacity-[0.09]" />
+      <div className="casino-bg-orb casino-bg-a" />
+      <div className="casino-bg-orb casino-bg-b" />
 
       <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1540px] flex-col px-4 py-5 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 rounded-[30px] border border-amber-300/20 bg-black/35 p-5 shadow-[0_0_60px_rgba(245,199,90,0.08)] backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/calendar"
-                className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-300 transition hover:border-amber-300/30 hover:text-amber-200"
-              >
-                Back
-              </Link>
+        <header className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-black/35 p-5 shadow-[0_0_60px_rgba(245,199,90,0.08)] backdrop-blur-xl">
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(245,199,90,0.05),transparent)]" />
 
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">
-                Live Table
-              </span>
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/calendar"
+                  className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-300 transition hover:border-amber-300/30 hover:text-amber-200"
+                >
+                  Back
+                </Link>
+
+                <span className="casino-live-badge rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">
+                  Live Table
+                </span>
+
+                <span className="rounded-full border border-amber-300/25 bg-amber-400/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-amber-200">
+                  Moonfall Dice
+                </span>
+              </div>
+
+              <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
+                Fortune Hall Arena
+              </h1>
+
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
+                Private royal casino room untuk Moonfall Dice. Join meja, klik
+                Ready, kirim taunt, lalu biarkan dadu memutuskan siapa yang
+                pulang membawa pot.
+              </p>
             </div>
 
-            <h1 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
-              Fortune Hall Arena
-            </h1>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <HeaderStat
+                label="Balance"
+                value={
+                  playerBalance
+                    ? formatCurrency(playerBalance)
+                    : session?.role === "admin"
+                    ? "ADMIN"
+                    : "-"
+                }
+                tone="text-amber-300"
+              />
 
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-              Private royal casino room untuk Moonfall Dice. Join meja, klik
-              Ready, kirim taunt, lalu biarkan dadu memutuskan siapa yang
-              pulang membawa pot.
-            </p>
-          </div>
+              <HeaderStat
+                label="Table"
+                value={selectedLobby?.table_name || "-"}
+                tone="text-emerald-300"
+              />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <HeaderStat
-              label="Balance"
-              value={
-                playerBalance
-                  ? formatCurrency(playerBalance)
-                  : session?.role === "admin"
-                  ? "ADMIN"
-                  : "-"
-              }
-              tone="text-amber-300"
-            />
-
-            <HeaderStat
-              label="Table"
-              value={selectedLobby?.table_name || "-"}
-              tone="text-emerald-300"
-            />
-
-            <HeaderStat
-              label="Status"
-              value={selectedLobby?.status || "none"}
-              tone="text-violet-300"
-            />
+              <HeaderStat
+                label="Status"
+                value={selectedLobby?.status || "none"}
+                tone="text-violet-300"
+              />
+            </div>
           </div>
         </header>
+
+        <LiveTicker
+          selectedLobby={selectedLobby}
+          readyCount={readyPlayers.length}
+          latestWinner={latestWinnerName}
+        />
 
         {notice ? (
           <div className="mt-4 rounded-[24px] border border-emerald-300/25 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-200">
@@ -1303,8 +1324,9 @@ export default function FortuneGameCasino() {
         ) : null}
 
         <div className="mt-5 grid flex-1 grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="relative min-h-[760px] overflow-hidden rounded-[38px] border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.12),transparent_36%),linear-gradient(135deg,rgba(7,11,25,0.92),rgba(4,6,15,0.98),rgba(18,6,22,0.92))] p-4 shadow-[0_0_80px_rgba(0,0,0,0.45)] sm:p-6">
+          <section className="relative min-h-[790px] overflow-hidden rounded-[38px] border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(245,199,90,0.12),transparent_36%),linear-gradient(135deg,rgba(7,11,25,0.92),rgba(4,6,15,0.98),rgba(18,6,22,0.92))] p-4 shadow-[0_0_80px_rgba(0,0,0,0.45)] sm:p-6">
             <div className="pointer-events-none absolute left-1/2 top-1/2 h-[680px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/8 blur-3xl" />
+            <CasinoAmbience />
 
             <CasinoSeat
               seat="B"
@@ -1339,9 +1361,16 @@ export default function FortuneGameCasino() {
               isSelf
             />
 
-            <div className="absolute left-1/2 top-1/2 flex h-[360px] w-[min(82vw,640px)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[42px] border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.10),transparent_30%),linear-gradient(135deg,#0b5b42,#063b2e,#082419)] shadow-[inset_0_0_80px_rgba(0,0,0,0.35),0_0_70px_rgba(16,185,129,0.12)]">
+            <div
+              className={`absolute left-1/2 top-1/2 flex h-[360px] w-[min(82vw,640px)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[42px] border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.10),transparent_30%),linear-gradient(135deg,#0b5b42,#063b2e,#082419)] shadow-[inset_0_0_80px_rgba(0,0,0,0.35),0_0_70px_rgba(16,185,129,0.12)] ${
+                readyPlayers.length >= 2 || selectedLobby?.status === "playing"
+                  ? "casino-table-hot"
+                  : "casino-table-idle"
+              }`}
+            >
               <div className="absolute inset-4 rounded-[34px] border border-amber-200/15" />
               <div className="absolute inset-8 rounded-[28px] border border-emerald-100/10" />
+              <div className="casino-table-shine absolute inset-0 rounded-[42px]" />
 
               <div className="relative z-10 flex flex-col items-center text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.32em] text-amber-200">
@@ -1365,7 +1394,7 @@ export default function FortuneGameCasino() {
                     Current Pot
                   </p>
 
-                  <p className="mt-1 text-3xl font-black text-amber-300">
+                  <p className="casino-pot-glow mt-1 text-3xl font-black text-amber-300">
                     {selectedLobby
                       ? formatCurrency(
                           silverToCurrency(
@@ -1376,6 +1405,12 @@ export default function FortuneGameCasino() {
                       : "-"}
                   </p>
                 </div>
+
+                {latestWinnerName ? (
+                  <div className="casino-winner-flash mt-3 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-200">
+                    Latest Winner: {latestWinnerName}
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -1648,7 +1683,42 @@ export default function FortuneGameCasino() {
         </div>
       </section>
 
-      <style jsx>{`
+      <style jsx global>{`
+        .casino-grid {
+          background-image: linear-gradient(
+              rgba(255, 255, 255, 0.45) 1px,
+              transparent 1px
+            ),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
+          background-size: 64px 64px;
+        }
+
+        .casino-bg-orb {
+          position: fixed;
+          pointer-events: none;
+          border-radius: 9999px;
+          filter: blur(70px);
+          opacity: 0.24;
+          animation: casino-orb-drift 8s ease-in-out infinite;
+        }
+
+        .casino-bg-a {
+          left: 4%;
+          top: 18%;
+          width: 240px;
+          height: 240px;
+          background: rgba(245, 199, 90, 0.26);
+        }
+
+        .casino-bg-b {
+          right: 4%;
+          bottom: 12%;
+          width: 300px;
+          height: 300px;
+          background: rgba(124, 58, 237, 0.24);
+          animation-delay: 2s;
+        }
+
         .casino-action {
           border-width: 1px;
           border-radius: 1rem;
@@ -1676,6 +1746,257 @@ export default function FortuneGameCasino() {
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: 0.16em;
+        }
+
+        .casino-live-badge {
+          animation: live-pulse 2s ease-in-out infinite;
+        }
+
+        .casino-pot-glow {
+          text-shadow: 0 0 18px rgba(245, 199, 90, 0.38);
+        }
+
+        .casino-ticker-track {
+          width: max-content;
+          min-width: 100%;
+          animation: casino-ticker 18s linear infinite;
+          white-space: nowrap;
+        }
+
+        .casino-orb {
+          position: absolute;
+          pointer-events: none;
+          border-radius: 9999px;
+          filter: blur(24px);
+          animation: casino-orb-drift 7s ease-in-out infinite;
+        }
+
+        .casino-orb-a {
+          left: 10%;
+          top: 16%;
+          width: 120px;
+          height: 120px;
+          background: rgba(245, 199, 90, 0.18);
+        }
+
+        .casino-orb-b {
+          right: 12%;
+          top: 22%;
+          width: 150px;
+          height: 150px;
+          background: rgba(124, 58, 237, 0.16);
+          animation-delay: 1.4s;
+        }
+
+        .casino-orb-c {
+          left: 44%;
+          bottom: 12%;
+          width: 170px;
+          height: 170px;
+          background: rgba(16, 185, 129, 0.13);
+          animation-delay: 2.1s;
+        }
+
+        .casino-light-beam {
+          position: absolute;
+          pointer-events: none;
+          top: -20%;
+          height: 150%;
+          width: 120px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(245, 199, 90, 0.14),
+            transparent
+          );
+          animation: casino-beam-sweep 10s ease-in-out infinite;
+        }
+
+        .casino-light-a {
+          left: 8%;
+        }
+
+        .casino-light-b {
+          left: 45%;
+          animation-delay: 4s;
+        }
+
+        .casino-chip {
+          position: absolute;
+          pointer-events: none;
+          display: flex;
+          height: 28px;
+          width: 28px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 9999px;
+          border: 1px solid rgba(245, 199, 90, 0.22);
+          background: rgba(0, 0, 0, 0.24);
+          color: rgba(245, 199, 90, 0.72);
+          font-size: 12px;
+          animation: casino-chip-float 5.5s ease-in-out infinite;
+        }
+
+        .chip-a {
+          left: 19%;
+          top: 31%;
+        }
+
+        .chip-b {
+          right: 21%;
+          top: 34%;
+          animation-delay: 0.8s;
+        }
+
+        .chip-c {
+          left: 26%;
+          bottom: 24%;
+          animation-delay: 1.6s;
+        }
+
+        .chip-d {
+          right: 28%;
+          bottom: 28%;
+          animation-delay: 2.4s;
+        }
+
+        .casino-table-idle {
+          animation: casino-table-breathe 6s ease-in-out infinite;
+        }
+
+        .casino-table-hot {
+          animation: casino-table-breathe 2.6s ease-in-out infinite;
+          border-color: rgba(245, 199, 90, 0.46);
+        }
+
+        .casino-table-shine {
+          background: linear-gradient(
+            120deg,
+            transparent,
+            rgba(255, 255, 255, 0.05),
+            transparent
+          );
+          animation: table-shine 8s ease-in-out infinite;
+        }
+
+        .casino-winner-flash {
+          animation: winner-flash 2.2s ease-in-out infinite;
+        }
+
+        .dice-idle {
+          animation: dice-idle-float 3s ease-in-out infinite;
+        }
+
+        @keyframes live-pulse {
+          0%,
+          100% {
+            box-shadow: 0 0 0 rgba(52, 211, 153, 0);
+          }
+          50% {
+            box-shadow: 0 0 24px rgba(52, 211, 153, 0.18);
+          }
+        }
+
+        @keyframes casino-orb-drift {
+          0%,
+          100% {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 0.28;
+          }
+          50% {
+            transform: translate3d(18px, -14px, 0) scale(1.08);
+            opacity: 0.55;
+          }
+        }
+
+        @keyframes casino-beam-sweep {
+          0% {
+            transform: translateX(-120%) rotate(-12deg);
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.18;
+          }
+          60% {
+            opacity: 0.12;
+          }
+          100% {
+            transform: translateX(120%) rotate(-12deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes casino-chip-float {
+          0%,
+          100% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0.35;
+          }
+          50% {
+            transform: translateY(-12px) rotate(18deg);
+            opacity: 0.85;
+          }
+        }
+
+        @keyframes casino-table-breathe {
+          0%,
+          100% {
+            box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.35),
+              0 0 70px rgba(16, 185, 129, 0.12);
+          }
+          50% {
+            box-shadow: inset 0 0 95px rgba(0, 0, 0, 0.4),
+              0 0 105px rgba(245, 199, 90, 0.22),
+              0 0 70px rgba(16, 185, 129, 0.18);
+          }
+        }
+
+        @keyframes casino-ticker {
+          0% {
+            transform: translateX(16%);
+          }
+          100% {
+            transform: translateX(-112%);
+          }
+        }
+
+        @keyframes table-shine {
+          0% {
+            transform: translateX(-80%);
+            opacity: 0;
+          }
+          40% {
+            opacity: 0.25;
+          }
+          60% {
+            opacity: 0.12;
+          }
+          100% {
+            transform: translateX(80%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes winner-flash {
+          0%,
+          100% {
+            filter: brightness(1);
+            transform: scale(1);
+          }
+          50% {
+            filter: brightness(1.22);
+            transform: scale(1.025);
+          }
+        }
+
+        @keyframes dice-idle-float {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-4px);
+          }
         }
 
         @keyframes dice-shake {
@@ -1717,6 +2038,50 @@ export default function FortuneGameCasino() {
   );
 }
 
+function CasinoAmbience() {
+  return (
+    <>
+      <div className="casino-orb casino-orb-a" />
+      <div className="casino-orb casino-orb-b" />
+      <div className="casino-orb casino-orb-c" />
+
+      <div className="casino-light-beam casino-light-a" />
+      <div className="casino-light-beam casino-light-b" />
+
+      <div className="casino-chip chip-a">◆</div>
+      <div className="casino-chip chip-b">●</div>
+      <div className="casino-chip chip-c">✦</div>
+      <div className="casino-chip chip-d">◇</div>
+    </>
+  );
+}
+
+function LiveTicker({
+  selectedLobby,
+  readyCount,
+  latestWinner,
+}: {
+  selectedLobby: WagerLobby | null;
+  readyCount: number;
+  latestWinner?: string;
+}) {
+  const text = selectedLobby
+    ? latestWinner
+      ? `${latestWinner} baru saja mengamankan pot. Meja menunggu ronde berikutnya.`
+      : readyCount >= 2
+      ? "Meja memanas. Minimal ready sudah terpenuhi. Dadu siap turun."
+      : `${selectedLobby.table_name} terbuka. Menunggu player berani masuk.`
+    : "Fortune Hall Arena terbuka. Pilih meja dan mulai Moonfall Dice.";
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-amber-300/20 bg-black/35 px-4 py-3">
+      <div className="casino-ticker-track text-xs font-black uppercase tracking-[0.2em] text-amber-200/90">
+        {text}
+      </div>
+    </div>
+  );
+}
+
 function HeaderStat({
   label,
   value,
@@ -1741,7 +2106,7 @@ function DiceCenter({ isRolling }: { isRolling: boolean }) {
   return (
     <div
       className={`mt-5 flex items-center justify-center gap-3 ${
-        isRolling ? "dice-rolling" : ""
+        isRolling ? "dice-rolling" : "dice-idle"
       }`}
     >
       <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/40 text-5xl shadow-[0_0_30px_rgba(245,199,90,0.12)]">
@@ -1846,4 +2211,4 @@ function CasinoSeat({
       ) : null}
     </div>
   );
-}
+             }
