@@ -146,13 +146,35 @@ function calculatePoints(player: Player) {
   );
 }
 
+ function getStandingScore(player: Player) {
+  return (
+    Number(player.gold || 0) * 100000 +
+    Number(player.silver || 0) * 100 +
+    Number(player.bronze || 0)
+  );
+}
+
+function formatPlayerCurrency(player: Player) {
+  const gold = Number(player.gold || 0);
+  const silver = Number(player.silver || 0);
+  const bronze = Number(player.bronze || 0);
+
+  const parts = [];
+
+  if (gold > 0) parts.push(`${gold}G`);
+  if (silver > 0) parts.push(`${silver}S`);
+  if (bronze > 0) parts.push(`${bronze}B`);
+
+  return parts.length ? parts.join(" ") : "0S";
+}
+
 function getDisplayScore(player: Player) {
   const points = calculatePoints(player);
-  return points > 0 ? points : player.silver;
+  return points > 0 ? String(points) : formatPlayerCurrency(player);
 }
 
 function getDisplayLabel(player: Player) {
-  return calculatePoints(player) > 0 ? "Lunar Prestige" : "Silver Standing";
+  return calculatePoints(player) > 0 ? "Quest Points" : "Balance Standing";
 }
 
 function getTopTheme(rank: number) {
@@ -220,17 +242,32 @@ export default function LunariaDashboard() {
   }, [players]);
 
   const rankedPlayers = useMemo(() => {
-    return [...activePlayers].sort((a, b) => {
-      const scoreA = getDisplayScore(a);
-      const scoreB = getDisplayScore(b);
+  return [...activePlayers].sort((a, b) => {
+    const pointsA = calculatePoints(a);
+    const pointsB = calculatePoints(b);
 
-      if (scoreB !== scoreA) return scoreB - scoreA;
+    const aHasQuestPoints = pointsA > 0;
+    const bHasQuestPoints = pointsB > 0;
 
-      return (
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-    });
-  }, [activePlayers]);
+    if (aHasQuestPoints && !bHasQuestPoints) return -1;
+    if (!aHasQuestPoints && bHasQuestPoints) return 1;
+
+    if (pointsA !== pointsB) {
+      return pointsB - pointsA;
+    }
+
+    const standingA = getStandingScore(a);
+    const standingB = getStandingScore(b);
+
+    if (standingA !== standingB) {
+      return standingB - standingA;
+    }
+
+    return (
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  });
+}, [activePlayers]);
 
   const topThree = rankedPlayers.slice(0, 3);
 
