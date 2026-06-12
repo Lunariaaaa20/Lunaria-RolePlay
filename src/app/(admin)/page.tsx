@@ -292,12 +292,38 @@ export default function LunariaDashboard() {
     return activePlayers.reduce((sum, player) => sum + calculatePoints(player), 0);
   }, [activePlayers]);
 
-  const totalSilver = useMemo(() => {
-    return activePlayers.reduce(
-      (sum, player) => sum + Number(player.silver || 0),
-      0
-    );
-  }, [activePlayers]);
+  function playerCurrencyToBronze(player: Player) {
+  return (
+    Number(player.gold || 0) * 100000 +
+    Number(player.silver || 0) * 100 +
+    Number(player.bronze || 0)
+  );
+}
+
+function formatBronzeCurrency(totalBronze: number) {
+  const safeBronze = Math.max(0, Math.floor(totalBronze));
+  const gold = Math.floor(safeBronze / 100000);
+  const remainingAfterGold = safeBronze % 100000;
+  const silver = Math.floor(remainingAfterGold / 100);
+  const bronze = remainingAfterGold % 100;
+
+  if (gold > 0) {
+    return `${gold}G ${silver}S ${bronze}B`;
+  }
+
+  if (bronze > 0) {
+    return `${silver}S ${bronze}B`;
+  }
+
+  return `${silver}S`;
+}
+
+const totalGuildCurrency = useMemo(() => {
+  return activePlayers.reduce(
+    (sum, player) => sum + playerCurrencyToBronze(player),
+    0
+  );
+}, [activePlayers]);
 
   const questTotals = useMemo(() => {
     return {
@@ -492,12 +518,12 @@ export default function LunariaDashboard() {
           icon="star"
         />
         <RoyalStat
-          label="Guild Silverflow"
-          value={`${totalSilver}S`}
-          detail="Active economy pool"
-          tone="text-amber-300"
-          icon="moon"
-        />
+  label="Guild Silverflow"
+  value={formatBronzeCurrency(totalGuildCurrency)}
+  detail="Active economy pool"
+  tone="text-amber-300"
+  icon="moon"
+/>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
