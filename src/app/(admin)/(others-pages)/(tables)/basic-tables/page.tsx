@@ -108,6 +108,197 @@ function generateUsername(name: string) {
   return `${clean || "adventurer"}${random}`;
 }
 
+type QuickLedgerPreview = {
+  playerId: string;
+  playerName: string;
+  rawName: string;
+  currencyDeltaBronze: number;
+  currencyDeltaText: string;
+  currentCurrency: LunariaCurrency;
+  nextCurrency: LunariaCurrency;
+  questDeltas: {
+    common_quests: number;
+    uncommon_quests: number;
+    dangerous_quests: number;
+    special_quests: number;
+  };
+  currentQuests: {
+    common_quests: number;
+    uncommon_quests: number;
+    dangerous_quests: number;
+    special_quests: number;
+  };
+  nextQuests: {
+    common_quests: number;
+    uncommon_quests: number;
+    dangerous_quests: number;
+    special_quests: number;
+  };
+};
+
+function currencyToBronze(currency: LunariaCurrency) {
+  return currency.gold * 100000 + currency.silver * 100 + currency.bronze;
+}
+
+function bronzeToCurrency(totalBronze: number): LunariaCurrency {
+  const safeBronze = Math.max(0, Math.floor(totalBronze));
+  const gold = Math.floor(safeBronze / 100000);
+  const remainingAfterGold = safeBronze % 100000;
+  const silver = Math.floor(remainingAfterGold / 100);
+  const bronze = remainingAfterGold % 100;
+
+  return {
+    gold,
+    silver,
+    bronze,
+  };
+}
+
+function parseSignedQuestValue(text: string, labels: string[]) {
+  const lines = text.split(/\r?\n/);
+
+  for (const line of lines) {
+    for (const label of labels) {
+      const regex = new RegExp(`^\\s*${label}\\s*:?\\s*([+-]?\\s*\\d+)?\\s*$`, "i");
+      const match = line.match(regex);
+
+      if (match) {
+        const raw = (match[1] || "0").replace(/\s+/g, "");
+        if (!raw) return 0;
+        return Number(raw);
+      }
+    }
+  }
+
+  return 0;
+}
+
+function parseCurrencyDelta(text: string) {
+  const currencyLine =
+    text.match(/currency\s*:\s*([^\n\r]+)/i)?.[1] ||
+    text.match(/uang\s*:\s*([^\n\r]+)/i)?.[1] ||
+    "";
+
+  if (!currencyLine.trim()) {
+    return {
+      deltaBronze: 0,
+      deltaText: "0",
+    };
+  }
+
+  const compact = currencyLine.replace(/\s+/g, "").toUpperCase();
+  const sign = compact.startsWith("-") ? -1 : 1;
+  const cleaned = compact.replace(/^[+-]/, "");
+
+  const gold = Number(cleaned.match(/(\d+)G/)?.[1] || 0);
+  const silver = Number(cleaned.match(/(\d+)S/)?.[1] || 0);
+  const bronze = Number(cleaned.match(/(\d+)B/)?.[1] || 0);
+
+  const totalBronze = gold * 100000 + silver * 100 + bronze;
+
+  return {
+    deltaBronze: sign * totalBronze,
+    deltaText: currencyLine.trim(),
+  };
+}
+
+function parseQuickLedgerReport(
+  reportText: string,
+  players: Player[]
+): { preview?: QuickLedgerPreview; error?: string } {
+  const rawName =
+    reportText.match(/nama\s*:\s*([^\n\r]+)/i)?.[1]?.trim() ||
+    reportText.match(/name\s*:\s*([^\n\r]+)/i)?.[1]?.trim() ||
+    "";
+
+  if (!rawName) {
+    return { error: "Nama player tidak ditemukan. Pakai format: Nama: Vesper" };
+  }
+
+  const exactPlayer = players.find(
+    (player) => player.character_name.toLowerCase() === rawName.toLowerCase()
+  );
+
+  const possiblePlayers = players.filter((player) =>
+    player.character_name.toLowerCase().includes(rawName.toLowerCase())
+  );
+
+  const targetPlayer =
+    exactPlayer || (possiblePlayers.length === 1 ? possiblePlayers[0] : null);
+
+  if (!targetPlayer) {
+    if (possiblePlayers.length > 1) {
+      return {
+        error: `Nama "${rawName}" terlalu mirip dengan beberapa player. Tulis nama lebih lengkap.`,
+      };
+    }
+
+    return {
+      error: `Player "${rawName}" tidak ditemukan di database.`,
+    };
+  }
+
+  const currencyDelta = parseCurrencyDelta(reportText);
+
+  const questDeltas = {
+    common_quests: parseSignedQuestValue(reportText, ["Common"]),
+    uncommon_quests: parseSignedQuestValue(reportText, ["Uncommon"]),
+    dangerous_quests: parseSignedQuestValue(reportText, ["Dangerous"]),
+    special_quests: parseSignedQuestValue(reportText, ["Special", "Spesial"]),
+  };
+
+  const currentCurrency = normalizeCurrency({
+    gold: targetPlayer.gold,
+    silver: targetPlayer.silver,
+    bronze: targetPlayer.bronze,
+  });
+
+  const nextCurrency = bronzeToCurrency(
+    currencyToBronze(currentCurrency) + currencyDelta.deltaBronze
+  );
+
+  const currentQuests = {
+    common_quests: Number(targetPlayer.common_quests || 0),
+    uncommon_quests: Number(targetPlayer.uncommon_quests || 0),
+    dangerous_quests: Number(targetPlayer.dangerous_quests || 0),
+    special_quests: Number(targetPlayer.special_quests || 0),
+  };
+
+  const nextQuests = {
+    common_quests: Math.max(
+      0,
+      currentQuests.common_quests + questDeltas.common_quests
+    ),
+    uncommon_quests: Math.max(
+      0,
+      currentQuests.uncommon_quests + questDeltas.uncommon_quests
+    ),
+    dangerous_quests: Math.max(
+      0,
+      currentQuests.dangerous_quests + questDeltas.dangerous_quests
+    ),
+    special_quests: Math.max(
+      0,
+      currentQuests.special_quests + questDeltas.special_quests
+    ),
+  };
+
+  return {
+    preview: {
+      playerId: targetPlayer.id,
+      playerName: targetPlayer.character_name,
+      rawName,
+      currencyDeltaBronze: currencyDelta.deltaBronze,
+      currencyDeltaText: currencyDelta.deltaText,
+      currentCurrency,
+      nextCurrency,
+      questDeltas,
+      currentQuests,
+      nextQuests,
+    },
+  };
+}
+
 function formatDate(value: string) {
   if (!value) return "-";
 
@@ -131,6 +322,10 @@ export default function LunariaAdminPanel() {
   const [isSaving, setIsSaving] = useState(false);
   const [isStatusWorking, setIsStatusWorking] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [quickLedgerText, setQuickLedgerText] = useState("");
+const [quickLedgerPreview, setQuickLedgerPreview] =
+  useState<QuickLedgerPreview | null>(null);
+const [isApplyingQuickLedger, setIsApplyingQuickLedger] = useState(false);
 
   const selectedPlayer =
     players.find((player) => player.id === selectedPlayerId) || players[0];
@@ -252,6 +447,85 @@ export default function LunariaAdminPanel() {
       )
     );
   };
+
+  const handleParseQuickLedger = () => {
+  setErrorMessage("");
+  setNotice("");
+  setQuickLedgerPreview(null);
+
+  const result = parseQuickLedgerReport(quickLedgerText, players);
+
+  if (result.error) {
+    showError(result.error);
+    return;
+  }
+
+  if (result.preview) {
+    setQuickLedgerPreview(result.preview);
+    setSelectedPlayerId(result.preview.playerId);
+    showNotice("Laporan berhasil dibaca. Cek preview sebelum apply.");
+  }
+};
+
+const handleApplyQuickLedger = async () => {
+  if (!quickLedgerPreview) {
+    showError("Belum ada preview update.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Apply update untuk ${quickLedgerPreview.playerName}?`
+  );
+
+  if (!confirmed) return;
+
+  setIsApplyingQuickLedger(true);
+  setErrorMessage("");
+
+  const { error } = await supabase
+    .from("players")
+    .update({
+      gold: quickLedgerPreview.nextCurrency.gold,
+      silver: quickLedgerPreview.nextCurrency.silver,
+      bronze: quickLedgerPreview.nextCurrency.bronze,
+      common_quests: quickLedgerPreview.nextQuests.common_quests,
+      uncommon_quests: quickLedgerPreview.nextQuests.uncommon_quests,
+      dangerous_quests: quickLedgerPreview.nextQuests.dangerous_quests,
+      special_quests: quickLedgerPreview.nextQuests.special_quests,
+    })
+    .eq("id", quickLedgerPreview.playerId);
+
+  setIsApplyingQuickLedger(false);
+
+  if (error) {
+    showError(`Quick update failed: ${error.message}`);
+    return;
+  }
+
+  setPlayers((prev) =>
+    prev.map((player) =>
+      player.id === quickLedgerPreview.playerId
+        ? {
+            ...player,
+            gold: quickLedgerPreview.nextCurrency.gold,
+            silver: quickLedgerPreview.nextCurrency.silver,
+            bronze: quickLedgerPreview.nextCurrency.bronze,
+            common_quests: quickLedgerPreview.nextQuests.common_quests,
+            uncommon_quests: quickLedgerPreview.nextQuests.uncommon_quests,
+            dangerous_quests: quickLedgerPreview.nextQuests.dangerous_quests,
+            special_quests: quickLedgerPreview.nextQuests.special_quests,
+          }
+        : player
+    )
+  );
+
+  setSelectedPlayerId(quickLedgerPreview.playerId);
+  setQuickLedgerText("");
+  setQuickLedgerPreview(null);
+
+  showNotice(`Guild Auto Ledger applied for ${quickLedgerPreview.playerName}.`);
+  fetchData();
+};
 
   const approveRegistration = async (request: RegistrationRequest) => {
     setIsApproving(request.id);
@@ -595,6 +869,155 @@ export default function LunariaAdminPanel() {
         />
       </section>
 
+      <section className="rounded-[32px] border border-emerald-400/20 bg-gradient-to-br from-emerald-950/35 via-black/45 to-violet-950/35 p-6 shadow-[0_0_45px_rgba(16,185,129,0.08)]">
+  <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+        Guild Auto Ledger
+      </p>
+      <h2 className="mt-2 text-2xl font-black text-white">
+        Quick ID Card Update
+      </h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+        Tempel laporan dari WA. Sistem otomatis membaca nama, currency + / -,
+        dan quest record. Admin tinggal cek preview lalu apply.
+      </p>
+    </div>
+
+    <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
+      + tambah • - kurang • 0 tetap
+    </div>
+  </div>
+
+  <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+    <div>
+      <label className="block">
+        <span className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+          Paste Laporan WA
+        </span>
+        <textarea
+          value={quickLedgerText}
+          onChange={(event) => {
+            setQuickLedgerText(event.target.value);
+            setQuickLedgerPreview(null);
+          }}
+          placeholder={`Nama: Vesper
+Currency: +5S
+
+Quest
+Common: +1
+Uncommon: 0
+Dangerous: 0
+Special: 0`}
+          className="lunaria-admin-input min-h-[210px] resize-y leading-6"
+        />
+      </label>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <button
+          onClick={handleParseQuickLedger}
+          disabled={!quickLedgerText.trim()}
+          className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Parse Report
+        </button>
+
+        <button
+          onClick={() => {
+            setQuickLedgerText("");
+            setQuickLedgerPreview(null);
+          }}
+          className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-slate-300 transition hover:bg-white/[0.08]"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div className="rounded-[28px] border border-white/10 bg-black/30 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">
+        Preview Update
+      </p>
+
+      {!quickLedgerPreview ? (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-6 text-slate-400">
+          Belum ada preview. Tempel laporan lalu klik Parse Report.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+              Player Found
+            </p>
+            <p className="mt-1 text-2xl font-black text-emerald-200">
+              {quickLedgerPreview.playerName}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-amber-300">
+              Currency
+            </p>
+            <p className="mt-2 text-sm font-bold text-slate-300">
+              Input:{" "}
+              <span className="text-amber-200">
+                {quickLedgerPreview.currencyDeltaText}
+              </span>
+            </p>
+            <p className="mt-2 text-lg font-black text-white">
+              {formatCurrency(quickLedgerPreview.currentCurrency)} →{" "}
+              <span className="text-emerald-300">
+                {formatCurrency(quickLedgerPreview.nextCurrency)}
+              </span>
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-violet-300">
+              Quest Record
+            </p>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <LedgerQuestPreview
+                label="Common"
+                before={quickLedgerPreview.currentQuests.common_quests}
+                delta={quickLedgerPreview.questDeltas.common_quests}
+                after={quickLedgerPreview.nextQuests.common_quests}
+              />
+              <LedgerQuestPreview
+                label="Uncommon"
+                before={quickLedgerPreview.currentQuests.uncommon_quests}
+                delta={quickLedgerPreview.questDeltas.uncommon_quests}
+                after={quickLedgerPreview.nextQuests.uncommon_quests}
+              />
+              <LedgerQuestPreview
+                label="Dangerous"
+                before={quickLedgerPreview.currentQuests.dangerous_quests}
+                delta={quickLedgerPreview.questDeltas.dangerous_quests}
+                after={quickLedgerPreview.nextQuests.dangerous_quests}
+              />
+              <LedgerQuestPreview
+                label="Special"
+                before={quickLedgerPreview.currentQuests.special_quests}
+                delta={quickLedgerPreview.questDeltas.special_quests}
+                after={quickLedgerPreview.nextQuests.special_quests}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleApplyQuickLedger}
+            disabled={isApplyingQuickLedger}
+            className="w-full rounded-2xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500/20 to-violet-500/20 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] text-emerald-200 transition hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isApplyingQuickLedger ? "Applying..." : "Apply Update"}
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+</section>
+      
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <div className="rounded-[32px] border border-amber-400/20 bg-black/35 p-6 shadow-[0_0_45px_rgba(15,23,42,0.45)] xl:col-span-7">
           <div className="mb-6">
@@ -1066,6 +1489,43 @@ export default function LunariaAdminPanel() {
         }
       `}</style>
     </main>
+  );
+}
+
+function LedgerQuestPreview({
+  label,
+  before,
+  delta,
+  after,
+}: {
+  label: string;
+  before: number;
+  delta: number;
+  after: number;
+}) {
+  const deltaText = delta > 0 ? `+${delta}` : String(delta);
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black text-white">
+        {before}{" "}
+        <span
+          className={
+            delta > 0
+              ? "text-emerald-300"
+              : delta < 0
+              ? "text-red-300"
+              : "text-slate-500"
+          }
+        >
+          {deltaText}
+        </span>{" "}
+        → <span className="text-amber-200">{after}</span>
+      </p>
+    </div>
   );
 }
 
