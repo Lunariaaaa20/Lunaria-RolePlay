@@ -1,7 +1,9 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+
+type CareAction = "feed" | "care" | "train" | "rest";
 
 type LunariaSession = {
   role: "player" | "admin";
@@ -147,6 +149,18 @@ function generateFamiliarLine(familiar: PlayerFamiliar) {
     return `${name} memperhatikan owner-nya dari dekat, seolah menunggu diajak bicara duluan.`;
   }
 
+  if (desire === "feels_attached") {
+    return `${name} tampak lebih dekat dari biasanya. Ia tidak mengatakan apa-apa, tapi posisinya tidak jauh dari owner.`;
+  }
+
+  if (desire === "wants_rest") {
+    return `${name} terlihat lelah setelah bergerak cukup banyak. Ia menatap owner-nya seperti meminta waktu istirahat.`;
+  }
+
+  if (desire === "wants_train") {
+    return `${name} tampak lebih segar. Gerakannya kecil, tapi terlihat seperti ingin melakukan sesuatu.`;
+  }
+
   if (mood < 35) {
     return `${name} tampak menjauh sedikit. Ia masih mengikuti, tapi cahayanya tidak secerah biasanya.`;
   }
@@ -175,6 +189,10 @@ export default function MoonFamiliarPage() {
   const [familiar, setFamiliar] = useState<PlayerFamiliar | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [careNotice, setCareNotice] = useState("");
+  const [careError, setCareError] = useState("");
+  const [isCareWorking, setIsCareWorking] = useState<CareAction | null>(null);
 
   const nextEvolutionXp = familiar ? getNextEvolutionXp(familiar.stage) : null;
 
@@ -229,6 +247,39 @@ export default function MoonFamiliarPage() {
     }
 
     setFamiliar(data as PlayerFamiliar | null);
+  };
+
+  const handleCareAction = async (action: CareAction) => {
+    if (!familiar) return;
+
+    setCareNotice("");
+    setCareError("");
+    setIsCareWorking(action);
+
+    const response = await fetch("/api/familiar/care", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        playerId: familiar.player_id,
+        familiarId: familiar.id,
+        action,
+      }),
+    });
+
+    const result = await response.json();
+    setIsCareWorking(null);
+
+    if (!response.ok) {
+      setCareError(result.error || "Care action failed.");
+      setTimeout(() => setCareError(""), 5000);
+      return;
+    }
+
+    setFamiliar(result.familiar as PlayerFamiliar);
+    setCareNotice(result.message || "Familiar updated.");
+    setTimeout(() => setCareNotice(""), 5000);
   };
 
   useEffect(() => {
@@ -427,11 +478,64 @@ export default function MoonFamiliarPage() {
                   />
                   <InfoLine
                     label="Current Desire"
-                    value={familiar.desire.replaceAll("_", " ")}
+                    value={familiar.desire.replace(/_/g, " ")}
                   />
                   <InfoLine
                     label="Habitat"
                     value={familiar.familiar_species.habitat}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[30px] border border-violet-300/20 bg-black/35 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-300">
+                  Care Actions
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Rawat familiar supaya mood, energy, dan bond-nya tetap stabil.
+                </p>
+
+                {careNotice ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm font-bold text-emerald-200">
+                    {careNotice}
+                  </div>
+                ) : null}
+
+                {careError ? (
+                  <div className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 p-3 text-sm font-bold text-red-200">
+                    {careError}
+                  </div>
+                ) : null}
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <CareButton
+                    label="Feed"
+                    desc="+Mood +Energy"
+                    disabled={Boolean(isCareWorking)}
+                    active={isCareWorking === "feed"}
+                    onClick={() => handleCareAction("feed")}
+                  />
+                  <CareButton
+                    label="Care"
+                    desc="+Mood +Bond"
+                    disabled={Boolean(isCareWorking)}
+                    active={isCareWorking === "care"}
+                    onClick={() => handleCareAction("care")}
+                  />
+                  <CareButton
+                    label="Train"
+                    desc="-Energy +Bond"
+                    disabled={Boolean(isCareWorking)}
+                    active={isCareWorking === "train"}
+                    onClick={() => handleCareAction("train")}
+                  />
+                  <CareButton
+                    label="Rest"
+                    desc="+Energy"
+                    disabled={Boolean(isCareWorking)}
+                    active={isCareWorking === "rest"}
+                    onClick={() => handleCareAction("rest")}
                   />
                 </div>
               </div>
@@ -572,6 +676,33 @@ function GaugeCard({
   );
 }
 
+function CareButton({
+  label,
+  desc,
+  disabled,
+  active,
+  onClick,
+}: {
+  label: string;
+  desc: string;
+  disabled: boolean;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-amber-300/30 hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <p className="text-sm font-black text-white">
+        {active ? "Working..." : label}
+      </p>
+      <p className="mt-1 text-xs font-bold text-slate-500">{desc}</p>
+    </button>
+  );
+}
+
 function InfoLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -623,4 +754,4 @@ function StatPill({ label, value }: { label: string; value: number }) {
       <p className="mt-2 text-xl font-black text-white">{value}</p>
     </div>
   );
-  }
+}
