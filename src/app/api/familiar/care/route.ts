@@ -7,9 +7,12 @@ type FamiliarRow = {
   id: string;
   player_id: string;
   familiar_name: string;
+  stage: number;
   mood: number;
   energy: number;
   bond_xp: number;
+  bond_rank: string;
+  hidden_potential: number;
   last_feed_at: string | null;
   last_care_at: string | null;
   last_train_at: string | null;
@@ -87,6 +90,37 @@ function getRelationshipStatus(mood: number) {
   if (mood >= 55) return "Normal";
   if (mood >= 30) return "Restless";
   return "Distant";
+}
+
+function getBondRank(bondXp: number) {
+  if (bondXp >= 1600) return "Mythic";
+  if (bondXp >= 900) return "Epic";
+  if (bondXp >= 450) return "Rare";
+  if (bondXp >= 150) return "Uncommon";
+  return "Common";
+}
+
+function getStageFromBondXp(bondXp: number) {
+  if (bondXp >= 1400) return 4;
+  if (bondXp >= 600) return 3;
+  if (bondXp >= 180) return 2;
+  return 1;
+}
+
+function getEvolutionLine(name: string, stage: number) {
+  if (stage === 2) {
+    return `${name} mulai berubah. Tubuh kecilnya tumbuh lebih stabil, dan cahaya familiar di sekitarnya menjadi lebih jelas.`;
+  }
+
+  if (stage === 3) {
+    return `${name} memasuki bentuk yang lebih tinggi. Gerakannya semakin yakin, seolah ia mulai memahami kehendaknya sendiri.`;
+  }
+
+  if (stage === 4) {
+    return `${name} mencapai bentuk Max. Aura familiar-nya terasa utuh, matang, dan jauh lebih hidup dari sebelumnya.`;
+  }
+
+  return "";
 }
 
 function getRemainingText(ms: number) {
@@ -187,17 +221,30 @@ export async function POST(request: Request) {
     const nextEnergy = clamp(typedFamiliar.energy + rule.energyChange);
     const nextBond = Math.max(0, typedFamiliar.bond_xp + rule.bondChange);
 
+    const stageFromBond = getStageFromBondXp(nextBond);
+    const nextStage = Math.max(typedFamiliar.stage || 1, stageFromBond);
+    const isEvolving = nextStage > typedFamiliar.stage;
+
     const familiarName =
       typedFamiliar.familiar_name ||
       typedFamiliar.familiar_species?.name ||
       "Familiar";
 
     const narration = rule.narration(familiarName);
+    const evolutionNarration = isEvolving
+      ? getEvolutionLine(familiarName, nextStage)
+      : "";
+
+    const finalNarration = evolutionNarration
+      ? `${narration} ${evolutionNarration}`
+      : narration;
 
     const updatePayload: Record<string, unknown> = {
       mood: nextMood,
       energy: nextEnergy,
       bond_xp: nextBond,
+      bond_rank: getBondRank(nextBond),
+      stage: nextStage,
       relationship_status: getRelationshipStatus(nextMood),
       desire: rule.desire,
       updated_at: now.toISOString(),
@@ -224,7 +271,7 @@ export async function POST(request: Request) {
       mood_change: rule.moodChange,
       energy_change: rule.energyChange,
       bond_change: rule.bondChange,
-      narration,
+      narration: finalNarration,
     });
 
     const { data: updatedFamiliar, error: refetchError } = await admin
@@ -252,7 +299,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      message: narration,
+      message: finalNarration,
       familiar: updatedFamiliar,
     });
   } catch (error) {
@@ -266,4 +313,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-                          }
+}
