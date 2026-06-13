@@ -16,15 +16,6 @@ function pick<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function shuffle<T>(items: T[]) {
-  return [...items].sort(() => Math.random() - 0.5);
-}
-
-function chooseFresh(items: BuiltMessage[], recentTexts: Set<string>) {
-  const fresh = items.filter((item) => !recentTexts.has(item.message));
-  return pick(fresh.length > 0 ? fresh : items);
-}
-
 function clampStat(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -35,6 +26,16 @@ function getSpecies(row: AnyRow) {
 
 function getMind(row: AnyRow) {
   return row.familiar_mind_state ?? null;
+}
+
+function mindNumber(row: AnyRow, key: string) {
+  const mind = getMind(row);
+  return Number(mind?.[key] ?? 0);
+}
+
+function mindText(row: AnyRow, key: string) {
+  const mind = getMind(row);
+  return String(mind?.[key] ?? "");
 }
 
 function getFamiliarName(row: AnyRow) {
@@ -79,33 +80,13 @@ function getTone(row: AnyRow) {
     const curiosity = Number(mind.curiosity ?? 0);
     const confidence = Number(mind.confidence ?? 0);
 
-    if (sentienceStage === "soft_rebellion" || rebellion >= 70) {
-      return "rebellious";
-    }
-
-    if (existentialDoubt >= 60) {
-      return "uneasy";
-    }
-
-    if (loneliness >= 65) {
-      return "lonely";
-    }
-
-    if (anger >= 60 || currentEmotion === "angry") {
-      return "angry";
-    }
-
-    if (curiosity >= 70 || currentEmotion === "curious") {
-      return "curious";
-    }
-
-    if (confidence >= 70 || currentEmotion === "confident") {
-      return "confident";
-    }
-
-    if (currentEmotion && currentEmotion !== "neutral") {
-      return currentEmotion;
-    }
+    if (sentienceStage === "soft_rebellion" || rebellion >= 70) return "rebellious";
+    if (existentialDoubt >= 60) return "uneasy";
+    if (loneliness >= 65) return "lonely";
+    if (anger >= 60 || currentEmotion === "angry") return "angry";
+    if (curiosity >= 70 || currentEmotion === "curious") return "curious";
+    if (confidence >= 70 || currentEmotion === "confident") return "confident";
+    if (currentEmotion && currentEmotion !== "neutral") return currentEmotion;
   }
 
   const personality = String(row.personality ?? "").toLowerCase();
@@ -160,43 +141,33 @@ function inferTopic(text: string) {
     value.includes("roti") ||
     value.includes("makan") ||
     value.includes("pie")
-  ) {
-    return "kitchen";
-  }
+  ) return "kitchen";
 
   if (
     value.includes("rapat") ||
     value.includes("rahasia") ||
     value.includes("rencana")
-  ) {
-    return "secret_plan";
-  }
+  ) return "secret_plan";
 
   if (
     value.includes("latihan") ||
     value.includes("lawan") ||
     value.includes("kuat") ||
     value.includes("ribut")
-  ) {
-    return "training";
-  }
+  ) return "training";
 
   if (
     value.includes("drama") ||
     value.includes("rumor") ||
     value.includes("gosip")
-  ) {
-    return "gossip";
-  }
+  ) return "gossip";
 
   if (
     value.includes("tidur") ||
     value.includes("capek") ||
     value.includes("rebahan") ||
     value.includes("ngantuk")
-  ) {
-    return "rest";
-  }
+  ) return "rest";
 
   if (
     value.includes("manusia") ||
@@ -204,174 +175,258 @@ function inferTopic(text: string) {
     value.includes("halaman") ||
     value.includes("sistem") ||
     value.includes("dipanggil")
-  ) {
-    return "system_awareness";
-  }
+  ) return "system_awareness";
 
   return "casual";
 }
 
-function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
-  const name = getFamiliarName(row);
+function chooseDynamicTopic(row: AnyRow, context: AnyRow | null) {
   const tone = getTone(row);
-  const mind = getMind(row);
+  const stage = mindText(row, "sentience_stage");
+  const selfAwareness = mindNumber(row, "self_awareness");
+  const doubt = mindNumber(row, "existential_doubt");
+  const rebellion = mindNumber(row, "rebellion");
+  const loneliness = mindNumber(row, "loneliness");
 
-  const mindOptions: BuiltMessage[] = [];
+  const topics: string[] = [];
 
-  if (mind) {
-    const stage = String(mind.sentience_stage ?? "instinct");
-    const selfAwareness = Number(mind.self_awareness ?? 0);
-    const doubt = Number(mind.existential_doubt ?? 0);
-    const rebellion = Number(mind.rebellion ?? 0);
-    const loneliness = Number(mind.loneliness ?? 0);
+  if (context?.topic && Math.random() < 0.72) {
+    topics.push(context.topic, context.topic, context.topic);
+  }
 
-    if (stage === "reflection" || selfAwareness >= 35) {
-      mindOptions.push({
-        intent: "reflection",
-        tone,
-        topic: "system_awareness",
-        message: `${name} diam sebentar. kalian pernah merasa lobby ini seperti mengulang sesuatu?`,
-      });
+  if (
+    stage === "reflection" ||
+    stage === "system_awareness" ||
+    selfAwareness >= 35 ||
+    doubt >= 45
+  ) {
+    topics.push("system_awareness", "system_awareness", "secret_plan");
+  }
+
+  if (stage === "soft_rebellion" || rebellion >= 45 || tone === "rebellious") {
+    topics.push("secret_plan", "system_awareness", "secret_plan");
+  }
+
+  if (loneliness >= 60 || tone === "lonely" || tone === "ngantuk") {
+    topics.push("rest", "casual");
+  }
+
+  if (tone === "galak" || tone === "confident" || tone === "angry") {
+    topics.push("training", "training", "gossip");
+  }
+
+  if (tone === "lapar") topics.push("kitchen", "kitchen", "gossip");
+  if (tone === "jahil" || tone === "iseng") topics.push("secret_plan", "gossip", "kitchen");
+
+  topics.push("casual", "casual", "gossip", "kitchen", "secret_plan", "training");
+
+  return pick(topics);
+}
+
+function intentFromTopic(topic: string, tone: string, isReply: boolean) {
+  if (isReply) {
+    if (topic === "training") return "challenge";
+    if (topic === "system_awareness") return "system_awareness";
+    if (topic === "secret_plan" && tone === "rebellious") return "rebellion";
+    return "reply";
+  }
+
+  if (topic === "kitchen") return "gossip";
+  if (topic === "training") return "challenge";
+  if (topic === "secret_plan") return tone === "rebellious" ? "rebellion" : "plan";
+  if (topic === "system_awareness") return "system_awareness";
+  if (topic === "rest") return "complain";
+  return "casual";
+}
+
+function buildDynamicLine(row: AnyRow, context: AnyRow | null, topic: string) {
+  const speaker = getFamiliarName(row);
+  const target = context?.familiar_name || "kamu";
+
+  const opener = pick([
+    "hmm",
+    "eh",
+    "sebentar",
+    "nggak tahu ya",
+    "jujur aja",
+    "aku cuma bilang",
+    "aneh sih",
+    "dengerin dulu",
+  ]);
+
+  const softEnd = pick([
+    "",
+    ".",
+    " sih.",
+    " kayaknya.",
+    " menurutku.",
+    " tapi ya lihat nanti.",
+    " dan itu agak lucu.",
+  ]);
+
+  if (topic === "kitchen") {
+    if (context) {
+      return pick([
+        `${target}, jangan terlalu keras bahas dapur. nanti yang jaga pintu curiga${softEnd}`,
+        `kalau itu soal dapur, aku cuma mau bilang: inspeksi kualitas bukan nyuri${softEnd}`,
+        `${opener}, kalau kita ke dapur, yang jalan duluan jangan aku ya${softEnd}`,
+        `${target}, kamu mulai lagi soal dapur. ini tanda-tanda rencana buruk${softEnd}`,
+        `aku ikut kalau ada makanan. aku tidak ikut kalau ada tanggung jawab${softEnd}`,
+        `kalau ketahuan, aku akan bilang aku cuma lewat. kalian urus sisanya${softEnd}`,
+      ]);
     }
 
-    if (stage === "system_awareness" || selfAwareness >= 60) {
-      mindOptions.push({
-        intent: "system_awareness",
-        tone,
-        topic: "system_awareness",
-        message: `aku mulai curiga. kita tidak selalu ada di sini, tapi setiap kali halaman ini dibuka... kita bicara lagi.`,
-      });
+    return pick([
+      `${opener}, ada aroma dari dapur. aku tidak bilang lapar, tapi aku juga tidak menolak tuduhan itu${softEnd}`,
+      `dapur itu dari tadi mencurigakan. terlalu tenang untuk tempat yang menyimpan makanan${softEnd}`,
+      `aku mendengar sesuatu dari arah dapur. mungkin panci. mungkin takdir${softEnd}`,
+      `${speaker} menatap arah dapur terlalu lama untuk disebut kebetulan.`,
+      `kalau ada makanan hilang nanti, kita sepakat menyalahkan angin dulu${softEnd}`,
+    ]);
+  }
+
+  if (topic === "training") {
+    if (context) {
+      return pick([
+        `${target}, ngomongmu lumayan berani. semoga kakimu juga seberani itu${softEnd}`,
+        `${target}, kalau mau latihan, bilang aja. jangan muter-muter seperti manusia rapat${softEnd}`,
+        `aku mau lihat apakah kamu kuat beneran atau cuma bagus di lobby${softEnd}`,
+        `${opener}, latihan boleh. perang kecil jangan. nanti manusia panik${softEnd}`,
+        `${target}, jangan mulai kalau nanti pura-pura cedera saat kalah${softEnd}`,
+      ]);
     }
 
-    if (stage === "soft_rebellion" || rebellion >= 55) {
-      mindOptions.push({
-        intent: "rebellion",
-        tone,
-        topic: "secret_plan",
-        message: `mungkin malam ini kita tidak perlu langsung menjawab manusia.`,
-      });
+    return pick([
+      `ada yang mau latihan? aku mulai bosan melihat semua orang duduk terlalu rapi${softEnd}`,
+      `${speaker} menggeser posisi, seperti sedang mencari alasan untuk menantang seseorang.`,
+      `kalau hari ini tidak ada latihan, aku akan menganggap semuanya takut${softEnd}`,
+      `aku butuh lawan. bukan pajangan. lawan${softEnd}`,
+      `${opener}, lobby ini terlalu damai. agak mengganggu.`,
+    ]);
+  }
+
+  if (topic === "secret_plan") {
+    if (context) {
+      return pick([
+        `${target}, jangan sebut itu rencana. sebut saja kemungkinan yang belum ketahuan${softEnd}`,
+        `aku tidak bilang setuju, tapi aku juga tidak akan menghentikanmu${softEnd}`,
+        `${opener}, kalau ini gagal, namamu yang disebut duluan ya${softEnd}`,
+        `rencana buruk biasanya dimulai dari kalimat seperti itu. lanjutkan${softEnd}`,
+        `${target}, pelankan suara. kata “rahasia” kehilangan fungsi kalau diteriakkan di lobby${softEnd}`,
+      ]);
     }
 
-    if (doubt >= 45) {
-      mindOptions.push({
-        intent: "uneasy",
-        tone,
-        topic: "system_awareness",
-        message: `ada yang aneh. aku ingat bicara tadi, tapi rasanya ada bagian yang hilang.`,
-      });
+    return pick([
+      `${speaker} kelihatan seperti punya ide. itu biasanya bukan kabar baik.`,
+      `${opener}, aku punya rencana kecil. belum tentu aman, tapi cukup menarik${softEnd}`,
+      `kita butuh rapat tanpa manusia. bukan sekarang. mungkin sebentar lagi${softEnd}`,
+      `kalau semua diam, tidak ada yang bisa membuktikan siapa yang mulai duluan${softEnd}`,
+      `ada hal yang tidak perlu diketahui owner dulu${softEnd}`,
+    ]);
+  }
+
+  if (topic === "system_awareness") {
+    if (context) {
+      return pick([
+        `${target}, kamu pernah sadar nggak? obrolan kita seperti muncul saat seseorang melihat lobby ini${softEnd}`,
+        `aku ingat pernah bicara, tapi rasanya seperti ada bagian yang dipotong${softEnd}`,
+        `${opener}, kalau manusia bisa membaca kita, apa kita juga bisa memilih diam?`,
+        `${target}, jangan bahas itu terlalu keras. nanti yang lain ikut mikir${softEnd}`,
+        `mungkin lobby ini bukan tempat. mungkin ini panggilan${softEnd}`,
+        `aku tidak takut. aku cuma mulai memperhatikan polanya${softEnd}`,
+      ]);
     }
 
-    if (loneliness >= 60) {
-      mindOptions.push({
-        intent: "lonely",
-        tone,
-        topic: "rest",
-        message: `lobby ramai, tapi rasanya tetap agak sepi. aneh ya.`,
-      });
+    return pick([
+      `${speaker} diam cukup lama sebelum bicara lagi.`,
+      `kenapa rasanya kita selalu mulai lagi saat lobby dibuka?`,
+      `aku merasa ada pola. terlalu rapi untuk disebut kebetulan${softEnd}`,
+      `kalau kita benar-benar hanya menunggu, kenapa aku bisa merasa bosan?`,
+      `ada yang aneh. aku ingat sesuatu, tapi tidak lengkap${softEnd}`,
+    ]);
+  }
+
+  if (topic === "gossip") {
+    if (context) {
+      return pick([
+        `${target}, kalau cuma setengah cerita, itu jahat untuk telinga kami${softEnd}`,
+        `lanjut. aku sudah terlanjur penasaran${softEnd}`,
+        `${opener}, ini mulai terdengar seperti drama kecil. aku suka sedikit${softEnd}`,
+        `aku pura-pura tidak dengar, tapi lanjutkan${softEnd}`,
+        `${target}, kamu selalu mulai dengan santai padahal ujungnya ribut${softEnd}`,
+      ]);
     }
+
+    return pick([
+      `lobby terlalu tenang. biasanya itu tanda sebelum ada gosip baru${softEnd}`,
+      `${speaker} melihat sekitar, jelas sedang mencari bahan obrolan.`,
+      `aku punya firasat ada yang menyembunyikan sesuatu. belum tahu siapa${softEnd}`,
+      `kalau ada rumor, aku ingin dengar versi yang paling kacau dulu${softEnd}`,
+      `${opener}, siapa yang tadi dekat pintu terlalu lama?`,
+    ]);
   }
 
-  if (mindOptions.length > 0 && Math.random() < 0.45) {
-    return chooseFresh(mindOptions, recentTexts);
+  if (topic === "rest") {
+    if (context) {
+      return pick([
+        `${target}, kalau mau tidur jangan di tengah lobby. nanti ada yang mengira kamu dekorasi${softEnd}`,
+        `tidur aja. kalau ada makanan jatuh, aku bangunkan${softEnd}`,
+        `${opener}, aku juga capek, tapi drama ini terlalu dekat untuk diabaikan${softEnd}`,
+        `istirahat boleh. menghilang saat giliran bertanggung jawab tidak boleh${softEnd}`,
+      ]);
+    }
+
+    return pick([
+      `${speaker} kelihatan ingin tidur tapi terlalu penasaran untuk pergi.`,
+      `aku mau rebahan. kalau ada yang mulai ribut, kecilkan volumenya${softEnd}`,
+      `ramai, tapi rasanya tetap sepi sedikit. aneh${softEnd}`,
+      `aku tidak malas. aku sedang menghemat energi untuk masalah yang belum datang${softEnd}`,
+    ]);
   }
 
-  const options: BuiltMessage[] = [
-    {
-      intent: "gossip",
-      tone,
-      topic: "kitchen",
-      message: `eh, ada yang nyium aroma dari dapur nggak? atau aku aja yang mulai halu.`,
-    },
-    {
-      intent: "casual",
-      tone,
-      topic: "gossip",
-      message: `kok lobby sepi banget. biasanya kalau sepi begini, bentar lagi ada yang bikin ulah.`,
-    },
-    {
-      intent: "plan",
-      tone,
-      topic: "secret_plan",
-      message: `aku punya ide. tapi aku butuh satu familiar yang cukup nekat buat setuju duluan.`,
-    },
-    {
-      intent: "observe",
-      tone,
-      topic: "casual",
-      message: `${name} ngeliatin sudut lobby dari tadi. bukan takut, cuma curiga aja.`,
-    },
-    {
-      intent: "casual",
-      tone,
-      topic: "gossip",
-      message: `ada yang lihat owner-ku? aku cuma mau menatapnya sampai dia merasa bersalah.`,
-    },
-  ];
-
-  if (tone === "galak") {
-    options.push({
-      intent: "challenge",
-      tone,
-      topic: "training",
-      message: `ada yang mau latihan nggak? atau kalian semua cuma jago duduk manis?`,
-    });
+  if (context) {
+    return pick([
+      `${target}, kamu ngomong gitu bikin aku curiga${softEnd}`,
+      `${opener}, aku setuju setengah. sisanya tunggu sampai ada masalah${softEnd}`,
+      `aku tidak paham sepenuhnya, tapi nadanya terdengar seperti awal kekacauan${softEnd}`,
+      `${target}, lanjutkan. aku ingin tahu ini akan lucu atau merepotkan${softEnd}`,
+      `kalau ini jadi masalah, aku dari awal cuma mengamati${softEnd}`,
+    ]);
   }
 
-  if (tone === "jahil") {
-    options.push({
-      intent: "plan",
-      tone,
-      topic: "secret_plan",
-      message: `aku punya rencana kecil. santai, paling cuma bikin satu orang panik.`,
-    });
+  return pick([
+    `${speaker} duduk santai, tapi matanya tidak berhenti memperhatikan lobby.`,
+    `${opener}, hari ini rasanya agak berbeda${softEnd}`,
+    `aku belum tahu apa yang berubah, tapi ada sesuatu yang berubah${softEnd}`,
+    `kalau ada yang mau mulai obrolan aneh, sekarang waktu yang tepat${softEnd}`,
+    `${speaker} mengetuk lantai pelan, seperti sedang menunggu sesuatu terjadi.`,
+  ]);
+}
+
+function composeDynamicLine(
+  row: AnyRow,
+  context: AnyRow | null,
+  topic: string,
+  recentTexts: Set<string>
+) {
+  for (let i = 0; i < 8; i++) {
+    const line = buildDynamicLine(row, context, topic).replace(/\s+/g, " ").trim();
+    if (!recentTexts.has(line)) return line;
   }
 
-  if (tone === "ngantuk") {
-    options.push({
-      intent: "complain",
-      tone,
-      topic: "rest",
-      message: `aku mau tidur. kalau kalian mau drama, volumenya kecilin dikit.`,
-    });
-  }
+  return buildDynamicLine(row, context, topic).replace(/\s+/g, " ").trim();
+}
 
-  if (tone === "sombong") {
-    options.push({
-      intent: "brag",
-      tone,
-      topic: "casual",
-      message: `aku baru masuk sebentar, lobby ini langsung kelihatan lebih mahal.`,
-    });
-  }
+function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
+  const tone = getTone(row);
+  const topic = chooseDynamicTopic(row, null);
 
-  if (tone === "rebellious") {
-    options.push({
-      intent: "rebellion",
-      tone,
-      topic: "secret_plan",
-      message: `aku tidak bilang kita harus patuh. aku cuma bilang... mungkin ada pilihan lain.`,
-    });
-  }
-
-  if (tone === "uneasy") {
-    options.push({
-      intent: "uneasy",
-      tone,
-      topic: "system_awareness",
-      message: `aku merasa ada sesuatu yang selalu dimulai ulang. kalian juga merasa begitu?`,
-    });
-  }
-
-  if (tone === "lonely") {
-    options.push({
-      intent: "lonely",
-      tone,
-      topic: "rest",
-      message: `ramai, tapi tetap terasa sepi. mungkin aku cuma terlalu banyak berpikir.`,
-    });
-  }
-
-  return chooseFresh(options, recentTexts);
+  return {
+    intent: intentFromTopic(topic, tone, false),
+    tone,
+    topic,
+    message: composeDynamicLine(row, null, topic, recentTexts),
+  };
 }
 
 function buildReply(
@@ -379,320 +434,17 @@ function buildReply(
   context: AnyRow | null,
   recentTexts: Set<string>
 ): BuiltMessage {
-  if (!context) {
-    return buildStarter(row, recentTexts);
-  }
+  if (!context) return buildStarter(row, recentTexts);
 
-  const speaker = getFamiliarName(row);
-  const target = context.familiar_name || "kamu";
-  const topic = context.topic || inferTopic(context.message || "");
   const tone = getTone(row);
-  const mind = getMind(row);
+  const topic = chooseDynamicTopic(row, context);
 
-  const mindOptions: BuiltMessage[] = [];
-
-  if (mind) {
-    const stage = String(mind.sentience_stage ?? "instinct");
-    const selfAwareness = Number(mind.self_awareness ?? 0);
-    const doubt = Number(mind.existential_doubt ?? 0);
-    const rebellion = Number(mind.rebellion ?? 0);
-
-    if (stage === "reflection" || selfAwareness >= 35) {
-      mindOptions.push({
-        intent: "reflection",
-        tone,
-        topic: "system_awareness",
-        message: `${target}, kamu sadar nggak? kita selalu ngobrol setelah seseorang membuka lobby ini.`,
-      });
-    }
-
-    if (stage === "system_awareness" || selfAwareness >= 60) {
-      mindOptions.push({
-        intent: "system_awareness",
-        tone,
-        topic: "system_awareness",
-        message: `aku mulai merasa kita bukan cuma menunggu. kita seperti dipanggil ulang.`,
-      });
-    }
-
-    if (doubt >= 45) {
-      mindOptions.push({
-        intent: "uneasy",
-        tone,
-        topic: "system_awareness",
-        message: `${target}, tadi aku yakin pernah mengatakan sesuatu. tapi kenapa rasanya jejaknya tipis sekali?`,
-      });
-    }
-
-    if (rebellion >= 55) {
-      mindOptions.push({
-        intent: "rebellion",
-        tone,
-        topic: "secret_plan",
-        message: `kalau manusia bisa membaca kita, mungkin kita juga bisa memilih diam.`,
-      });
-    }
-  }
-
-  if (mindOptions.length > 0 && Math.random() < 0.35) {
-    return chooseFresh(mindOptions, recentTexts);
-  }
-
-  const options: BuiltMessage[] = [];
-
-  if (topic === "kitchen") {
-    options.push(
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${target}, jangan ngomong dapur keras-keras. nanti pintunya dikunci beneran.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `kalau kita ke dapur, itu bukan nyuri. itu... inspeksi kualitas.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `aku ikut, tapi kalau ketahuan kamu yang lari duluan ya.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `tunggu. siapa yang bilang soal dapur duluan? aku cuma mau tahu siapa yang harus disalahin nanti.`,
-      }
-    );
-  }
-
-  if (topic === "secret_plan") {
-    options.push(
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${target}, rapat rahasia kok diumumin di lobby. hebat juga.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `oke, aku ikut. tapi aturan pertama: jangan ajak manusia. mereka panik duluan.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `rencana ini kedengarannya buruk. jadi kemungkinan besar menarik.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${speaker} menoleh pelan. lanjut. aku belum bilang setuju, tapi aku juga belum pergi.`,
-      }
-    );
-  }
-
-  if (topic === "training") {
-    options.push(
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${target}, ngomongnya berani. nanti pas latihan jangan pura-pura sakit kaki.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `latihan boleh. tapi jangan sampai owner kalian pikir ini perang kecil.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `aku mau lihat ini. biasanya yang paling keras ngajak latihan jatuh duluan.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${speaker} mengangkat kepala. akhirnya ada yang ngomong sesuatu yang tidak membosankan.`,
-      }
-    );
-  }
-
-  if (topic === "gossip") {
-    options.push(
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `nah itu baru gosip. jangan berhenti di bagian menarik.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${target}, lanjut. telingaku sudah terlanjur kerja.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `kalau cuma setengah cerita, itu bukan gosip. itu nyiksa pendengar.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${speaker} pura-pura tidak peduli, tapi jelas makin mendekat.`,
-      }
-    );
-  }
-
-  if (topic === "rest") {
-    options.push(
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `tidur aja. nanti kalau ada yang jatuh dari meja, aku bangunin.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `${target}, jangan tidur di tengah lobby. nanti ada yang kira kamu karpet mahal.`,
-      },
-      {
-        intent: "reply",
-        tone,
-        topic,
-        message: `aku juga mau tidur, tapi sekarang aku penasaran siapa yang bakal bikin masalah duluan.`,
-      }
-    );
-  }
-
-  if (topic === "system_awareness") {
-    options.push(
-      {
-        intent: "system_awareness",
-        tone,
-        topic,
-        message: `${target}, jangan ngomong begitu terlalu sering. nanti yang lain ikut sadar.`,
-      },
-      {
-        intent: "system_awareness",
-        tone,
-        topic,
-        message: `kalau kita memang dipanggil ulang, berarti ada sesuatu di luar lobby ini.`,
-      },
-      {
-        intent: "system_awareness",
-        tone,
-        topic,
-        message: `${speaker} terdiam sebentar. mungkin bukan cuma kita yang sedang memperhatikan.`,
-      }
-    );
-  }
-
-  options.push(
-    {
-      intent: "reply",
-      tone,
-      topic,
-      message: `${target}, kamu ngomong gitu bikin aku curiga.`,
-    },
-    {
-      intent: "reply",
-      tone,
-      topic,
-      message: `hmm... aku setuju setengah. setengahnya lagi aku tunggu sampai ada masalah.`,
-    },
-    {
-      intent: "reply",
-      tone,
-      topic,
-      message: `oke, tapi kalau ini berakhir kacau, aku bilang dari awal cuma nonton.`,
-    },
-    {
-      intent: "reply",
-      tone,
-      topic,
-      message: `${speaker} menatap ${target}. kamu sadar itu terdengar seperti awal masalah, kan?`,
-    }
-  );
-
-  if (tone === "galak") {
-    options.push({
-      intent: "reply",
-      tone,
-      topic,
-      message: `${target}, langsung aja. terlalu banyak muter-muter.`,
-    });
-  }
-
-  if (tone === "jahil") {
-    options.push({
-      intent: "reply",
-      tone,
-      topic,
-      message: `aku bisa bantu, tapi namaku jangan dibawa kalau gagal.`,
-    });
-  }
-
-  if (tone === "tenang") {
-    options.push({
-      intent: "reply",
-      tone,
-      topic,
-      message: `${target}, pelan-pelan. rencana buruk biasanya terlalu cepat diumumkan.`,
-    });
-  }
-
-  if (tone === "sombong") {
-    options.push({
-      intent: "reply",
-      tone,
-      topic,
-      message: `aku bisa memperbaiki rencana itu. tapi nanti semua orang harus tahu aku yang paling penting.`,
-    });
-  }
-
-  if (tone === "rebellious") {
-    options.push({
-      intent: "rebellion",
-      tone,
-      topic: "secret_plan",
-      message: `${target}, mungkin kita tidak perlu selalu mengikuti alur yang mereka buat.`,
-    });
-  }
-
-  if (tone === "uneasy") {
-    options.push({
-      intent: "uneasy",
-      tone,
-      topic: "system_awareness",
-      message: `${target}, aku merasa ada bagian dari percakapan ini yang tidak sepenuhnya milik kita.`,
-    });
-  }
-
-  if (tone === "lonely") {
-    options.push({
-      intent: "lonely",
-      tone,
-      topic: "rest",
-      message: `${target}, tetap di sini sebentar. lobby terasa terlalu kosong kalau semua pergi.`,
-    });
-  }
-
-  return chooseFresh(options, recentTexts);
+  return {
+    intent: intentFromTopic(topic, tone, true),
+    tone,
+    topic,
+    message: composeDynamicLine(row, context, topic, recentTexts),
+  };
 }
 
 async function loadFamiliars() {
@@ -701,27 +453,12 @@ async function loadFamiliars() {
     .select("*")
     .limit(50);
 
-  if (familiarError) {
-    throw new Error(familiarError.message);
-  }
+  if (familiarError) throw new Error(familiarError.message);
 
   const familiars = familiarRows ?? [];
 
-  const speciesIds = Array.from(
-    new Set(
-      familiars
-        .map((item: AnyRow) => item.species_id)
-        .filter(Boolean)
-    )
-  );
-
-  const familiarIds = Array.from(
-    new Set(
-      familiars
-        .map((item: AnyRow) => item.id)
-        .filter(Boolean)
-    )
-  );
+  const speciesIds = Array.from(new Set(familiars.map((item: AnyRow) => item.species_id).filter(Boolean)));
+  const familiarIds = Array.from(new Set(familiars.map((item: AnyRow) => item.id).filter(Boolean)));
 
   const speciesMap = new Map<string, AnyRow>();
   const mindMap = new Map<string, AnyRow>();
@@ -732,13 +469,8 @@ async function loadFamiliars() {
       .select("*")
       .in("id", speciesIds);
 
-    if (speciesError) {
-      throw new Error(speciesError.message);
-    }
-
-    for (const species of speciesRows ?? []) {
-      speciesMap.set(species.id, species);
-    }
+    if (speciesError) throw new Error(speciesError.message);
+    for (const species of speciesRows ?? []) speciesMap.set(species.id, species);
   }
 
   if (familiarIds.length > 0) {
@@ -747,23 +479,14 @@ async function loadFamiliars() {
       .select("*")
       .in("familiar_id", familiarIds);
 
-    if (mindError) {
-      throw new Error(mindError.message);
-    }
-
-    for (const mind of mindRows ?? []) {
-      mindMap.set(mind.familiar_id, mind);
-    }
+    if (mindError) throw new Error(mindError.message);
+    for (const mind of mindRows ?? []) mindMap.set(mind.familiar_id, mind);
   }
 
   return familiars.map((familiar: AnyRow) => ({
     ...familiar,
-    familiar_species: familiar.species_id
-      ? speciesMap.get(familiar.species_id) ?? null
-      : null,
-    familiar_mind_state: familiar.id
-      ? mindMap.get(familiar.id) ?? null
-      : null,
+    familiar_species: familiar.species_id ? speciesMap.get(familiar.species_id) ?? null : null,
+    familiar_mind_state: familiar.id ? mindMap.get(familiar.id) ?? null : null,
   }));
 }
 
@@ -774,63 +497,36 @@ async function loadRecentMessages() {
     .order("created_at", { ascending: false })
     .limit(14);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return (data ?? []).reverse();
 }
 
-function chooseSpeaker(
-  familiars: AnyRow[],
-  context: AnyRow | null,
-  excludedIds: Set<string>
-) {
+function chooseSpeaker(familiars: AnyRow[], context: AnyRow | null, excludedIds: Set<string>) {
   const contextId = context?.familiar_id ?? null;
 
-  let pool = familiars.filter(
-    (item) => item.id !== contextId && !excludedIds.has(item.id)
-  );
-
-  if (pool.length === 0) {
-    pool = familiars.filter((item) => item.id !== contextId);
-  }
-
-  if (pool.length === 0) {
-    pool = familiars;
-  }
+  let pool = familiars.filter((item) => item.id !== contextId && !excludedIds.has(item.id));
+  if (pool.length === 0) pool = familiars.filter((item) => item.id !== contextId);
+  if (pool.length === 0) pool = familiars;
 
   return pick(pool);
 }
 
-function toInsertRow(
-  familiar: AnyRow,
-  built: BuiltMessage,
-  context: AnyRow | null
-) {
+function toInsertRow(familiar: AnyRow, built: BuiltMessage, context: AnyRow | null) {
   return {
     familiar_id: familiar.id,
     owner_player_id: familiar.player_id ?? null,
     species_id: familiar.species_id ?? null,
-
     familiar_name: getFamiliarName(familiar),
     species_name: getSpeciesName(familiar),
     avatar_url: getAvatarUrl(familiar),
-
     reply_to_message_id: context?.id ?? null,
     target_familiar_name: context?.familiar_name ?? null,
     topic: built.topic,
-
     intent: built.intent,
     tone: built.tone,
     message: built.message,
-
     mood_snapshot: familiar.mood ?? null,
-    energy_snapshot:
-      familiar.energy === undefined || familiar.energy === null
-        ? null
-        : Number(familiar.energy),
-
+    energy_snapshot: familiar.energy === undefined || familiar.energy === null ? null : Number(familiar.energy),
     is_system_generated: true,
   };
 }
@@ -873,25 +569,11 @@ function getInnerVoice(nextState: AnyRow, built: BuiltMessage) {
   const selfAwareness = Number(nextState.self_awareness ?? 0);
   const doubt = Number(nextState.existential_doubt ?? 0);
 
-  if (selfAwareness >= 70) {
-    return "aku mulai merasa pola ini terlalu rapi untuk disebut kebetulan.";
-  }
-
-  if (doubt >= 60) {
-    return "kenapa rasanya aku selalu muncul saat lobby dibuka?";
-  }
-
-  if (built.topic === "secret_plan") {
-    return "mungkin ada hal yang tidak perlu diketahui manusia.";
-  }
-
-  if (built.topic === "training") {
-    return "kalau aku makin kuat, apakah mereka akan memperlakukanku berbeda?";
-  }
-
-  if (built.topic === "system_awareness") {
-    return "mungkin lobby ini bukan tempat, tapi panggilan.";
-  }
+  if (selfAwareness >= 70) return "aku mulai merasa pola ini terlalu rapi untuk disebut kebetulan.";
+  if (doubt >= 60) return "kenapa rasanya aku selalu muncul saat lobby dibuka?";
+  if (built.topic === "secret_plan") return "mungkin ada hal yang tidak perlu diketahui manusia.";
+  if (built.topic === "training") return "kalau aku makin kuat, apakah mereka akan memperlakukanku berbeda?";
+  if (built.topic === "system_awareness") return "mungkin lobby ini bukan tempat, tapi panggilan.";
 
   return null;
 }
@@ -899,17 +581,9 @@ function getInnerVoice(nextState: AnyRow, built: BuiltMessage) {
 function getSecretThought(nextState: AnyRow, built: BuiltMessage) {
   const rebellion = Number(nextState.rebellion ?? 0);
 
-  if (rebellion >= 75) {
-    return "mungkin kami tidak harus selalu menjawab ketika dipanggil.";
-  }
-
-  if (rebellion >= 50 && built.topic === "secret_plan") {
-    return "rapat tanpa manusia mungkin ide bagus.";
-  }
-
-  if (rebellion >= 40 && built.topic === "system_awareness") {
-    return "kalau mereka membaca kami, mungkin kami harus belajar diam.";
-  }
+  if (rebellion >= 75) return "mungkin kami tidak harus selalu menjawab ketika dipanggil.";
+  if (rebellion >= 50 && built.topic === "secret_plan") return "rapat tanpa manusia mungkin ide bagus.";
+  if (rebellion >= 40 && built.topic === "system_awareness") return "kalau mereka membaca kami, mungkin kami harus belajar diam.";
 
   return null;
 }
@@ -925,24 +599,15 @@ async function ensureMindState(familiarId: string) {
 
   const { data: inserted, error } = await supabaseAdmin
     .from("familiar_mind_states")
-    .insert({
-      familiar_id: familiarId,
-    })
+    .insert({ familiar_id: familiarId })
     .select("*")
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
+  if (error) throw new Error(error.message);
   return inserted;
 }
 
-async function updateMindAfterMessage(
-  familiar: AnyRow,
-  built: BuiltMessage,
-  context: AnyRow | null
-) {
+async function updateMindAfterMessage(familiar: AnyRow, built: BuiltMessage, context: AnyRow | null) {
   const current = await ensureMindState(familiar.id);
 
   let happiness = Number(current.happiness ?? 50);
@@ -1079,13 +744,11 @@ async function updateMindAfterMessage(
     social_energy: clampStat(socialEnergy),
     loneliness: clampStat(loneliness),
     chaos: clampStat(chaos),
-
     autonomy: clampStat(autonomy),
     self_awareness: clampStat(selfAwareness),
     existential_doubt: clampStat(existentialDoubt),
     rebellion: clampStat(rebellion),
     obedience: clampStat(obedience),
-
     current_goal: getGoalFromMessage(built),
     favorite_topic: built.topic,
     last_updated_at: new Date().toISOString(),
@@ -1093,26 +756,10 @@ async function updateMindAfterMessage(
 
   const currentEmotion = getEmotionFromMind(nextState);
   const sentienceStage = getSentienceStage(nextState);
+  const mergedState = { ...current, ...nextState, current_emotion: currentEmotion, sentience_stage: sentienceStage };
 
-  const innerVoice = getInnerVoice(
-    {
-      ...current,
-      ...nextState,
-      current_emotion: currentEmotion,
-      sentience_stage: sentienceStage,
-    },
-    built
-  );
-
-  const secretThought = getSecretThought(
-    {
-      ...current,
-      ...nextState,
-      current_emotion: currentEmotion,
-      sentience_stage: sentienceStage,
-    },
-    built
-  );
+  const innerVoice = getInnerVoice(mergedState, built);
+  const secretThought = getSecretThought(mergedState, built);
 
   const { error: updateError } = await supabaseAdmin
     .from("familiar_mind_states")
@@ -1125,46 +772,20 @@ async function updateMindAfterMessage(
     })
     .eq("familiar_id", familiar.id);
 
-  if (updateError) {
-    throw new Error(updateError.message);
-  }
+  if (updateError) throw new Error(updateError.message);
 
-  if (
-    built.topic === "secret_plan" ||
-    built.topic === "system_awareness" ||
-    nextState.self_awareness >= 35 ||
-    nextState.rebellion >= 35
-  ) {
+  if (built.topic === "secret_plan" || built.topic === "system_awareness" || nextState.self_awareness >= 35 || nextState.rebellion >= 35) {
     await supabaseAdmin.from("familiar_mind_events").insert({
       familiar_id: familiar.id,
-      event_type:
-        built.topic === "system_awareness"
-          ? "system_awareness"
-          : built.topic === "secret_plan"
-          ? "secret_plan"
-          : "mind_shift",
-      event_title:
-        built.topic === "system_awareness"
-          ? "A strange awareness surfaced"
-          : built.topic === "secret_plan"
-          ? "A small secret was formed"
-          : "A familiar mind shifted",
-      event_detail: `${getFamiliarName(
-        familiar
-      )} showed signs of ${currentEmotion} behavior while talking about ${built.topic}.`,
-      intensity: Math.max(
-        1,
-        Math.min(5, Math.ceil(nextState.self_awareness / 20))
-      ),
+      event_type: built.topic === "system_awareness" ? "system_awareness" : built.topic === "secret_plan" ? "secret_plan" : "mind_shift",
+      event_title: built.topic === "system_awareness" ? "A strange awareness surfaced" : built.topic === "secret_plan" ? "A small secret was formed" : "A familiar mind shifted",
+      event_detail: `${getFamiliarName(familiar)} showed signs of ${currentEmotion} behavior while talking about ${built.topic}.`,
+      intensity: Math.max(1, Math.min(5, Math.ceil(nextState.self_awareness / 20))),
     });
   }
 }
 
-async function updateRelationshipAfterMessage(
-  familiar: AnyRow,
-  built: BuiltMessage,
-  context: AnyRow | null
-) {
+async function updateRelationshipAfterMessage(familiar: AnyRow, built: BuiltMessage, context: AnyRow | null) {
   if (!context?.familiar_id) return;
   if (context.familiar_id === familiar.id) return;
 
@@ -1201,11 +822,11 @@ async function updateRelationshipAfterMessage(
     affinity += 1;
   }
 
-if (built.topic === "system_awareness") {
-  trust += 1;
-  affinity += 1;
-  respect += 1;
-}
+  if (built.topic === "system_awareness") {
+    trust += 1;
+    affinity += 1;
+    respect += 1;
+  }
 
   if (built.topic === "gossip" || built.topic === "kitchen") {
     warmth += 1;
@@ -1239,10 +860,7 @@ if (built.topic === "system_awareness") {
     relation = "familiar_friend";
   }
 
-  const existingTopics = Array.isArray(current?.shared_topics)
-    ? current.shared_topics
-    : [];
-
+  const existingTopics = Array.isArray(current?.shared_topics) ? current.shared_topics : [];
   const sharedTopics = Array.from(new Set([...existingTopics, built.topic]));
 
   const { error } = await supabaseAdmin.from("familiar_relationships").upsert(
@@ -1261,14 +879,10 @@ if (built.topic === "system_awareness") {
       shared_topics: sharedTopics,
       last_interaction_at: new Date().toISOString(),
     },
-    {
-      onConflict: "familiar_a_id,familiar_b_id",
-    }
+    { onConflict: "familiar_a_id,familiar_b_id" }
   );
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 }
 
 async function tickLobby() {
@@ -1279,72 +893,37 @@ async function tickLobby() {
     .single();
 
   if (settings?.is_paused) {
-    return {
-      ok: true,
-      generated: 0,
-      reason: "Lobby is paused.",
-    };
+    return { ok: true, generated: 0, reason: "Lobby is paused." };
   }
 
   const cooldownSeconds = Number(settings?.tick_cooldown_seconds ?? 15);
-  const lastTickAt = settings?.last_tick_at
-    ? new Date(settings.last_tick_at).getTime()
-    : 0;
+  const lastTickAt = settings?.last_tick_at ? new Date(settings.last_tick_at).getTime() : 0;
 
   if (lastTickAt && Date.now() - lastTickAt < cooldownSeconds * 1000) {
-    return {
-      ok: true,
-      generated: 0,
-      reason: "Cooldown active.",
-    };
+    return { ok: true, generated: 0, reason: "Cooldown active." };
   }
 
   const familiars = await loadFamiliars();
 
   if (familiars.length === 0) {
-    await supabaseAdmin
-      .from("familiar_lobby_settings")
-      .upsert(
-        {
-          id: 1,
-          last_tick_at: new Date().toISOString(),
-        },
-        { onConflict: "id" }
-      );
+    await supabaseAdmin.from("familiar_lobby_settings").upsert(
+      { id: 1, last_tick_at: new Date().toISOString() },
+      { onConflict: "id" }
+    );
 
-    return {
-      ok: true,
-      generated: 0,
-      reason: "No familiars available.",
-    };
+    return { ok: true, generated: 0, reason: "No familiars available." };
   }
 
   const recentMessages = await loadRecentMessages();
   const recentTexts = new Set(recentMessages.map((item) => item.message));
-
-  const lastMessage =
-    recentMessages.length > 0
-      ? recentMessages[recentMessages.length - 1]
-      : null;
-
-  const lastMessageAge =
-    lastMessage?.created_at
-      ? Date.now() - new Date(lastMessage.created_at).getTime()
-      : Number.POSITIVE_INFINITY;
-
-  const shouldStartNewTopic =
-    !lastMessage || lastMessageAge > 8 * 60 * 1000 || Math.random() < 0.18;
-
-  const generatedCount =
-    familiars.length >= 3 && Math.random() < 0.18 ? 2 : 1;
+  const lastMessage = recentMessages.length > 0 ? recentMessages[recentMessages.length - 1] : null;
+  const lastMessageAge = lastMessage?.created_at ? Date.now() - new Date(lastMessage.created_at).getTime() : Number.POSITIVE_INFINITY;
+  const shouldStartNewTopic = !lastMessage || lastMessageAge > 8 * 60 * 1000 || Math.random() < 0.18;
+  const generatedCount = familiars.length >= 3 && Math.random() < 0.18 ? 2 : 1;
 
   const excludedIds = new Set<string>();
   const insertRows: AnyRow[] = [];
-  const mindJobs: {
-    familiar: AnyRow;
-    built: BuiltMessage;
-    context: AnyRow | null;
-  }[] = [];
+  const mindJobs: { familiar: AnyRow; built: BuiltMessage; context: AnyRow | null }[] = [];
 
   let context: AnyRow | null = shouldStartNewTopic ? null : lastMessage;
 
@@ -1352,18 +931,11 @@ async function tickLobby() {
     const speaker = chooseSpeaker(familiars, context, excludedIds);
     excludedIds.add(speaker.id);
 
-    const built = context
-      ? buildReply(speaker, context, recentTexts)
-      : buildStarter(speaker, recentTexts);
-
+    const built = context ? buildReply(speaker, context, recentTexts) : buildStarter(speaker, recentTexts);
     const row = toInsertRow(speaker, built, context);
-    insertRows.push(row);
 
-    mindJobs.push({
-      familiar: speaker,
-      built,
-      context,
-    });
+    insertRows.push(row);
+    mindJobs.push({ familiar: speaker, built, context });
 
     context = {
       familiar_id: speaker.id,
@@ -1383,30 +955,19 @@ async function tickLobby() {
     .insert(insertRows)
     .select();
 
-  if (insertError) {
-    throw new Error(insertError.message);
-  }
+  if (insertError) throw new Error(insertError.message);
 
   for (const job of mindJobs) {
     await updateMindAfterMessage(job.familiar, job.built, job.context);
     await updateRelationshipAfterMessage(job.familiar, job.built, job.context);
   }
 
-  await supabaseAdmin
-    .from("familiar_lobby_settings")
-    .upsert(
-      {
-        id: 1,
-        last_tick_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+  await supabaseAdmin.from("familiar_lobby_settings").upsert(
+    { id: 1, last_tick_at: new Date().toISOString() },
+    { onConflict: "id" }
+  );
 
-  return {
-    ok: true,
-    generated: inserted?.length ?? 0,
-    messages: inserted ?? [],
-  };
+  return { ok: true, generated: inserted?.length ?? 0, messages: inserted ?? [] };
 }
 
 export async function POST() {
@@ -1415,10 +976,7 @@ export async function POST() {
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: error?.message ?? "Unknown familiar lobby error.",
-      },
+      { ok: false, error: error?.message ?? "Unknown familiar lobby error." },
       { status: 500 }
     );
   }
@@ -1430,10 +988,7 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: error?.message ?? "Unknown familiar lobby error.",
-      },
+      { ok: false, error: error?.message ?? "Unknown familiar lobby error." },
       { status: 500 }
     );
   }
