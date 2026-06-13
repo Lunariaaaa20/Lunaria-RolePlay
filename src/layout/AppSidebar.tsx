@@ -57,7 +57,11 @@ const guildMenu: NavItem[] = [
   href: "/familiar-encounter",
   icon: <MoonSparkIcon />,
 },
-
+{
+  name: "Familiar Lobby",
+  href: "/familiar-lobby",
+  icon: <MoonSparkIcon />,
+},
   {
   name: "Familiar Grant",
   href: "/familiar-grant",
