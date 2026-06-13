@@ -70,6 +70,8 @@ type PlayerFamiliar = {
   mood: number;
   energy: number;
   bond_xp: number;
+ bond_rank: string;
+hidden_potential: number;
   personality: string;
   relationship_status: string;
   desire: string;
@@ -355,7 +357,7 @@ export default function MoonFamiliarPage() {
 
                 <div className="relative z-10">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Tag tone="amber">{familiar.familiar_species.rarity}</Tag>
+                    <Tag tone="amber">{familiar.bond_rank || "Common"} Bond</Tag>
                     <Tag tone="sky">{familiar.familiar_species.role}</Tag>
                     <Tag tone="violet">
                       Stage {familiar.stage} — {getStageName(familiar)}
@@ -471,7 +473,11 @@ export default function MoonFamiliarPage() {
                 </p>
 
                 <div className="mt-4 grid grid-cols-1 gap-3">
-                  <InfoLine label="Personality" value={familiar.personality} />
+  <InfoLine
+    label="Bond Rank"
+    value={`${familiar.bond_rank || "Common"} Bond`}
+  />
+  <InfoLine label="Personality" value={familiar.personality} />
                   <InfoLine
                     label="Relationship"
                     value={familiar.relationship_status}
