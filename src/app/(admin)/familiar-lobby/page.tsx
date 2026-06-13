@@ -277,14 +277,7 @@ export default function FamiliarLobbyPage() {
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-200">
                       {item.message}
                     </p>
-
-                    <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                      <span>Intent: {item.intent}</span>
-                      {item.mood_snapshot && <span>• Mood: {item.mood_snapshot}</span>}
-                      {item.energy_snapshot !== null && (
-                        <span>• Energy: {item.energy_snapshot}</span>
-                      )}
-                    </div>
+                    
                   </div>
                 </div>
               </article>
