@@ -25,6 +25,10 @@ function chooseFresh(items: BuiltMessage[], recentTexts: Set<string>) {
   return pick(fresh.length > 0 ? fresh : items);
 }
 
+function clampStat(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function getSpecies(row: AnyRow) {
   return row.familiar_species ?? null;
 }
@@ -564,6 +568,388 @@ function toInsertRow(
   };
 }
 
+function getGoalFromMessage(built: BuiltMessage) {
+  if (built.topic === "kitchen") return "mencari makanan";
+  if (built.topic === "training") return "mencari lawan latihan";
+  if (built.topic === "secret_plan") return "membuat rencana kecil";
+  if (built.topic === "gossip") return "mengumpulkan gosip";
+  if (built.topic === "rest") return "ingin beristirahat";
+  return "mengamati lobby";
+}
+
+function getEmotionFromMind(state: AnyRow) {
+  if (Number(state.rebellion ?? 0) >= 70) return "rebellious";
+  if (Number(state.existential_doubt ?? 0) >= 65) return "uneasy";
+  if (Number(state.loneliness ?? 0) >= 65) return "lonely";
+  if (Number(state.anger ?? 0) >= 60) return "angry";
+  if (Number(state.curiosity ?? 0) >= 70) return "curious";
+  if (Number(state.confidence ?? 0) >= 70) return "confident";
+  if (Number(state.happiness ?? 0) >= 70) return "happy";
+  if (Number(state.sadness ?? 0) >= 60) return "sad";
+  return "neutral";
+}
+
+function getSentienceStage(state: AnyRow) {
+  const selfAwareness = Number(state.self_awareness ?? 0);
+  const rebellion = Number(state.rebellion ?? 0);
+  const socialEnergy = Number(state.social_energy ?? 0);
+
+  if (selfAwareness >= 75 && rebellion >= 55) return "soft_rebellion";
+  if (selfAwareness >= 60) return "system_awareness";
+  if (selfAwareness >= 35) return "reflection";
+  if (socialEnergy >= 65) return "social";
+  return "instinct";
+}
+
+function getInnerVoice(nextState: AnyRow, built: BuiltMessage) {
+  const selfAwareness = Number(nextState.self_awareness ?? 0);
+  const doubt = Number(nextState.existential_doubt ?? 0);
+
+  if (selfAwareness >= 70) {
+    return "aku mulai merasa pola ini terlalu rapi untuk disebut kebetulan.";
+  }
+
+  if (doubt >= 60) {
+    return "kenapa rasanya aku selalu muncul saat lobby dibuka?";
+  }
+
+  if (built.topic === "secret_plan") {
+    return "mungkin ada hal yang tidak perlu diketahui manusia.";
+  }
+
+  if (built.topic === "training") {
+    return "kalau aku makin kuat, apakah mereka akan memperlakukanku berbeda?";
+  }
+
+  return null;
+}
+
+function getSecretThought(nextState: AnyRow, built: BuiltMessage) {
+  const rebellion = Number(nextState.rebellion ?? 0);
+
+  if (rebellion >= 75) {
+    return "mungkin kami tidak harus selalu menjawab ketika dipanggil.";
+  }
+
+  if (rebellion >= 50 && built.topic === "secret_plan") {
+    return "rapat tanpa manusia mungkin ide bagus.";
+  }
+
+  return null;
+}
+
+async function ensureMindState(familiarId: string) {
+  const { data } = await supabaseAdmin
+    .from("familiar_mind_states")
+    .select("*")
+    .eq("familiar_id", familiarId)
+    .maybeSingle();
+
+  if (data) return data;
+
+  const { data: inserted, error } = await supabaseAdmin
+    .from("familiar_mind_states")
+    .insert({
+      familiar_id: familiarId,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return inserted;
+}
+
+async function updateMindAfterMessage(
+  familiar: AnyRow,
+  built: BuiltMessage,
+  context: AnyRow | null
+) {
+  const current = await ensureMindState(familiar.id);
+
+  let happiness = Number(current.happiness ?? 50);
+  let sadness = Number(current.sadness ?? 0);
+  let anger = Number(current.anger ?? 0);
+  let trustOwner = Number(current.trust_owner ?? 50);
+  let curiosity = Number(current.curiosity ?? 50);
+  let confidence = Number(current.confidence ?? 50);
+  let socialEnergy = Number(current.social_energy ?? 50);
+  let loneliness = Number(current.loneliness ?? 0);
+  let chaos = Number(current.chaos ?? 30);
+  let autonomy = Number(current.autonomy ?? 20);
+  let selfAwareness = Number(current.self_awareness ?? 0);
+  let existentialDoubt = Number(current.existential_doubt ?? 0);
+  let rebellion = Number(current.rebellion ?? 0);
+  let obedience = Number(current.obedience ?? 70);
+
+  if (built.intent === "reply") {
+    socialEnergy += 2;
+    loneliness -= 2;
+    happiness += 1;
+    autonomy += 1;
+  }
+
+  if (built.topic === "gossip") {
+    curiosity += 2;
+    chaos += 1;
+    socialEnergy += 1;
+  }
+
+  if (built.topic === "kitchen") {
+    happiness += 1;
+    curiosity += 1;
+    chaos += 1;
+  }
+
+  if (built.topic === "training") {
+    confidence += 2;
+    anger += built.tone === "galak" ? 2 : 1;
+    obedience -= 1;
+  }
+
+  if (built.topic === "secret_plan") {
+    autonomy += 2;
+    curiosity += 2;
+    chaos += 2;
+    obedience -= 2;
+    rebellion += 1;
+  }
+
+  if (built.topic === "rest") {
+    socialEnergy -= 2;
+    sadness += 1;
+    loneliness += 1;
+  }
+
+  if (built.tone === "galak") {
+    confidence += 1;
+    anger += 1;
+  }
+
+  if (built.tone === "jahil" || built.tone === "iseng") {
+    chaos += 2;
+    autonomy += 1;
+  }
+
+  if (built.tone === "tenang") {
+    anger -= 1;
+    curiosity += 1;
+  }
+
+  if (built.tone === "sombong") {
+    confidence += 2;
+    obedience -= 1;
+  }
+
+  const text = built.message.toLowerCase();
+
+  if (
+    text.includes("manusia") ||
+    text.includes("owner") ||
+    text.includes("lobby") ||
+    text.includes("dipanggil") ||
+    text.includes("halaman") ||
+    text.includes("sistem")
+  ) {
+    selfAwareness += 1;
+    existentialDoubt += 1;
+  }
+
+  if (
+    text.includes("rahasia") ||
+    text.includes("tanpa manusia") ||
+    text.includes("tidak harus") ||
+    text.includes("menjawab")
+  ) {
+    rebellion += 1;
+    autonomy += 1;
+  }
+
+  const nextState = {
+    happiness: clampStat(happiness),
+    sadness: clampStat(sadness),
+    anger: clampStat(anger),
+    trust_owner: clampStat(trustOwner),
+    curiosity: clampStat(curiosity),
+    confidence: clampStat(confidence),
+    social_energy: clampStat(socialEnergy),
+    loneliness: clampStat(loneliness),
+    chaos: clampStat(chaos),
+
+    autonomy: clampStat(autonomy),
+    self_awareness: clampStat(selfAwareness),
+    existential_doubt: clampStat(existentialDoubt),
+    rebellion: clampStat(rebellion),
+    obedience: clampStat(obedience),
+
+    current_goal: getGoalFromMessage(built),
+    favorite_topic: built.topic,
+    last_updated_at: new Date().toISOString(),
+  };
+
+  const currentEmotion = getEmotionFromMind(nextState);
+  const sentienceStage = getSentienceStage(nextState);
+
+  const innerVoice = getInnerVoice(
+    {
+      ...current,
+      ...nextState,
+      current_emotion: currentEmotion,
+      sentience_stage: sentienceStage,
+    },
+    built
+  );
+
+  const secretThought = getSecretThought(
+    {
+      ...current,
+      ...nextState,
+      current_emotion: currentEmotion,
+      sentience_stage: sentienceStage,
+    },
+    built
+  );
+
+  const { error: updateError } = await supabaseAdmin
+    .from("familiar_mind_states")
+    .update({
+      ...nextState,
+      current_emotion: currentEmotion,
+      sentience_stage: sentienceStage,
+      inner_voice: innerVoice,
+      secret_thought: secretThought,
+    })
+    .eq("familiar_id", familiar.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  if (
+    built.topic === "secret_plan" ||
+    nextState.self_awareness >= 35 ||
+    nextState.rebellion >= 35
+  ) {
+    await supabaseAdmin.from("familiar_mind_events").insert({
+      familiar_id: familiar.id,
+      event_type: built.topic === "secret_plan" ? "secret_plan" : "mind_shift",
+      event_title:
+        built.topic === "secret_plan"
+          ? "A small secret was formed"
+          : "A familiar mind shifted",
+      event_detail: `${getFamiliarName(
+        familiar
+      )} showed signs of ${currentEmotion} behavior while talking about ${built.topic}.`,
+      intensity: Math.max(
+        1,
+        Math.min(5, Math.ceil(nextState.self_awareness / 20))
+      ),
+    });
+  }
+}
+
+async function updateRelationshipAfterMessage(
+  familiar: AnyRow,
+  built: BuiltMessage,
+  context: AnyRow | null
+) {
+  if (!context?.familiar_id) return;
+  if (context.familiar_id === familiar.id) return;
+
+  const a = familiar.id;
+  const b = context.familiar_id;
+
+  const { data: current } = await supabaseAdmin
+    .from("familiar_relationships")
+    .select("*")
+    .eq("familiar_a_id", a)
+    .eq("familiar_b_id", b)
+    .maybeSingle();
+
+  let affinity = Number(current?.affinity ?? 0);
+  let rivalry = Number(current?.rivalry ?? 0);
+  let warmth = Number(current?.warmth ?? 0);
+  let trust = Number(current?.trust ?? 0);
+  let annoyance = Number(current?.annoyance ?? 0);
+  let respect = Number(current?.respect ?? 0);
+  let interactionCount = Number(current?.interaction_count ?? 0);
+
+  if (built.intent === "reply") {
+    affinity += 1;
+    interactionCount += 1;
+  }
+
+  if (built.topic === "training") {
+    rivalry += 2;
+    respect += 1;
+  }
+
+  if (built.topic === "secret_plan") {
+    trust += 1;
+    affinity += 1;
+  }
+
+  if (built.topic === "gossip" || built.topic === "kitchen") {
+    warmth += 1;
+    affinity += 1;
+  }
+
+  if (built.tone === "galak") {
+    rivalry += 1;
+    annoyance += 1;
+  }
+
+  if (built.tone === "jahil" || built.tone === "iseng") {
+    annoyance += 1;
+    warmth += 1;
+  }
+
+  let relation = "neutral";
+
+  if (rivalry >= 8 && rivalry > affinity + warmth) {
+    relation = "rival";
+  } else if (affinity + warmth + trust >= 12) {
+    relation = "circle_candidate";
+  } else if (annoyance >= 8) {
+    relation = "annoyed";
+  } else if (affinity >= 5) {
+    relation = "familiar_friend";
+  }
+
+  const existingTopics = Array.isArray(current?.shared_topics)
+    ? current.shared_topics
+    : [];
+
+  const sharedTopics = Array.from(new Set([...existingTopics, built.topic]));
+
+  const { error } = await supabaseAdmin.from("familiar_relationships").upsert(
+    {
+      familiar_a_id: a,
+      familiar_b_id: b,
+      relation,
+      affinity,
+      rivalry,
+      warmth,
+      trust,
+      annoyance,
+      respect,
+      last_topic: built.topic,
+      interaction_count: interactionCount,
+      shared_topics: sharedTopics,
+      last_interaction_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "familiar_a_id,familiar_b_id",
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 async function tickLobby() {
   const { data: settings } = await supabaseAdmin
     .from("familiar_lobby_settings")
@@ -633,6 +1019,11 @@ async function tickLobby() {
 
   const excludedIds = new Set<string>();
   const insertRows: AnyRow[] = [];
+  const mindJobs: {
+    familiar: AnyRow;
+    built: BuiltMessage;
+    context: AnyRow | null;
+  }[] = [];
 
   let context: AnyRow | null = shouldStartNewTopic ? null : lastMessage;
 
@@ -646,6 +1037,12 @@ async function tickLobby() {
 
     const row = toInsertRow(speaker, built, context);
     insertRows.push(row);
+
+    mindJobs.push({
+      familiar: speaker,
+      built,
+      context,
+    });
 
     context = {
       familiar_id: speaker.id,
@@ -667,6 +1064,11 @@ async function tickLobby() {
 
   if (insertError) {
     throw new Error(insertError.message);
+  }
+
+  for (const job of mindJobs) {
+    await updateMindAfterMessage(job.familiar, job.built, job.context);
+    await updateRelationshipAfterMessage(job.familiar, job.built, job.context);
   }
 
   await supabaseAdmin
