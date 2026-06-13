@@ -36,6 +36,7 @@ const PLAYER_ALLOWED_ROUTES = [
   "/economy-archive",
   "/familiar",
   "/familiar-encounter",
+  "/familiar-lobby",
   "/player-guide",
   "/fortune-game",
 ];
