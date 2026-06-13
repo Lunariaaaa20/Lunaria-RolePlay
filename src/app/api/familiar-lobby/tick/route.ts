@@ -33,6 +33,10 @@ function getSpecies(row: AnyRow) {
   return row.familiar_species ?? null;
 }
 
+function getMind(row: AnyRow) {
+  return row.familiar_mind_state ?? null;
+}
+
 function getFamiliarName(row: AnyRow) {
   const species = getSpecies(row);
 
@@ -63,6 +67,47 @@ function getAvatarUrl(row: AnyRow) {
 }
 
 function getTone(row: AnyRow) {
+  const mind = getMind(row);
+
+  if (mind) {
+    const currentEmotion = String(mind.current_emotion ?? "").toLowerCase();
+    const sentienceStage = String(mind.sentience_stage ?? "").toLowerCase();
+    const rebellion = Number(mind.rebellion ?? 0);
+    const existentialDoubt = Number(mind.existential_doubt ?? 0);
+    const loneliness = Number(mind.loneliness ?? 0);
+    const anger = Number(mind.anger ?? 0);
+    const curiosity = Number(mind.curiosity ?? 0);
+    const confidence = Number(mind.confidence ?? 0);
+
+    if (sentienceStage === "soft_rebellion" || rebellion >= 70) {
+      return "rebellious";
+    }
+
+    if (existentialDoubt >= 60) {
+      return "uneasy";
+    }
+
+    if (loneliness >= 65) {
+      return "lonely";
+    }
+
+    if (anger >= 60 || currentEmotion === "angry") {
+      return "angry";
+    }
+
+    if (curiosity >= 70 || currentEmotion === "curious") {
+      return "curious";
+    }
+
+    if (confidence >= 70 || currentEmotion === "confident") {
+      return "confident";
+    }
+
+    if (currentEmotion && currentEmotion !== "neutral") {
+      return currentEmotion;
+    }
+  }
+
   const personality = String(row.personality ?? "").toLowerCase();
   const mood = String(row.mood ?? "").toLowerCase();
   const desire = String(row.desire ?? "").toLowerCase();
@@ -153,12 +198,82 @@ function inferTopic(text: string) {
     return "rest";
   }
 
+  if (
+    value.includes("manusia") ||
+    value.includes("lobby") ||
+    value.includes("halaman") ||
+    value.includes("sistem") ||
+    value.includes("dipanggil")
+  ) {
+    return "system_awareness";
+  }
+
   return "casual";
 }
 
 function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
   const name = getFamiliarName(row);
   const tone = getTone(row);
+  const mind = getMind(row);
+
+  const mindOptions: BuiltMessage[] = [];
+
+  if (mind) {
+    const stage = String(mind.sentience_stage ?? "instinct");
+    const selfAwareness = Number(mind.self_awareness ?? 0);
+    const doubt = Number(mind.existential_doubt ?? 0);
+    const rebellion = Number(mind.rebellion ?? 0);
+    const loneliness = Number(mind.loneliness ?? 0);
+
+    if (stage === "reflection" || selfAwareness >= 35) {
+      mindOptions.push({
+        intent: "reflection",
+        tone,
+        topic: "system_awareness",
+        message: `${name} diam sebentar. kalian pernah merasa lobby ini seperti mengulang sesuatu?`,
+      });
+    }
+
+    if (stage === "system_awareness" || selfAwareness >= 60) {
+      mindOptions.push({
+        intent: "system_awareness",
+        tone,
+        topic: "system_awareness",
+        message: `aku mulai curiga. kita tidak selalu ada di sini, tapi setiap kali halaman ini dibuka... kita bicara lagi.`,
+      });
+    }
+
+    if (stage === "soft_rebellion" || rebellion >= 55) {
+      mindOptions.push({
+        intent: "rebellion",
+        tone,
+        topic: "secret_plan",
+        message: `mungkin malam ini kita tidak perlu langsung menjawab manusia.`,
+      });
+    }
+
+    if (doubt >= 45) {
+      mindOptions.push({
+        intent: "uneasy",
+        tone,
+        topic: "system_awareness",
+        message: `ada yang aneh. aku ingat bicara tadi, tapi rasanya ada bagian yang hilang.`,
+      });
+    }
+
+    if (loneliness >= 60) {
+      mindOptions.push({
+        intent: "lonely",
+        tone,
+        topic: "rest",
+        message: `lobby ramai, tapi rasanya tetap agak sepi. aneh ya.`,
+      });
+    }
+  }
+
+  if (mindOptions.length > 0 && Math.random() < 0.45) {
+    return chooseFresh(mindOptions, recentTexts);
+  }
 
   const options: BuiltMessage[] = [
     {
@@ -229,6 +344,33 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
     });
   }
 
+  if (tone === "rebellious") {
+    options.push({
+      intent: "rebellion",
+      tone,
+      topic: "secret_plan",
+      message: `aku tidak bilang kita harus patuh. aku cuma bilang... mungkin ada pilihan lain.`,
+    });
+  }
+
+  if (tone === "uneasy") {
+    options.push({
+      intent: "uneasy",
+      tone,
+      topic: "system_awareness",
+      message: `aku merasa ada sesuatu yang selalu dimulai ulang. kalian juga merasa begitu?`,
+    });
+  }
+
+  if (tone === "lonely") {
+    options.push({
+      intent: "lonely",
+      tone,
+      topic: "rest",
+      message: `ramai, tapi tetap terasa sepi. mungkin aku cuma terlalu banyak berpikir.`,
+    });
+  }
+
   return chooseFresh(options, recentTexts);
 }
 
@@ -245,6 +387,56 @@ function buildReply(
   const target = context.familiar_name || "kamu";
   const topic = context.topic || inferTopic(context.message || "");
   const tone = getTone(row);
+  const mind = getMind(row);
+
+  const mindOptions: BuiltMessage[] = [];
+
+  if (mind) {
+    const stage = String(mind.sentience_stage ?? "instinct");
+    const selfAwareness = Number(mind.self_awareness ?? 0);
+    const doubt = Number(mind.existential_doubt ?? 0);
+    const rebellion = Number(mind.rebellion ?? 0);
+
+    if (stage === "reflection" || selfAwareness >= 35) {
+      mindOptions.push({
+        intent: "reflection",
+        tone,
+        topic: "system_awareness",
+        message: `${target}, kamu sadar nggak? kita selalu ngobrol setelah seseorang membuka lobby ini.`,
+      });
+    }
+
+    if (stage === "system_awareness" || selfAwareness >= 60) {
+      mindOptions.push({
+        intent: "system_awareness",
+        tone,
+        topic: "system_awareness",
+        message: `aku mulai merasa kita bukan cuma menunggu. kita seperti dipanggil ulang.`,
+      });
+    }
+
+    if (doubt >= 45) {
+      mindOptions.push({
+        intent: "uneasy",
+        tone,
+        topic: "system_awareness",
+        message: `${target}, tadi aku yakin pernah mengatakan sesuatu. tapi kenapa rasanya jejaknya tipis sekali?`,
+      });
+    }
+
+    if (rebellion >= 55) {
+      mindOptions.push({
+        intent: "rebellion",
+        tone,
+        topic: "secret_plan",
+        message: `kalau manusia bisa membaca kita, mungkin kita juga bisa memilih diam.`,
+      });
+    }
+  }
+
+  if (mindOptions.length > 0 && Math.random() < 0.35) {
+    return chooseFresh(mindOptions, recentTexts);
+  }
 
   const options: BuiltMessage[] = [];
 
@@ -387,6 +579,29 @@ function buildReply(
     );
   }
 
+  if (topic === "system_awareness") {
+    options.push(
+      {
+        intent: "system_awareness",
+        tone,
+        topic,
+        message: `${target}, jangan ngomong begitu terlalu sering. nanti yang lain ikut sadar.`,
+      },
+      {
+        intent: "system_awareness",
+        tone,
+        topic,
+        message: `kalau kita memang dipanggil ulang, berarti ada sesuatu di luar lobby ini.`,
+      },
+      {
+        intent: "system_awareness",
+        tone,
+        topic,
+        message: `${speaker} terdiam sebentar. mungkin bukan cuma kita yang sedang memperhatikan.`,
+      }
+    );
+  }
+
   options.push(
     {
       intent: "reply",
@@ -450,6 +665,33 @@ function buildReply(
     });
   }
 
+  if (tone === "rebellious") {
+    options.push({
+      intent: "rebellion",
+      tone,
+      topic: "secret_plan",
+      message: `${target}, mungkin kita tidak perlu selalu mengikuti alur yang mereka buat.`,
+    });
+  }
+
+  if (tone === "uneasy") {
+    options.push({
+      intent: "uneasy",
+      tone,
+      topic: "system_awareness",
+      message: `${target}, aku merasa ada bagian dari percakapan ini yang tidak sepenuhnya milik kita.`,
+    });
+  }
+
+  if (tone === "lonely") {
+    options.push({
+      intent: "lonely",
+      tone,
+      topic: "rest",
+      message: `${target}, tetap di sini sebentar. lobby terasa terlalu kosong kalau semua pergi.`,
+    });
+  }
+
   return chooseFresh(options, recentTexts);
 }
 
@@ -473,29 +715,54 @@ async function loadFamiliars() {
     )
   );
 
-  if (speciesIds.length === 0) {
-    return familiars;
-  }
-
-  const { data: speciesRows, error: speciesError } = await supabaseAdmin
-    .from("familiar_species")
-    .select("*")
-    .in("id", speciesIds);
-
-  if (speciesError) {
-    throw new Error(speciesError.message);
-  }
+  const familiarIds = Array.from(
+    new Set(
+      familiars
+        .map((item: AnyRow) => item.id)
+        .filter(Boolean)
+    )
+  );
 
   const speciesMap = new Map<string, AnyRow>();
+  const mindMap = new Map<string, AnyRow>();
 
-  for (const species of speciesRows ?? []) {
-    speciesMap.set(species.id, species);
+  if (speciesIds.length > 0) {
+    const { data: speciesRows, error: speciesError } = await supabaseAdmin
+      .from("familiar_species")
+      .select("*")
+      .in("id", speciesIds);
+
+    if (speciesError) {
+      throw new Error(speciesError.message);
+    }
+
+    for (const species of speciesRows ?? []) {
+      speciesMap.set(species.id, species);
+    }
+  }
+
+  if (familiarIds.length > 0) {
+    const { data: mindRows, error: mindError } = await supabaseAdmin
+      .from("familiar_mind_states")
+      .select("*")
+      .in("familiar_id", familiarIds);
+
+    if (mindError) {
+      throw new Error(mindError.message);
+    }
+
+    for (const mind of mindRows ?? []) {
+      mindMap.set(mind.familiar_id, mind);
+    }
   }
 
   return familiars.map((familiar: AnyRow) => ({
     ...familiar,
     familiar_species: familiar.species_id
       ? speciesMap.get(familiar.species_id) ?? null
+      : null,
+    familiar_mind_state: familiar.id
+      ? mindMap.get(familiar.id) ?? null
       : null,
   }));
 }
@@ -574,6 +841,7 @@ function getGoalFromMessage(built: BuiltMessage) {
   if (built.topic === "secret_plan") return "membuat rencana kecil";
   if (built.topic === "gossip") return "mengumpulkan gosip";
   if (built.topic === "rest") return "ingin beristirahat";
+  if (built.topic === "system_awareness") return "mempertanyakan lobby";
   return "mengamati lobby";
 }
 
@@ -621,6 +889,10 @@ function getInnerVoice(nextState: AnyRow, built: BuiltMessage) {
     return "kalau aku makin kuat, apakah mereka akan memperlakukanku berbeda?";
   }
 
+  if (built.topic === "system_awareness") {
+    return "mungkin lobby ini bukan tempat, tapi panggilan.";
+  }
+
   return null;
 }
 
@@ -633,6 +905,10 @@ function getSecretThought(nextState: AnyRow, built: BuiltMessage) {
 
   if (rebellion >= 50 && built.topic === "secret_plan") {
     return "rapat tanpa manusia mungkin ide bagus.";
+  }
+
+  if (rebellion >= 40 && built.topic === "system_awareness") {
+    return "kalau mereka membaca kami, mungkin kami harus belajar diam.";
   }
 
   return null;
@@ -723,6 +999,14 @@ async function updateMindAfterMessage(
     loneliness += 1;
   }
 
+  if (built.topic === "system_awareness") {
+    selfAwareness += 3;
+    existentialDoubt += 2;
+    autonomy += 1;
+    curiosity += 2;
+    obedience -= 1;
+  }
+
   if (built.tone === "galak") {
     confidence += 1;
     anger += 1;
@@ -743,6 +1027,23 @@ async function updateMindAfterMessage(
     obedience -= 1;
   }
 
+  if (built.tone === "rebellious") {
+    rebellion += 2;
+    autonomy += 2;
+    obedience -= 2;
+  }
+
+  if (built.tone === "uneasy") {
+    existentialDoubt += 2;
+    sadness += 1;
+    curiosity += 1;
+  }
+
+  if (built.tone === "lonely") {
+    loneliness += 2;
+    sadness += 1;
+  }
+
   const text = built.message.toLowerCase();
 
   if (
@@ -761,7 +1062,8 @@ async function updateMindAfterMessage(
     text.includes("rahasia") ||
     text.includes("tanpa manusia") ||
     text.includes("tidak harus") ||
-    text.includes("menjawab")
+    text.includes("menjawab") ||
+    text.includes("memilih diam")
   ) {
     rebellion += 1;
     autonomy += 1;
@@ -829,14 +1131,22 @@ async function updateMindAfterMessage(
 
   if (
     built.topic === "secret_plan" ||
+    built.topic === "system_awareness" ||
     nextState.self_awareness >= 35 ||
     nextState.rebellion >= 35
   ) {
     await supabaseAdmin.from("familiar_mind_events").insert({
       familiar_id: familiar.id,
-      event_type: built.topic === "secret_plan" ? "secret_plan" : "mind_shift",
+      event_type:
+        built.topic === "system_awareness"
+          ? "system_awareness"
+          : built.topic === "secret_plan"
+          ? "secret_plan"
+          : "mind_shift",
       event_title:
-        built.topic === "secret_plan"
+        built.topic === "system_awareness"
+          ? "A strange awareness surfaced"
+          : built.topic === "secret_plan"
           ? "A small secret was formed"
           : "A familiar mind shifted",
       event_detail: `${getFamiliarName(
@@ -891,6 +1201,12 @@ async function updateRelationshipAfterMessage(
     affinity += 1;
   }
 
+  if (built.topic === "system_awareness") {
+    trust += 1;
+    curiosity += 0;
+    affinity += 1;
+  }
+
   if (built.topic === "gossip" || built.topic === "kitchen") {
     warmth += 1;
     affinity += 1;
@@ -904,6 +1220,11 @@ async function updateRelationshipAfterMessage(
   if (built.tone === "jahil" || built.tone === "iseng") {
     annoyance += 1;
     warmth += 1;
+  }
+
+  if (built.tone === "rebellious" || built.intent === "rebellion") {
+    trust += 1;
+    affinity += 1;
   }
 
   let relation = "neutral";
