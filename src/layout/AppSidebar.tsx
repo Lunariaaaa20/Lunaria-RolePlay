@@ -36,7 +36,7 @@ const guildMenu: NavItem[] = [
     href: "/profile",
     icon: <UserSealIcon />,
   },
-  {
+{
   name: "Moon Familiar",
   href: "/familiar",
   icon: <MoonSparkIcon />,
