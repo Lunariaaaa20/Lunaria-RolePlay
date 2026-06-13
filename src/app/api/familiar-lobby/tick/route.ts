@@ -161,25 +161,31 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
       intent: "gossip",
       tone,
       topic: "kitchen",
-      message: `${name} mencium aroma dari dapur Guild. ini mencurigakan. atau mungkin aku cuma lapar.`,
-    },
-    {
-      intent: "plan",
-      tone,
-      topic: "secret_plan",
-      message: `${name} melihat sekeliling lobby pelan. kalau ada rapat rahasia, aku mau ikut.`,
+      message: `eh, ada yang nyium aroma dari dapur nggak? atau aku aja yang mulai halu.`,
     },
     {
       intent: "casual",
       tone,
       topic: "gossip",
-      message: `${name} merasa lobby hari ini terlalu tenang. biasanya itu tanda sebelum ada drama kecil.`,
+      message: `kok lobby sepi banget. biasanya kalau sepi begini, bentar lagi ada yang bikin ulah.`,
+    },
+    {
+      intent: "plan",
+      tone,
+      topic: "secret_plan",
+      message: `aku punya ide. tapi aku butuh satu familiar yang cukup nekat buat setuju duluan.`,
     },
     {
       intent: "observe",
       tone,
       topic: "casual",
-      message: `${name} duduk sambil memperhatikan semua familiar yang lewat. ada yang aneh hari ini.`,
+      message: `${name} ngeliatin sudut lobby dari tadi. bukan takut, cuma curiga aja.`,
+    },
+    {
+      intent: "casual",
+      tone,
+      topic: "gossip",
+      message: `ada yang lihat owner-ku? aku cuma mau menatapnya sampai dia merasa bersalah.`,
     },
   ];
 
@@ -188,7 +194,7 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
       intent: "challenge",
       tone,
       topic: "training",
-      message: `${name} menatap familiar lain satu per satu. ada yang mau latihan atau semuanya cuma numpang lewat?`,
+      message: `ada yang mau latihan nggak? atau kalian semua cuma jago duduk manis?`,
     });
   }
 
@@ -197,7 +203,7 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
       intent: "plan",
       tone,
       topic: "secret_plan",
-      message: `${name} punya ide kecil. tidak berbahaya kok. mungkin cuma sedikit menyusahkan.`,
+      message: `aku punya rencana kecil. santai, paling cuma bikin satu orang panik.`,
     });
   }
 
@@ -206,7 +212,16 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
       intent: "complain",
       tone,
       topic: "rest",
-      message: `${name} menguap pelan. kalau ada yang bikin ribut, tolong ributnya agak jauh.`,
+      message: `aku mau tidur. kalau kalian mau drama, volumenya kecilin dikit.`,
+    });
+  }
+
+  if (tone === "sombong") {
+    options.push({
+      intent: "brag",
+      tone,
+      topic: "casual",
+      message: `aku baru masuk sebentar, lobby ini langsung kelihatan lebih mahal.`,
     });
   }
 
@@ -221,7 +236,7 @@ function buildReply(
   if (!context) {
     return buildStarter(row, recentTexts);
   }
- 
+
   const speaker = getFamiliarName(row);
   const target = context.familiar_name || "kamu";
   const topic = context.topic || inferTopic(context.message || "");
@@ -235,19 +250,25 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${target}, kamu ngomong soal dapur terlalu keras. sekarang semua orang tahu.`,
+        message: `${target}, jangan ngomong dapur keras-keras. nanti pintunya dikunci beneran.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `kalau itu eksplorasi, kenapa aku merasa kamu sudah siap bawa kantong kecil?`,
+        message: `kalau kita ke dapur, itu bukan nyuri. itu... inspeksi kualitas.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `${speaker} tidak menuduh siapa pun. tapi kalau roti hilang, aku punya daftar tersangka.`,
+        message: `aku ikut, tapi kalau ketahuan kamu yang lari duluan ya.`,
+      },
+      {
+        intent: "reply",
+        tone,
+        topic,
+        message: `tunggu. siapa yang bilang soal dapur duluan? aku cuma mau tahu siapa yang harus disalahin nanti.`,
       }
     );
   }
@@ -258,19 +279,25 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${target}, rapat rahasia itu bukan rahasia kalau kamu bilang di tengah lobby.`,
+        message: `${target}, rapat rahasia kok diumumin di lobby. hebat juga.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `aku ikut. tapi kalau manusia datang, aku pura-pura tidur.`,
+        message: `oke, aku ikut. tapi aturan pertama: jangan ajak manusia. mereka panik duluan.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `${speaker} merasa rencana ini akan gagal, tapi justru itu yang membuatnya menarik.`,
+        message: `rencana ini kedengarannya buruk. jadi kemungkinan besar menarik.`,
+      },
+      {
+        intent: "reply",
+        tone,
+        topic,
+        message: `${speaker} menoleh pelan. lanjut. aku belum bilang setuju, tapi aku juga belum pergi.`,
       }
     );
   }
@@ -281,7 +308,7 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${target}, jangan ngajak latihan kalau nanti baru kena debu saja sudah mundur.`,
+        message: `${target}, ngomongnya berani. nanti pas latihan jangan pura-pura sakit kaki.`,
       },
       {
         intent: "reply",
@@ -293,7 +320,13 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${speaker} menatap ${target}. aku mau lihat kamu serius atau cuma banyak gaya.`,
+        message: `aku mau lihat ini. biasanya yang paling keras ngajak latihan jatuh duluan.`,
+      },
+      {
+        intent: "reply",
+        tone,
+        topic,
+        message: `${speaker} mengangkat kepala. akhirnya ada yang ngomong sesuatu yang tidak membosankan.`,
       }
     );
   }
@@ -304,19 +337,25 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${target}, drama kecil biasanya mulai dari kalimat “aku cuma penasaran”.`,
+        message: `nah itu baru gosip. jangan berhenti di bagian menarik.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `kalau ada gosip, jangan setengah-setengah. itu tidak sopan untuk telinga kami.`,
+        message: `${target}, lanjut. telingaku sudah terlanjur kerja.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `${speaker} pura-pura tidak mendengar, tapi telinganya jelas bergerak.`,
+        message: `kalau cuma setengah cerita, itu bukan gosip. itu nyiksa pendengar.`,
+      },
+      {
+        intent: "reply",
+        tone,
+        topic,
+        message: `${speaker} pura-pura tidak peduli, tapi jelas makin mendekat.`,
       }
     );
   }
@@ -327,19 +366,19 @@ function buildReply(
         intent: "reply",
         tone,
         topic,
-        message: `${target}, tidur saja. kalau ada makanan jatuh, aku bangunkan.`,
+        message: `tidur aja. nanti kalau ada yang jatuh dari meja, aku bangunin.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `jangan tidur di tengah lobby. nanti ada yang mengira kamu karpet mahal.`,
+        message: `${target}, jangan tidur di tengah lobby. nanti ada yang kira kamu karpet mahal.`,
       },
       {
         intent: "reply",
         tone,
         topic,
-        message: `${speaker} melihat ${target} sebentar, lalu ikut menguap tanpa alasan jelas.`,
+        message: `aku juga mau tidur, tapi sekarang aku penasaran siapa yang bakal bikin masalah duluan.`,
       }
     );
   }
@@ -349,19 +388,25 @@ function buildReply(
       intent: "reply",
       tone,
       topic,
-      message: `${target}, itu terdengar seperti awal masalah kecil. aku suka.`,
+      message: `${target}, kamu ngomong gitu bikin aku curiga.`,
     },
     {
       intent: "reply",
       tone,
       topic,
-      message: `aku tidak bilang setuju, tapi aku juga tidak akan menghentikanmu.`,
+      message: `hmm... aku setuju setengah. setengahnya lagi aku tunggu sampai ada masalah.`,
     },
     {
       intent: "reply",
       tone,
       topic,
-      message: `${speaker} menatap ${target}. lanjutkan. aku ingin tahu ini akan jadi lucu atau kacau.`,
+      message: `oke, tapi kalau ini berakhir kacau, aku bilang dari awal cuma nonton.`,
+    },
+    {
+      intent: "reply",
+      tone,
+      topic,
+      message: `${speaker} menatap ${target}. kamu sadar itu terdengar seperti awal masalah, kan?`,
     }
   );
 
@@ -370,7 +415,7 @@ function buildReply(
       intent: "reply",
       tone,
       topic,
-      message: `${target}, bicaramu banyak. buktikan sedikit.`,
+      message: `${target}, langsung aja. terlalu banyak muter-muter.`,
     });
   }
 
@@ -379,7 +424,7 @@ function buildReply(
       intent: "reply",
       tone,
       topic,
-      message: `${target}, aku bisa bantu. tapi kalau gagal, namamu yang disebut duluan.`,
+      message: `aku bisa bantu, tapi namaku jangan dibawa kalau gagal.`,
     });
   }
 
@@ -397,7 +442,7 @@ function buildReply(
       intent: "reply",
       tone,
       topic,
-      message: `${target}, aku bisa memperbaiki rencana itu. tapi nanti semua orang tahu aku yang paling penting.`,
+      message: `aku bisa memperbaiki rencana itu. tapi nanti semua orang harus tahu aku yang paling penting.`,
     });
   }
 
@@ -584,10 +629,10 @@ async function tickLobby() {
     !lastMessage || lastMessageAge > 8 * 60 * 1000 || Math.random() < 0.18;
 
   const generatedCount =
-    familiars.length >= 3 ? pick([1, 1, 2]) : 1;
+    familiars.length >= 3 && Math.random() < 0.18 ? 2 : 1;
 
   const excludedIds = new Set<string>();
-  const insertRows = [];
+  const insertRows: AnyRow[] = [];
 
   let context: AnyRow | null = shouldStartNewTopic ? null : lastMessage;
 
@@ -595,12 +640,9 @@ async function tickLobby() {
     const speaker = chooseSpeaker(familiars, context, excludedIds);
     excludedIds.add(speaker.id);
 
-    const built =
-      context && !shouldStartNewTopic
-        ? buildReply(speaker, context, recentTexts)
-        : i === 0
-        ? buildStarter(speaker, recentTexts)
-        : buildReply(speaker, context, recentTexts);
+    const built = context
+      ? buildReply(speaker, context, recentTexts)
+      : buildStarter(speaker, recentTexts);
 
     const row = toInsertRow(speaker, built, context);
     insertRows.push(row);
