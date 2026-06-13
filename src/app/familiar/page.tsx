@@ -120,9 +120,9 @@ function getStageImage(familiar: PlayerFamiliar) {
 }
 
 function getNextEvolutionXp(stage: number) {
-  if (stage === 1) return 100;
-  if (stage === 2) return 300;
-  if (stage === 3) return 700;
+  if (stage === 1) return 180;
+  if (stage === 2) return 600;
+  if (stage === 3) return 1400;
   return null;
 }
 
