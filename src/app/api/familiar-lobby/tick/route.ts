@@ -215,9 +215,13 @@ function buildStarter(row: AnyRow, recentTexts: Set<string>): BuiltMessage {
 
 function buildReply(
   row: AnyRow,
-  context: AnyRow,
+  context: AnyRow | null,
   recentTexts: Set<string>
 ): BuiltMessage {
+  if (!context) {
+    return buildStarter(row, recentTexts);
+  }
+ 
   const speaker = getFamiliarName(row);
   const target = context.familiar_name || "kamu";
   const topic = context.topic || inferTopic(context.message || "");
