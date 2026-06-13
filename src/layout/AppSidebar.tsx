@@ -36,44 +36,6 @@ const guildMenu: NavItem[] = [
     href: "/profile",
     icon: <UserSealIcon />,
   },
-{
-  name: "Moon Familiar",
-  href: "/familiar",
-  icon: <MoonSparkIcon />,
-},
-  {
-  name: "Signal Admin",
-  href: "/familiar-encounter-admin",
-  icon: <MoonSparkIcon />,
-  adminOnly: true,
-},
-  {
-  name: "Player Guide",
-  href: "/player-guide",
-  icon: <UserSealIcon />,
-},
-  {
-  name: "Familiar Encounter",
-  href: "/familiar-encounter",
-  icon: <MoonSparkIcon />,
-},
-{
-  name: "Familiar Lobby",
-  href: "/familiar-lobby",
-  icon: <MoonSparkIcon />,
-},
-  {
-  name: "Familiar Grant",
-  href: "/familiar-grant",
-  icon: <MoonSparkIcon />,
-  adminOnly: true,
-},
-  {
-  name: "Familiar Manage",
-  href: "/familiar-manage",
-  icon: <MoonSparkIcon />,
-  adminOnly: true,
-},
   {
     name: "Throne Board",
     href: "/line-chart",
