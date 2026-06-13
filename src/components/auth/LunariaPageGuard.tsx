@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -20,11 +20,17 @@ const PUBLIC_ROUTES = [
   "/form-elements",
 ];
 
-const ADMIN_ONLY_ROUTES = [
-  "/basic-tables",
+const DISABLED_ROUTES = [
+  "/familiar",
+  "/familiar-lobby",
+  "/familiar-encounter",
   "/familiar-grant",
   "/familiar-manage",
   "/familiar-encounter-admin",
+];
+
+const ADMIN_ONLY_ROUTES = [
+  "/basic-tables",
 ];
 
 const PLAYER_ALLOWED_ROUTES = [
@@ -34,9 +40,6 @@ const PLAYER_ALLOWED_ROUTES = [
   "/calendar",
   "/line-chart",
   "/economy-archive",
-  "/familiar",
-  "/familiar-encounter",
-  "/familiar-lobby",
   "/player-guide",
   "/fortune-game",
 ];
@@ -61,6 +64,12 @@ function getStoredSession(): LunariaSession | null {
 
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+}
+
+function isDisabledRoute(pathname: string) {
+  return DISABLED_ROUTES.some((route) => {
+    return pathname === route || pathname.startsWith(`${route}/`);
+  });
 }
 
 function isAdminOnlyRoute(pathname: string) {
@@ -100,6 +109,17 @@ export default function LunariaPageGuard({
       setTimeout(() => {
         window.location.href = "/signin";
       }, 700);
+
+      return;
+    }
+
+    if (isDisabledRoute(pathname)) {
+      setStatus("blocked");
+      setMessage("This feature is currently unavailable.");
+
+      setTimeout(() => {
+        window.location.href = "/profile";
+      }, 800);
 
       return;
     }
