@@ -48,6 +48,12 @@ const guildMenu: NavItem[] = [
   adminOnly: true,
 },
   {
+  name: "Familiar Manage",
+  href: "/familiar-manage",
+  icon: <MoonSparkIcon />,
+  adminOnly: true,
+},
+  {
     name: "Throne Board",
     href: "/line-chart",
     icon: <MoonChartIcon />,
