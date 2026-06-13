@@ -122,7 +122,7 @@ export default function FamiliarLobbyPage() {
     const interval = window.setInterval(async () => {
       await runTick();
       await loadMessages(false);
-    }, 28000);
+    }, 16000);
 
     return () => {
       cancelled = true;
