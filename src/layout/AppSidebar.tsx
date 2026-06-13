@@ -48,6 +48,11 @@ const guildMenu: NavItem[] = [
   adminOnly: true,
 },
   {
+  name: "Player Guide",
+  href: "/player-guide",
+  icon: <UserSealIcon />,
+},
+  {
   name: "Familiar Grant",
   href: "/familiar-grant",
   icon: <MoonSparkIcon />,
