@@ -1201,11 +1201,11 @@ async function updateRelationshipAfterMessage(
     affinity += 1;
   }
 
-  if (built.topic === "system_awareness") {
-    trust += 1;
-    curiosity += 0;
-    affinity += 1;
-  }
+if (built.topic === "system_awareness") {
+  trust += 1;
+  affinity += 1;
+  respect += 1;
+}
 
   if (built.topic === "gossip" || built.topic === "kitchen") {
     warmth += 1;
