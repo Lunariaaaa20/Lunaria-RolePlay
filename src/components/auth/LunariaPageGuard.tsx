@@ -20,7 +20,12 @@ const PUBLIC_ROUTES = [
   "/form-elements",
 ];
 
-const ADMIN_ONLY_ROUTES = ["/basic-tables"];
+const ADMIN_ONLY_ROUTES = [
+  "/basic-tables",
+  "/familiar-grant",
+  "/familiar-manage",
+  "/familiar-encounter-admin",
+];
 
 const PLAYER_ALLOWED_ROUTES = [
   "/",
@@ -29,6 +34,10 @@ const PLAYER_ALLOWED_ROUTES = [
   "/calendar",
   "/line-chart",
   "/economy-archive",
+  "/familiar",
+  "/familiar-encounter",
+  "/player-guide",
+  "/fortune-game",
 ];
 
 function getStoredSession(): LunariaSession | null {
