@@ -97,7 +97,7 @@ export default function FamiliarLobbyPage() {
           setPulseText(json.reason || "The lobby is quiet for now.");
         }
       } else {
-        setPulseText("The familiar lobby failed to respond.");
+        setPulseText(json.error || "The familiar lobby failed to respond.");
       }
     } catch {
       setPulseText("The familiar lobby lost its signal.");
